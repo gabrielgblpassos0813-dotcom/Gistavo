@@ -120,6 +120,37 @@ class GANOHAPITester:
             return True
         return False
 
+    def test_create_order_with_pickup_time(self):
+        """Test creating a new order with pickup time"""
+        pickup_time = "14:30"  # 2:30 PM
+        order_data = {
+            "customer_name": f"Test Customer Pickup {datetime.now().strftime('%H%M%S')}",
+            "items": [
+                {
+                    "menu_item_id": "2",
+                    "name": "Frango, Mussarela, Tomate e Orégano",
+                    "price": 26.00,
+                    "quantity": 1
+                }
+            ],
+            "total": 26.00,
+            "pickup_time": pickup_time
+        }
+        
+        success, response = self.run_test("Create Order with Pickup Time", "POST", "orders", 200, data=order_data)
+        if success and 'id' in response:
+            # Verify pickup_time is in response
+            if response.get('pickup_time') == pickup_time:
+                print(f"   ✅ Order created with pickup time: {pickup_time}")
+                
+                # Store this order ID for pickup time verification test
+                self.pickup_order_id = response['id']
+                return True
+            else:
+                print(f"   ❌ Pickup time not set correctly. Expected: {pickup_time}, Got: {response.get('pickup_time')}")
+                return False
+        return False
+
     def test_get_orders(self):
         """Test getting all orders"""
         return self.run_test("Get All Orders", "GET", "orders", 200)
