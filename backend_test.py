@@ -156,21 +156,26 @@ class GANOHAPITester:
         """Test getting all orders"""
         return self.run_test("Get All Orders", "GET", "orders", 200)
 
-    def test_get_order_by_id(self):
-        """Test getting specific order by ID"""
-        if not self.created_order_id:
-            print("   ⚠️  Skipping - No order ID available")
+    def test_get_pickup_order_by_id(self):
+        """Test getting order with pickup time by ID"""
+        if not hasattr(self, 'pickup_order_id') or not self.pickup_order_id:
+            print("   ⚠️  Skipping - No pickup order ID available")
             return True
         
         success, response = self.run_test(
-            f"Get Order by ID: {self.created_order_id}", 
+            f"Get Pickup Order by ID: {self.pickup_order_id}", 
             "GET", 
-            f"orders/{self.created_order_id}", 
+            f"orders/{self.pickup_order_id}", 
             200
         )
-        if success and response.get('id') == self.created_order_id:
-            print(f"   ✅ Order retrieved successfully")
-            return True
+        if success and response.get('id') == self.pickup_order_id:
+            pickup_time = response.get('pickup_time')
+            if pickup_time:
+                print(f"   ✅ Pickup order retrieved with pickup_time: {pickup_time}")
+                return True
+            else:
+                print(f"   ❌ Pickup time missing from retrieved order")
+                return False
         return False
 
     def test_update_order_status(self):
