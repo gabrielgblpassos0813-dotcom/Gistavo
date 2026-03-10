@@ -112,6 +112,12 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
             <span>{minutesAgo} min</span>
           </div>
         </div>
+        {order.pickup_time && (
+          <div className="mt-2 flex items-center gap-1 text-sm font-medium text-brand-600">
+            <Clock className="h-4 w-4" />
+            <span>Retirada: {order.pickup_time}</span>
+          </div>
+        )}
       </div>
 
       <div className="p-4">
