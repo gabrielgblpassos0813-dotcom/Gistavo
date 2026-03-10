@@ -128,9 +128,9 @@ MENU_DATA = [
     {"id": "44", "name": "Vitamina com Duas Frutas", "description": "Vitamina cremosa com duas frutas de sua escolha", "price": 18.00, "category": "Sucos e Vitaminas", "image_url": "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=400&q=80", "prep_time": 15},
     
     # Saladas
-    {"id": "45", "name": "Salada de Frutas", "description": "Mix de frutas frescas do dia", "price": 14.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400", "prep_time": 15},
-    {"id": "46", "name": "Salada Simples", "description": "Alface, tomate e cenoura - acompanhamento perfeito", "price": 7.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400", "prep_time": 15},
-    {"id": "47", "name": "Salada Ganoh", "description": "Alface, tomate, cenoura, queijo branco, frango ou atum, molho da casa e torradinhas", "price": 19.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400", "prep_time": 15},
+    {"id": "45", "name": "Salada de Frutas", "description": "Mix de frutas frescas do dia", "price": 14.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1564093497595-593b96d80180?w=400&q=80", "prep_time": 15},
+    {"id": "46", "name": "Salada Simples", "description": "Alface, tomate e cenoura - acompanhamento perfeito", "price": 7.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80", "prep_time": 15},
+    {"id": "47", "name": "Salada Ganoh", "description": "Alface, tomate, cenoura, queijo branco, frango ou atum, molho da casa e torradinhas", "price": 19.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80", "prep_time": 15},
     
     # Bebidas Quentes
     {"id": "48", "name": "Café Pequeno", "description": "Café coado tradicional", "price": 4.50, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
