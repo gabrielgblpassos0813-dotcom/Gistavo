@@ -213,7 +213,8 @@ async def create_order(order_input: OrderCreate):
         customer_name=order_input.customer_name,
         items=order_input.items,
         total=order_input.total,
-        prep_time=15
+        prep_time=15,
+        pickup_time=order_input.pickup_time
     )
     
     doc = order.model_dump()
