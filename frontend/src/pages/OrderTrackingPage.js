@@ -176,17 +176,31 @@ export const OrderTrackingPage = () => {
 
           {/* Customer Info */}
           <div className="bg-secondary/50 rounded-xl p-4 mb-4">
-            <p className="text-sm text-muted-foreground">Nome</p>
-            <p className="text-lg font-semibold text-foreground" data-testid="customer-name">
-              {order.customer_name}
-            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Nome</p>
+                <p className="text-lg font-semibold text-foreground" data-testid="customer-name">
+                  {order.customer_name}
+                </p>
+              </div>
+              {order.pickup_time && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Retirada</p>
+                  <p className="text-lg font-semibold text-brand-600" data-testid="pickup-time">
+                    {order.pickup_time}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Estimated Time */}
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>Tempo estimado: ~{order.prep_time} min</span>
-          </div>
+          {!order.pickup_time && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span>Tempo estimado: ~{order.prep_time} min</span>
+            </div>
+          )}
         </div>
 
         {/* Order Details */}
