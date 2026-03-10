@@ -92,13 +92,13 @@ MENU_DATA = [
     {"id": "16", "name": "Salgado", "description": "Salgado assado do dia", "price": 9.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&q=80", "prep_time": 15},
     
     # Toasts
-    {"id": "17", "name": "Pão com Ovos", "description": "Pão integral, requeijão, ovos, mussarela e tomate", "price": 15.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "18", "name": "Queijo Quente", "description": "Pão integral, mussarela, orégano e tomate", "price": 14.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "19", "name": "Peito de Peru", "description": "Requeijão, peito de peru, mussarela, tomate e orégano", "price": 15.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "20", "name": "Queijo Branco", "description": "Requeijão, queijo branco, tomate e orégano", "price": 16.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "21", "name": "Queijo Branco e Peito de Peru", "description": "Requeijão, peito de peru, queijo branco, tomate e orégano", "price": 17.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "22", "name": "Proteico Frango", "description": "Requeijão, frango, mussarela, tomate e orégano", "price": 18.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
-    {"id": "23", "name": "Proteico Atum", "description": "Requeijão, atum, mussarela, tomate e orégano", "price": 19.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
+    {"id": "17", "name": "Pão com Ovos", "description": "Pão integral, requeijão, ovos, mussarela e tomate", "price": 15.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=80", "prep_time": 15},
+    {"id": "18", "name": "Queijo Quente", "description": "Pão integral, mussarela, orégano e tomate", "price": 14.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&q=80", "prep_time": 15},
+    {"id": "19", "name": "Peito de Peru", "description": "Requeijão, peito de peru, mussarela, tomate e orégano", "price": 15.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=80", "prep_time": 15},
+    {"id": "20", "name": "Queijo Branco", "description": "Requeijão, queijo branco, tomate e orégano", "price": 16.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&q=80", "prep_time": 15},
+    {"id": "21", "name": "Queijo Branco e Peito de Peru", "description": "Requeijão, peito de peru, queijo branco, tomate e orégano", "price": 17.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=80", "prep_time": 15},
+    {"id": "22", "name": "Proteico Frango", "description": "Requeijão, frango, mussarela, tomate e orégano", "price": 18.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&q=80", "prep_time": 15},
+    {"id": "23", "name": "Proteico Atum", "description": "Requeijão, atum, mussarela, tomate e orégano", "price": 19.00, "category": "Toasts", "image_url": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=400&q=80", "prep_time": 15},
     
     # Shakes Proteicos
     {"id": "24", "name": "Whey Morango com Água e Banana", "description": "Shake de whey sabor morango com água e banana", "price": 19.00, "category": "Shakes Proteicos", "image_url": "https://images.unsplash.com/photo-1552833266-62dedbacbc31?w=400", "prep_time": 15},
