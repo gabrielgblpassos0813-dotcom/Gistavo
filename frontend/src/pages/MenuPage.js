@@ -88,13 +88,14 @@ export const MenuPage = () => {
     setShowCheckout(true);
   };
 
-  const handleSubmitOrder = async (customerName) => {
+  const handleSubmitOrder = async (customerName, pickupTime) => {
     setIsSubmitting(true);
     try {
       const orderData = {
         customer_name: customerName,
         items: items,
-        total: total
+        total: total,
+        pickup_time: pickupTime
       };
 
       const response = await axios.post(`${API}/orders`, orderData);
