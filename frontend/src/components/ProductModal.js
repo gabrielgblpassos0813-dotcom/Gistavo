@@ -79,31 +79,24 @@ export const ProductModal = ({ item, isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0">
-        {/* Close Button */}
-        <button
-          onClick={handleClose}
-          className="absolute right-3 top-3 z-10 h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-colors"
-          data-testid="close-modal"
-        >
-          <X className="h-4 w-4 text-gray-600" />
-        </button>
-
-        {/* Product Image - Full width, no overlay */}
-        <div className="w-full h-48 sm:h-56 bg-secondary overflow-hidden">
-          <img
-            src={item.image_url}
-            alt={item.name}
-            className="w-full h-full object-cover"
-          />
+        {/* Header with close button */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-heading text-xl font-bold text-foreground">
+            {item.name}
+          </h2>
+          <button
+            onClick={handleClose}
+            className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+            data-testid="close-modal"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
 
         {/* Content Section */}
         <div className="p-5">
           {/* Product Info */}
           <div className="mb-4">
-            <h2 className="font-heading text-xl font-bold text-foreground mb-1">
-              {item.name}
-            </h2>
             <p className="text-sm text-muted-foreground mb-3">
               {item.description}
             </p>
