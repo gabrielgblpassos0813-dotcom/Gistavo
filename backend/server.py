@@ -133,13 +133,13 @@ MENU_DATA = [
     {"id": "47", "name": "Salada Ganoh", "description": "Alface, tomate, cenoura, queijo branco, frango ou atum, molho da casa e torradinhas", "price": 19.00, "category": "Saladas", "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80", "prep_time": 15},
     
     # Bebidas Quentes
-    {"id": "48", "name": "Café Pequeno", "description": "Café coado tradicional", "price": 4.50, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "49", "name": "Café Grande", "description": "Café coado em porção generosa", "price": 6.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "50", "name": "Café com Leite", "description": "Café coado com leite vaporizado", "price": 7.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "51", "name": "Expresso", "description": "Café expresso encorpado", "price": 8.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "52", "name": "Chá", "description": "Chá quente - consulte sabores disponíveis", "price": 6.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "53", "name": "Capuccino / Mocaccino", "description": "Bebida cremosa com espuma de leite", "price": 9.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
-    {"id": "54", "name": "Chocolate Quente", "description": "Chocolate cremoso e reconfortante", "price": 9.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", "prep_time": 15},
+    {"id": "48", "name": "Café Pequeno", "description": "Café coado tradicional", "price": 4.50, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80", "prep_time": 15},
+    {"id": "49", "name": "Café Grande", "description": "Café coado em porção generosa", "price": 6.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=80", "prep_time": 15},
+    {"id": "50", "name": "Café com Leite", "description": "Café coado com leite vaporizado", "price": 7.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80", "prep_time": 15},
+    {"id": "51", "name": "Expresso", "description": "Café expresso encorpado", "price": 8.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&q=80", "prep_time": 15},
+    {"id": "52", "name": "Chá", "description": "Chá quente - consulte sabores disponíveis", "price": 6.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&q=80", "prep_time": 15},
+    {"id": "53", "name": "Capuccino / Mocaccino", "description": "Bebida cremosa com espuma de leite", "price": 9.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&q=80", "prep_time": 15},
+    {"id": "54", "name": "Chocolate Quente", "description": "Chocolate cremoso e reconfortante", "price": 9.00, "category": "Bebidas Quentes", "image_url": "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400&q=80", "prep_time": 15},
     
     # Bebidas Geladas
     {"id": "55", "name": "Água Pequena", "description": "Água mineral 300ml", "price": 5.00, "category": "Bebidas Geladas", "image_url": "https://images.unsplash.com/photo-1560023907-5f339617ea55?w=400", "prep_time": 15},
