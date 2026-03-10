@@ -12,51 +12,41 @@ export const ProductCard = ({ item, onClick }) => {
 
   return (
     <div 
-      className="bg-white rounded-xl border border-border/50 overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer"
+      className="bg-white rounded-xl border border-border/50 p-4 hover:shadow-md hover:border-brand-200 transition-all duration-200 cursor-pointer group"
       data-testid={`product-card-${item.id}`}
       onClick={onClick}
     >
-      <div className="aspect-[4/3] overflow-hidden bg-secondary">
-        <img
-          src={item.image_url}
-          alt={item.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
-        />
-      </div>
-      
-      <div className="p-4">
-        <h3 className="font-semibold text-foreground line-clamp-1 mb-1">
-          {item.name}
-        </h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[40px]">
-          {item.description}
-        </p>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xl font-bold text-brand-600">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-foreground mb-1 group-hover:text-brand-700 transition-colors">
+            {item.name}
+          </h3>
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+            {item.description}
+          </p>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold text-brand-600">
               {formatPrice(item.price)}
-            </p>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+            </span>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>~{item.prep_time} min</span>
             </div>
           </div>
-          
-          <Button
-            size="icon"
-            className="h-10 w-10 rounded-full bg-brand-600 hover:bg-brand-700 shadow-md"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
-            data-testid={`add-to-cart-${item.id}`}
-            aria-label={`Adicionar ${item.name} ao carrinho`}
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
         </div>
+        
+        <Button
+          size="icon"
+          className="h-9 w-9 rounded-full bg-brand-600 hover:bg-brand-700 shadow-sm shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          data-testid={`add-to-cart-${item.id}`}
+          aria-label={`Adicionar ${item.name} ao carrinho`}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
