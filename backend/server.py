@@ -157,20 +157,20 @@ MENU_DATA = [
     {"id": "67", "name": "Coca-Cola Lata", "description": "Coca-Cola 350ml", "price": 6.60, "category": "Bebidas Geladas", "image_url": "https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400&q=80", "prep_time": 15},
     
     # Suplementos
-    {"id": "68", "name": "Creatina (1 dose)", "description": "Dose de creatina monohidratada", "price": 8.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400", "prep_time": 15},
-    {"id": "69", "name": "Pré Treino (1 dose)", "description": "Dose de pré-treino para energia", "price": 9.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400", "prep_time": 15},
-    {"id": "70", "name": "Dose de Whey (2 scoops)", "description": "Proteína whey isolada", "price": 13.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400", "prep_time": 15},
-    {"id": "71", "name": "Carb Up", "description": "Carboidrato de rápida absorção", "price": 9.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400", "prep_time": 15},
+    {"id": "68", "name": "Creatina (1 dose)", "description": "Dose de creatina monohidratada", "price": 8.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&q=80", "prep_time": 15},
+    {"id": "69", "name": "Pré Treino (1 dose)", "description": "Dose de pré-treino para energia", "price": 9.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&q=80", "prep_time": 15},
+    {"id": "70", "name": "Dose de Whey (2 scoops)", "description": "Proteína whey isolada", "price": 13.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&q=80", "prep_time": 15},
+    {"id": "71", "name": "Carb Up", "description": "Carboidrato de rápida absorção", "price": 9.00, "category": "Suplementos", "image_url": "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&q=80", "prep_time": 15},
     
     # Adicionais
-    {"id": "72", "name": "Ovos (adicional)", "description": "Porção extra de ovos", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "73", "name": "Atum (adicional)", "description": "Porção extra de atum", "price": 7.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "74", "name": "Queijo Branco (adicional)", "description": "Porção extra de queijo branco", "price": 8.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "75", "name": "Mussarela (adicional)", "description": "Porção extra de mussarela", "price": 3.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "76", "name": "Frango (adicional)", "description": "Porção extra de frango desfiado", "price": 7.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "77", "name": "Mel (adicional)", "description": "Porção extra de mel", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "78", "name": "Granola (adicional)", "description": "Porção extra de granola", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "79", "name": "Nutella (adicional)", "description": "Porção extra de Nutella", "price": 5.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
+    {"id": "72", "name": "Ovos (adicional)", "description": "Porção extra de ovos", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "73", "name": "Atum (adicional)", "description": "Porção extra de atum", "price": 7.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "74", "name": "Queijo Branco (adicional)", "description": "Porção extra de queijo branco", "price": 8.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "75", "name": "Mussarela (adicional)", "description": "Porção extra de mussarela", "price": 3.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "76", "name": "Frango (adicional)", "description": "Porção extra de frango desfiado", "price": 7.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "77", "name": "Mel (adicional)", "description": "Porção extra de mel", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "78", "name": "Granola (adicional)", "description": "Porção extra de granola", "price": 3.50, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
+    {"id": "79", "name": "Nutella (adicional)", "description": "Porção extra de Nutella", "price": 5.00, "category": "Adicionais", "image_url": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", "prep_time": 15},
 ]
 
 CATEGORIES = [
