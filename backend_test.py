@@ -267,8 +267,10 @@ def main():
         tester.test_get_categories,
         tester.test_get_menu_by_category,
         tester.test_create_order,
+        tester.test_create_order_with_pickup_time,
         tester.test_get_orders,
         tester.test_get_order_by_id,
+        tester.test_get_pickup_order_by_id,
         tester.test_update_order_status,
         tester.test_kitchen_stats,
         tester.test_delete_order
