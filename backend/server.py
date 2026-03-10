@@ -82,14 +82,14 @@ MENU_DATA = [
     {"id": "8", "name": "Especial", "description": "Frango, mussarela, peito de peru, tomate e orégano - nossa combinação mais completa", "price": 27.50, "category": "Omeletes, Tapiocas e Crepiocas", "image_url": "https://images.unsplash.com/photo-1636044991510-ca767084a030?w=400&q=80", "prep_time": 15},
     
     # Brunchs
-    {"id": "9", "name": "Saudável", "description": "3 ovos mexidos, pão integral, café, fruta (mamão ou banana), aveia e mel", "price": 21.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "10", "name": "Café Egg", "description": "2 ovos mexidos, café pequeno e pão integral", "price": 19.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "11", "name": "Mineirinho", "description": "2 ovos fritos, queijo minas, duas fatias de pão integral e café com leite", "price": 23.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "12", "name": "Honey", "description": "2 ovos mexidos, banana, granola e mel", "price": 18.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "13", "name": "Banana Bliss", "description": "Banana, aveia, canela e mel", "price": 10.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "14", "name": "Banana Power", "description": "Banana, proteína, aveia, canela e mel", "price": 15.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400", "prep_time": 15},
-    {"id": "15", "name": "Pão de Queijo", "description": "Tradicional pão de queijo mineiro quentinho", "price": 8.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
-    {"id": "16", "name": "Salgado", "description": "Salgado assado do dia", "price": 9.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1598142982901-df6cec090cef?w=400", "prep_time": 15},
+    {"id": "9", "name": "Saudável", "description": "3 ovos mexidos, pão integral, café, fruta (mamão ou banana), aveia e mel", "price": 21.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400&q=80", "prep_time": 15},
+    {"id": "10", "name": "Café Egg", "description": "2 ovos mexidos, café pequeno e pão integral", "price": 19.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80", "prep_time": 15},
+    {"id": "11", "name": "Mineirinho", "description": "2 ovos fritos, queijo minas, duas fatias de pão integral e café com leite", "price": 23.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400&q=80", "prep_time": 15},
+    {"id": "12", "name": "Honey", "description": "2 ovos mexidos, banana, granola e mel", "price": 18.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80", "prep_time": 15},
+    {"id": "13", "name": "Banana Bliss", "description": "Banana, aveia, canela e mel", "price": 10.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1571748982800-fa51082c2224?w=400&q=80", "prep_time": 15},
+    {"id": "14", "name": "Banana Power", "description": "Banana, proteína, aveia, canela e mel", "price": 15.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1571748982800-fa51082c2224?w=400&q=80", "prep_time": 15},
+    {"id": "15", "name": "Pão de Queijo", "description": "Tradicional pão de queijo mineiro quentinho", "price": 8.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1598142982903-df63877d3b93?w=400&q=80", "prep_time": 15},
+    {"id": "16", "name": "Salgado", "description": "Salgado assado do dia", "price": 9.00, "category": "Brunchs", "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&q=80", "prep_time": 15},
     
     # Toasts
     {"id": "17", "name": "Pão com Ovos", "description": "Pão integral, requeijão, ovos, mussarela e tomate", "price": 15.00, "category": "Toasts", "image_url": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg?w=400", "prep_time": 15},
