@@ -111,11 +111,11 @@ MENU_DATA = [
     {"id": "31", "name": "Whey Baunilha, Açaí, Morango e Banana", "description": "Shake especial com açaí, morango e banana", "price": 26.00, "category": "Shakes Proteicos", "image_url": "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400&q=80", "prep_time": 15},
     
     # Açaí
-    {"id": "32", "name": "Açaí Batido com Água", "description": "Açaí puro batido com água", "price": 16.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?w=400", "prep_time": 15},
-    {"id": "33", "name": "Açaí Batido com Leite", "description": "Açaí cremoso batido com leite", "price": 18.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?w=400", "prep_time": 15},
-    {"id": "34", "name": "Açaí Batido com Laranja", "description": "Açaí refrescante batido com suco de laranja", "price": 19.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?w=400", "prep_time": 15},
-    {"id": "35", "name": "Açaí Batido com Leite, Banana e Morango", "description": "Açaí cremoso com leite, banana e morango", "price": 21.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?w=400", "prep_time": 15},
-    {"id": "36", "name": "Açaí na Tigela 500ml", "description": "1 fruta + 3 adicionais (aveia, mel, granola, leite em pó ou leite condensado)", "price": 22.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?w=400", "prep_time": 15},
+    {"id": "32", "name": "Açaí Batido com Água", "description": "Açaí puro batido com água", "price": 16.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&q=80", "prep_time": 15},
+    {"id": "33", "name": "Açaí Batido com Leite", "description": "Açaí cremoso batido com leite", "price": 18.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&q=80", "prep_time": 15},
+    {"id": "34", "name": "Açaí Batido com Laranja", "description": "Açaí refrescante batido com suco de laranja", "price": 19.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&q=80", "prep_time": 15},
+    {"id": "35", "name": "Açaí Batido com Leite, Banana e Morango", "description": "Açaí cremoso com leite, banana e morango", "price": 21.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&q=80", "prep_time": 15},
+    {"id": "36", "name": "Açaí na Tigela 500ml", "description": "1 fruta + 3 adicionais (aveia, mel, granola, leite em pó ou leite condensado)", "price": 22.00, "category": "Açaí", "image_url": "https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&q=80", "prep_time": 15},
     
     # Sucos e Vitaminas
     {"id": "37", "name": "Suco Natural de Laranja", "description": "Suco de laranja 100% natural", "price": 15.00, "category": "Sucos e Vitaminas", "image_url": "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400", "prep_time": 15},
