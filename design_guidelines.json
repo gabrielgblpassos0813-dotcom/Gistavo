@@ -1,0 +1,161 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "GANOH Café Bistrô",
+      "tone": "Organic, Welcoming, Efficient, Clean",
+      "archetype": "Organic & Earthy",
+      "theme_preference": "light"
+    },
+    "typography": {
+      "font_family": {
+        "headings": "\"Playfair Display\", serif",
+        "body": "\"Manrope\", sans-serif",
+        "mono": "\"JetBrains Mono\", monospace"
+      },
+      "imports": [
+        "https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+      ],
+      "scale": {
+        "h1": "text-4xl md:text-5xl font-bold tracking-tight font-heading",
+        "h2": "text-3xl md:text-4xl font-semibold tracking-tight font-heading",
+        "h3": "text-2xl font-semibold font-heading",
+        "body_lg": "text-lg leading-relaxed font-body",
+        "body_base": "text-base leading-relaxed font-body",
+        "caption": "text-sm text-muted-foreground font-body"
+      }
+    },
+    "colors": {
+      "palette": {
+        "primary": {
+          "hex": "#7CB342",
+          "hsl": "89 47% 48%",
+          "usage": "Main actions, active states, price tags, success indicators"
+        },
+        "secondary": {
+          "hex": "#F1F8E9",
+          "hsl": "88 50% 96%",
+          "usage": "Backgrounds for active items, light accents"
+        },
+        "background": {
+          "hex": "#FFFFFF",
+          "hsl": "0 0% 100%",
+          "usage": "Main page background"
+        },
+        "surface": {
+          "hex": "#FAFAFA",
+          "hsl": "0 0% 98%",
+          "usage": "Cards, secondary sections"
+        },
+        "text": {
+          "primary": "#1A1A1A",
+          "secondary": "#525252",
+          "muted": "#A3A3A3"
+        },
+        "status": {
+          "preparing": "#F59E0B",
+          "ready": "#7CB342",
+          "pending": "#71717A"
+        }
+      },
+      "tailwind_config_extension": {
+        "colors": {
+          "brand": {
+            "DEFAULT": "#7CB342",
+            "50": "#F1F8E9",
+            "100": "#DCEDC8",
+            "200": "#C5E1A5",
+            "300": "#AED581",
+            "400": "#9CCC65",
+            "500": "#8BC34A",
+            "600": "#7CB342",
+            "700": "#689F38",
+            "800": "#558B2F",
+            "900": "#33691E"
+          }
+        },
+        "fontFamily": {
+          "heading": ["Playfair Display", "serif"],
+          "body": ["Manrope", "sans-serif"]
+        }
+      }
+    },
+    "spacing": {
+      "container_padding": "p-4 md:p-6 lg:p-8",
+      "section_gap": "gap-8 md:gap-12",
+      "item_gap": "gap-4"
+    },
+    "visual_enhancers": {
+      "radius": "rounded-xl",
+      "shadows": {
+        "card": "shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+        "hover": "shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+      },
+      "glassmorphism": "bg-white/80 backdrop-blur-md border border-white/20",
+      "borders": "border border-border/40"
+    }
+  },
+  "assets": {
+    "logo_url": "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png",
+    "category_images": {
+      "Omeletes": "https://images.unsplash.com/photo-1587334207810-4915c4e40c67?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Tapiocas": "https://images.unsplash.com/photo-1684893265739-a88b30c33e92?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Brunchs": "https://images.unsplash.com/photo-1761027101486-d0403a229f88?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Toasts": "https://images.pexels.com/photos/7937462/pexels-photo-7937462.jpeg",
+      "Shakes Proteicos": "https://images.unsplash.com/photo-1552833266-62dedbacbc31?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Açaí": "https://images.unsplash.com/photo-1602234382521-610b2abf9029?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Sucos e Vitaminas": "https://images.unsplash.com/photo-1641659735894-45046caad624?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Saladas": "https://images.unsplash.com/photo-1758721218560-aec50748d450?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Bebidas Quentes": "https://images.unsplash.com/photo-1703013132195-691ce55017c0?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Bebidas Geladas": "https://images.unsplash.com/photo-1743584637392-75faeaae66c1?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "Suplementos": "https://images.unsplash.com/photo-1693996045899-7cf0ac0229c7?crop=entropy&cs=srgb&fm=jpg&q=85"
+    }
+  },
+  "components": {
+    "ProductCard": {
+      "description": "Clean card with image on top (or left on desktop), title, description truncated, price prominent, and 'Add' button.",
+      "style": "bg-white rounded-xl border border-border/50 overflow-hidden hover:shadow-md transition-all duration-300",
+      "image_style": "aspect-[4/3] object-cover w-full"
+    },
+    "CategoryNav": {
+      "description": "Horizontal scrollable list of pills or small cards.",
+      "style": "flex gap-3 overflow-x-auto pb-4 scrollbar-hide",
+      "item_style": "whitespace-nowrap px-4 py-2 rounded-full border transition-colors data-[active=true]:bg-brand-600 data-[active=true]:text-white data-[active=true]:border-brand-600 hover:bg-brand-50"
+    },
+    "CartDrawer": {
+      "description": "Slide-over sheet from right.",
+      "usage": "Use Shadcn Sheet component. Show total price and 'Finalize' button fixed at bottom."
+    },
+    "KitchenTicket": {
+      "description": "Card for kitchen display.",
+      "style": "bg-white border-l-4 border-l-brand-500 p-4 shadow-sm",
+      "elements": "Order ID, Customer Name, Time Elapsed, List of Items, 'Done' Button"
+    }
+  },
+  "layouts": {
+    "ClientMenu": {
+      "structure": "Sticky Header (Logo + Cart) -> Hero/Welcome -> Category Nav (Sticky) -> Product Grid -> Footer",
+      "grid": "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    },
+    "KitchenAdmin": {
+      "structure": "Header (Stats) -> Kanban Board (Pending / Preparing / Ready)",
+      "grid": "grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-100px)]"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. UPDATE TAILWIND CONFIG: Add the 'brand' colors and 'heading'/'body' font families defined in 'colors.tailwind_config_extension'.",
+    "2. IMPORT FONTS: Add the Google Fonts import to 'index.css'.",
+    "3. GLOBAL STYLES: Set 'body' to use 'font-body' and 'text-brand-900' (dark green/black).",
+    "4. DATA MOCKING: Create a robust mock data file for the menu items using the categories and images provided.",
+    "5. STATE MANAGEMENT: Use a simple React Context for the Cart and Order Status.",
+    "6. KITCHEN VIEW: This is a separate route (/kitchen). It needs to auto-refresh or poll for new orders (mock this with a timer if needed).",
+    "7. ACCESSIBILITY: Ensure all images have alt text and buttons have aria-labels.",
+    "8. MOBILE FIRST: Test layouts on 375px width first. The category nav must scroll smoothly.",
+    "9. NO AUTH: For the client side, just ask for a name before checkout. No login required."
+  ],
+  "universal_guidelines": [
+    "Avoid generic 'Bootstrap' looks. Use the custom border radius and generous padding.",
+    "Use the 'brand' color (#7CB342) for primary actions, but don't overuse it. White space is key.",
+    "Micro-interactions: Add hover states to product cards and category pills.",
+    "Images are critical. Use 'object-cover' to ensure they look good in their containers."
+  ]
+}
