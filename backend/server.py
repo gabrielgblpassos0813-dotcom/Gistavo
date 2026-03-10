@@ -58,6 +58,7 @@ class Order(BaseModel):
     total: float
     status: OrderStatus = OrderStatus.RECEIVED
     prep_time: int = 15
+    pickup_time: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -65,6 +66,7 @@ class OrderCreate(BaseModel):
     customer_name: str
     items: List[OrderItem]
     total: float
+    pickup_time: Optional[str] = None
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
