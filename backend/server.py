@@ -550,20 +550,57 @@ async def get_today_cash(store: StoreLocation):
         "created_at": {"$gte": today.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
+    # Total by payment method
     by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
     total = 0
+    
+    # By shift (06:00-14:00 and 14:00-22:00)
+    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0}}
+    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0}}
     
     for order in orders:
         payment = order.get("payment_method", "cash")
         amount = order.get("total", 0)
         by_payment[payment] = by_payment.get(payment, 0) + amount
         total += amount
+        
+        # Determine shift based on order time
+        created_at = order.get("created_at", "")
+        try:
+            if isinstance(created_at, str):
+                order_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            else:
+                order_time = created_at
+            
+            hour = order_time.hour
+            if 6 <= hour < 14:
+                shift_morning["total"] += amount
+                shift_morning["count"] += 1
+                shift_morning["by_payment"][payment] += amount
+            else:
+                shift_afternoon["total"] += amount
+                shift_afternoon["count"] += 1
+                shift_afternoon["by_payment"][payment] += amount
+        except:
+            shift_afternoon["total"] += amount
+            shift_afternoon["count"] += 1
+            shift_afternoon["by_payment"][payment] += amount
     
     return {
         "date": today.strftime("%Y-%m-%d"),
         "total": total,
         "by_payment_method": by_payment,
-        "order_count": len(orders)
+        "order_count": len(orders),
+        "shifts": {
+            "morning": {
+                "label": "06:00 - 14:00",
+                **shift_morning
+            },
+            "afternoon": {
+                "label": "14:00 - 22:00",
+                **shift_afternoon
+            }
+        }
     }
 
 # ==================== GESTOR ROUTES (Protected) ====================
