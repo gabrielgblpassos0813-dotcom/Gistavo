@@ -69,201 +69,269 @@ class GANOHAPITester:
         """Test API root endpoint"""
         return self.run_test("API Root", "GET", "", 200)
 
-    def test_get_menu(self):
-        """Test getting full menu"""
-        success, response = self.run_test("Get Full Menu", "GET", "menu", 200)
-        if success:
-            # Validate response structure
-            if 'items' in response and 'categories' in response:
-                print(f"   ✅ Menu has {len(response['items'])} items and {len(response['categories'])} categories")
+    def test_get_stores(self):
+        """Test getting stores list"""
+        success, response = self.run_test("Get Stores", "GET", "stores", 200)
+        if success and 'stores' in response:
+            stores = response['stores']
+            if 'runner' in stores and 'gym-londres' in stores:
+                print(f"   ✅ Found both stores: Runner and GYM Londres")
                 return True
             else:
-                print(f"   ❌ Invalid menu structure")
+                print(f"   ❌ Missing required stores")
                 return False
         return False
 
-    def test_get_categories(self):
-        """Test getting categories"""
-        success, response = self.run_test("Get Categories", "GET", "categories", 200)
-        if success and 'categories' in response:
-            print(f"   ✅ Found {len(response['categories'])} categories")
+    def test_get_menu_runner(self):
+        """Test getting menu for Runner store"""
+        success, response = self.run_test("Get Runner Menu", "GET", "menu/runner", 200)
+        if success and 'items' in response and 'store' in response:
+            print(f"   ✅ Runner menu has {len(response['items'])} items")
+            print(f"   ✅ Store info: {response['store']['name']}")
             return True
         return False
 
-    def test_get_menu_by_category(self):
-        """Test getting menu by category"""
-        category = "Omeletes, Tapiocas e Crepiocas"
-        success, response = self.run_test(
-            f"Get Menu by Category: {category}", 
-            "GET", 
-            f"menu/category/{category}", 
-            200
-        )
-        if success and 'items' in response:
-            print(f"   ✅ Found {len(response['items'])} items in category")
+    def test_get_menu_gym_londres(self):
+        """Test getting menu for GYM Londres store"""
+        success, response = self.run_test("Get GYM Londres Menu", "GET", "menu/gym-londres", 200)
+        if success and 'items' in response and 'store' in response:
+            print(f"   ✅ GYM Londres menu has {len(response['items'])} items")
+            print(f"   ✅ Store info: {response['store']['name']}")
             return True
         return False
 
-    def test_create_order(self):
-        """Test creating a new order"""
-        order_data = {
-            "customer_name": f"Test Customer {datetime.now().strftime('%H%M%S')}",
-            "items": [
-                {
-                    "menu_item_id": "1",
-                    "name": "Frango com Requeijão",
-                    "price": 25.50,
-                    "quantity": 2
-                },
-                {
-                    "menu_item_id": "48",
-                    "name": "Café Pequeno",
-                    "price": 4.50,
-                    "quantity": 1
-                }
-            ],
-            "total": 55.50
-        }
+    def test_create_order_with_payment_method(self):
+        """Test creating orders with different payment methods"""
+        payment_methods = ["pix", "debit", "credit", "cash"]
+        stores = ["runner", "gym-londres"]
         
-        success, response = self.run_test("Create Order", "POST", "orders", 200, data=order_data)
-        if success and 'id' in response:
-            self.created_order_id = response['id']
-            print(f"   ✅ Order created with ID: {self.created_order_id}")
-            return True
-        return False
-
-    def test_create_order_with_pickup_time(self):
-        """Test creating a new order with pickup time"""
-        pickup_time = "14:30"  # 2:30 PM
-        order_data = {
-            "customer_name": f"Test Customer Pickup {datetime.now().strftime('%H%M%S')}",
-            "items": [
-                {
-                    "menu_item_id": "2",
-                    "name": "Frango, Mussarela, Tomate e Orégano",
-                    "price": 26.00,
-                    "quantity": 1
+        for store in stores:
+            for payment_method in payment_methods:
+                order_data = {
+                    "store": store,
+                    "customer_name": f"Test Customer {payment_method.upper()}",
+                    "items": [
+                        {
+                            "menu_item_id": "1",
+                            "name": "Frango com Requeijão",
+                            "price": 25.50,
+                            "quantity": 1
+                        }
+                    ],
+                    "total": 25.50,
+                    "payment_method": payment_method
                 }
-            ],
-            "total": 26.00,
-            "pickup_time": pickup_time
-        }
-        
-        success, response = self.run_test("Create Order with Pickup Time", "POST", "orders", 200, data=order_data)
-        if success and 'id' in response:
-            # Verify pickup_time is in response
-            if response.get('pickup_time') == pickup_time:
-                print(f"   ✅ Order created with pickup time: {pickup_time}")
                 
-                # Store this order ID for pickup time verification test
-                self.pickup_order_id = response['id']
-                return True
+                success, response = self.run_test(
+                    f"Create Order - {store} - {payment_method.upper()}", 
+                    "POST", 
+                    "orders", 
+                    200, 
+                    data=order_data
+                )
+                
+                if success and 'id' in response:
+                    if store not in self.created_order_ids:
+                        self.created_order_ids[store] = []
+                    self.created_order_ids[store].append(response['id'])
+                    
+                    # Verify payment method is stored
+                    if response.get('payment_method') == payment_method:
+                        print(f"   ✅ Order created with payment method: {payment_method}")
+                    else:
+                        print(f"   ❌ Payment method not stored correctly")
+                        return False
+                else:
+                    return False
+        return True
+
+    def test_get_orders_by_store(self):
+        """Test getting orders by store"""
+        stores = ["runner", "gym-londres"]
+        
+        for store in stores:
+            success, response = self.run_test(f"Get Orders - {store}", "GET", f"orders/{store}", 200)
+            if success and 'orders' in response:
+                orders = response['orders']
+                print(f"   ✅ {store} has {len(orders)} orders")
+                
+                # Check if orders have payment_method field
+                if orders:
+                    first_order = orders[0]
+                    if 'payment_method' in first_order:
+                        print(f"   ✅ Orders include payment_method: {first_order['payment_method']}")
+                    else:
+                        print(f"   ❌ Orders missing payment_method field")
+                        return False
             else:
-                print(f"   ❌ Pickup time not set correctly. Expected: {pickup_time}, Got: {response.get('pickup_time')}")
                 return False
-        return False
+        return True
 
-    def test_get_orders(self):
-        """Test getting all orders"""
-        return self.run_test("Get All Orders", "GET", "orders", 200)
-
-    def test_get_order_by_id(self):
-        """Test getting specific order by ID"""
-        if not self.created_order_id:
-            print("   ⚠️  Skipping - No order ID available")
-            return True
-        
+    def test_gestor_login(self):
+        """Test gestor authentication"""
+        auth = ('gestor', 'ganoh2024')
         success, response = self.run_test(
-            f"Get Order by ID: {self.created_order_id}", 
+            "Gestor Login", 
             "GET", 
-            f"orders/{self.created_order_id}", 
-            200
+            "gestor/dashboard", 
+            200, 
+            auth=auth
         )
-        if success and response.get('id') == self.created_order_id:
-            print(f"   ✅ Order retrieved successfully")
+        
+        if success:
+            self.gestor_auth = auth
+            print(f"   ✅ Gestor login successful")
             return True
         return False
 
-    def test_get_pickup_order_by_id(self):
-        """Test getting order with pickup time by ID"""
-        if not hasattr(self, 'pickup_order_id') or not self.pickup_order_id:
-            print("   ⚠️  Skipping - No pickup order ID available")
+    def test_gestor_dashboard(self):
+        """Test gestor dashboard data"""
+        if not self.gestor_auth:
+            print("   ⚠️  Skipping - No gestor auth available")
             return True
-        
-        success, response = self.run_test(
-            f"Get Pickup Order by ID: {self.pickup_order_id}", 
-            "GET", 
-            f"orders/{self.pickup_order_id}", 
-            200
-        )
-        if success and response.get('id') == self.pickup_order_id:
-            pickup_time = response.get('pickup_time')
-            if pickup_time:
-                print(f"   ✅ Pickup order retrieved with pickup_time: {pickup_time}")
-                return True
-            else:
-                print(f"   ❌ Pickup time missing from retrieved order")
-                return False
-        return False
-
-    def test_update_order_status(self):
-        """Test updating order status"""
-        if not self.created_order_id:
-            print("   ⚠️  Skipping - No order ID available")
-            return True
-        
-        # Test updating to preparing
-        success, response = self.run_test(
-            f"Update Order Status to Preparing", 
-            "PATCH", 
-            f"orders/{self.created_order_id}/status", 
-            200,
-            data={"status": "preparing"}
-        )
-        if success and response.get('status') == 'preparing':
-            print(f"   ✅ Status updated to preparing")
             
-            # Test updating to ready
-            success2, response2 = self.run_test(
-                f"Update Order Status to Ready", 
-                "PATCH", 
-                f"orders/{self.created_order_id}/status", 
-                200,
-                data={"status": "ready"}
-            )
-            if success2 and response2.get('status') == 'ready':
-                print(f"   ✅ Status updated to ready")
+        success, response = self.run_test(
+            "Gestor Dashboard", 
+            "GET", 
+            "gestor/dashboard", 
+            200, 
+            auth=self.gestor_auth
+        )
+        
+        if success and 'stores' in response:
+            stores = response['stores']
+            
+            # Check both stores are present
+            if 'runner' in stores and 'gym-londres' in stores:
+                print(f"   ✅ Dashboard shows both stores")
+                
+                # Check payment method breakdown
+                for store_key, store_data in stores.items():
+                    if 'today' in store_data and 'by_payment_method' in store_data['today']:
+                        payment_methods = store_data['today']['by_payment_method']
+                        expected_methods = ['pix', 'debit', 'credit', 'cash']
+                        
+                        if all(method in payment_methods for method in expected_methods):
+                            print(f"   ✅ {store_key} has all payment methods in dashboard")
+                        else:
+                            print(f"   ❌ {store_key} missing payment methods")
+                            return False
+                    
+                    # Check top/low products
+                    if 'top_products' in store_data and 'low_products' in store_data:
+                        print(f"   ✅ {store_key} has top/low products data")
+                    else:
+                        print(f"   ❌ {store_key} missing products analytics")
+                        return False
+                
                 return True
+            else:
+                print(f"   ❌ Dashboard missing stores")
+                return False
+        return False
+
+    def test_stock_initialization(self):
+        """Test stock initialization for both stores"""
+        stores = ["runner", "gym-londres"]
+        
+        for store in stores:
+            success, response = self.run_test(
+                f"Initialize Stock - {store}", 
+                "POST", 
+                f"stock/{store}/initialize", 
+                200
+            )
+            
+            if success:
+                print(f"   ✅ Stock initialized for {store}")
+            else:
+                return False
+        return True
+
+    def test_get_stock(self):
+        """Test getting stock for both stores"""
+        stores = ["runner", "gym-londres"]
+        
+        for store in stores:
+            success, response = self.run_test(f"Get Stock - {store}", "GET", f"stock/{store}", 200)
+            
+            if success and 'stock' in response:
+                stock_items = response['stock']
+                print(f"   ✅ {store} has {len(stock_items)} stock items")
+                
+                # Check stock item structure
+                if stock_items:
+                    first_item = stock_items[0]
+                    required_fields = ['menu_item_id', 'quantity', 'name', 'category']
+                    
+                    if all(field in first_item for field in required_fields):
+                        print(f"   ✅ Stock items have required fields")
+                    else:
+                        print(f"   ❌ Stock items missing required fields")
+                        return False
+            else:
+                return False
+        return True
+
+    def test_update_stock(self):
+        """Test updating stock quantities"""
+        # Test updating stock for runner store
+        success, response = self.run_test(
+            "Update Stock Quantity", 
+            "PUT", 
+            "stock/runner/1", 
+            200,
+            data={"quantity": 0}
+        )
+        
+        if success:
+            print(f"   ✅ Stock updated successfully")
+            return True
+        return False
+
+    def test_menu_availability_with_zero_stock(self):
+        """Test that products with 0 stock don't appear as available in menu"""
+        # First set item 1 to 0 stock
+        self.run_test("Set Item 1 to Zero Stock", "PUT", "stock/runner/1", 200, data={"quantity": 0})
+        
+        # Then check menu
+        success, response = self.run_test("Check Menu Availability", "GET", "menu/runner", 200)
+        
+        if success and 'items' in response:
+            items = response['items']
+            
+            # Find item with ID "1"
+            item_1 = next((item for item in items if item['id'] == '1'), None)
+            
+            if item_1:
+                if item_1.get('available') == False and item_1.get('stock') == 0:
+                    print(f"   ✅ Item with 0 stock is marked as unavailable")
+                    return True
+                else:
+                    print(f"   ❌ Item with 0 stock is still available: {item_1}")
+                    return False
+            else:
+                print(f"   ❌ Could not find item 1 in menu")
+                return False
         return False
 
     def test_kitchen_stats(self):
-        """Test kitchen statistics endpoint"""
-        success, response = self.run_test("Get Kitchen Stats", "GET", "kitchen/stats", 200)
-        if success:
-            expected_keys = ['pending', 'preparing', 'ready', 'delivered', 'total']
-            if all(key in response for key in expected_keys):
-                print(f"   ✅ Kitchen stats: {response}")
-                return True
-            else:
-                print(f"   ❌ Missing keys in kitchen stats")
-        return False
-
-    def test_delete_order(self):
-        """Test deleting an order"""
-        if not self.created_order_id:
-            print("   ⚠️  Skipping - No order ID available")
-            return True
+        """Test kitchen statistics for both stores"""
+        stores = ["runner", "gym-londres"]
         
-        success, response = self.run_test(
-            f"Delete Order: {self.created_order_id}", 
-            "DELETE", 
-            f"orders/{self.created_order_id}", 
-            200
-        )
-        if success:
-            print(f"   ✅ Order deleted successfully")
-            return True
-        return False
+        for store in stores:
+            success, response = self.run_test(f"Kitchen Stats - {store}", "GET", f"kitchen/{store}/stats", 200)
+            
+            if success:
+                expected_keys = ['pending', 'preparing', 'ready']
+                if all(key in response for key in expected_keys):
+                    print(f"   ✅ {store} kitchen stats: {response}")
+                else:
+                    print(f"   ❌ Missing keys in {store} kitchen stats")
+                    return False
+            else:
+                return False
+        return True
 
 def main():
     print("🚀 Starting GANOH Café Bistrô API Tests")
