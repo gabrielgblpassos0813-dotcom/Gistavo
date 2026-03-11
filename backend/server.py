@@ -998,6 +998,114 @@ async def delete_menu_item(item_id: str, username: str = Depends(verify_gestor))
     
     return {"success": True, "message": "Item removido"}
 
+# ==================== PRAZO (CREDIT/TAB) MANAGEMENT ====================
+PRAZO_PASSWORD = "1234"
+
+class PrazoCustomerCreate(BaseModel):
+    name: str
+    phone: str = ""
+    notes: str = ""
+
+class PrazoPayment(BaseModel):
+    amount: float
+    password: str
+
+@api_router.get("/prazo/customers")
+async def get_prazo_customers():
+    """Get all registered prazo customers"""
+    customers = await db.prazo_customers.find({}, {"_id": 0}).to_list(500)
+    return {"customers": customers}
+
+@api_router.post("/prazo/customers")
+async def create_prazo_customer(customer: PrazoCustomerCreate, username: str = Depends(verify_gestor)):
+    """Register a new prazo customer"""
+    # Check if customer already exists
+    existing = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer.name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Cliente já cadastrado")
+    
+    new_customer = {
+        "id": str(uuid4()),
+        "name": customer.name,
+        "phone": customer.phone,
+        "notes": customer.notes,
+        "total_debt": 0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.prazo_customers.insert_one(new_customer)
+    return {**new_customer, "_id": None}
+
+@api_router.delete("/prazo/customers/{customer_id}")
+async def delete_prazo_customer(customer_id: str, username: str = Depends(verify_gestor)):
+    """Delete a prazo customer"""
+    result = await db.prazo_customers.delete_one({"id": customer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    return {"success": True, "message": "Cliente removido"}
+
+@api_router.get("/prazo/debts")
+async def get_prazo_debts():
+    """Get all prazo debts summary"""
+    # Get all unpaid prazo orders
+    prazo_orders = await db.orders.find({
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Group by customer name
+    debts_by_customer = {}
+    for order in prazo_orders:
+        name = order.get("customer_name", "Desconhecido")
+        if name not in debts_by_customer:
+            debts_by_customer[name] = {"name": name, "total": 0, "orders": [], "order_count": 0}
+        debts_by_customer[name]["total"] += order.get("total", 0)
+        debts_by_customer[name]["order_count"] += 1
+        debts_by_customer[name]["orders"].append({
+            "id": order.get("id"),
+            "total": order.get("total"),
+            "date": order.get("created_at"),
+            "items": order.get("items", [])
+        })
+    
+    # Sort by total debt descending
+    debts = sorted(debts_by_customer.values(), key=lambda x: x["total"], reverse=True)
+    total_prazo = sum(d["total"] for d in debts)
+    
+    return {
+        "debts": debts,
+        "total_prazo": total_prazo,
+        "customer_count": len(debts)
+    }
+
+@api_router.post("/prazo/pay/{order_id}")
+async def pay_prazo_order(order_id: str, payment: PrazoPayment):
+    """Mark a prazo order as paid (requires password)"""
+    if payment.password != PRAZO_PASSWORD:
+        raise HTTPException(status_code=403, detail="Senha incorreta")
+    
+    result = await db.orders.update_one(
+        {"id": order_id, "payment_method": "prazo"},
+        {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat(), "prazo_paid_amount": payment.amount}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    return {"success": True, "message": "Pagamento registrado"}
+
+@api_router.post("/prazo/pay-all/{customer_name}")
+async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
+    """Mark all prazo orders for a customer as paid (requires password)"""
+    if payment.password != PRAZO_PASSWORD:
+        raise HTTPException(status_code=403, detail="Senha incorreta")
+    
+    result = await db.orders.update_many(
+        {"customer_name": customer_name, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
+        {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "message": f"{result.modified_count} pedidos pagos", "count": result.modified_count}
+
 # ==================== ADMIN CLEAR DATA ROUTE ====================
 CLEAR_DATA_PASSWORD = "152637"
 
