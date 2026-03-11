@@ -624,7 +624,10 @@ export const KitchenPage = () => {
               <div className="flex items-center gap-2 mb-3">
                 <Moon className="h-4 w-4 text-indigo-500" />
                 <span className="font-semibold text-sm">Tarde/Noite (14:00 - 22:00)</span>
-                <Badge variant="secondary" className="ml-auto">{afternoonShift.count} pedidos</Badge>
+                <div className="ml-auto text-right">
+                  <Badge variant="secondary" className="mb-1">{afternoonShift.count} pedidos</Badge>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(afternoonShift.total || 0)}</p>
+                </div>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
