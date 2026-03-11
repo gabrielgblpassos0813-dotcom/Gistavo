@@ -85,20 +85,52 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const handleFileChange = (e) => {
+  // Compress image for faster upload
+  const compressImage = (file, maxWidth = 800, quality = 0.6) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Imagem muito grande. Máximo 5MB.');
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Imagem muito grande. Máximo 10MB.');
         return;
       }
       
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPixProof(reader.result);
-        setPixProofPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      toast.loading('Processando imagem...', { id: 'compress' });
+      
+      try {
+        // Compress the image
+        const compressedImage = await compressImage(file);
+        setPixProof(compressedImage);
+        setPixProofPreview(compressedImage);
+        toast.success('Comprovante carregado!', { id: 'compress' });
+      } catch (error) {
+        toast.error('Erro ao processar imagem', { id: 'compress' });
+      }
     }
   };
 
