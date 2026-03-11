@@ -85,6 +85,10 @@ export const GestorPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
   const [activeMainTab, setActiveMainTab] = useState('dashboard');
+  const [prazoCustomers, setPrazoCustomers] = useState([]);
+  const [prazoDebts, setPrazoDebts] = useState({ debts: [], total_prazo: 0 });
+  const [showPrazoDialog, setShowPrazoDialog] = useState(false);
+  const [newPrazoCustomer, setNewPrazoCustomer] = useState({ name: '', phone: '', notes: '' });
 
   const handleLogin = async (e) => {
     e.preventDefault();
