@@ -10,7 +10,7 @@ import { Label } from '../components/ui/label';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
-  Home, Smartphone, Plus, Minus,
+  Home, Smartphone, Plus, Minus, Banknote,
   AlertTriangle, Coffee, Droplets, Image, X, Check, History
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
