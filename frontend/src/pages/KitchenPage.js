@@ -590,7 +590,10 @@ export const KitchenPage = () => {
               <div className="flex items-center gap-2 mb-3">
                 <Sun className="h-4 w-4 text-amber-500" />
                 <span className="font-semibold text-sm">Manhã (06:00 - 14:00)</span>
-                <Badge variant="secondary" className="ml-auto">{morningShift.count} pedidos</Badge>
+                <div className="ml-auto text-right">
+                  <Badge variant="secondary" className="mb-1">{morningShift.count} pedidos</Badge>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(morningShift.total || 0)}</p>
+                </div>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
