@@ -307,6 +307,22 @@ export const GestorPage = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Main Navigation Tabs */}
+        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" /> Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Gráfico Mensal
+            </TabsTrigger>
+            <TabsTrigger value="menu" className="flex items-center gap-2">
+              <UtensilsCrossed className="h-4 w-4" /> Cardápio
+            </TabsTrigger>
+          </TabsList>
+
+          {/* DASHBOARD TAB */}
+          <TabsContent value="dashboard">
         {dashboard && (
           <>
             {/* Combined Stats */}
