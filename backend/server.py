@@ -258,17 +258,22 @@ async def get_stores():
 
 @api_router.get("/menu/{store}")
 async def get_menu(store: StoreLocation):
-    # Get stock for this store
+    # Get stock for bebidas only (other items don't need stock control)
     stock_docs = await db.stock.find({"store": store.value}, {"_id": 0}).to_list(1000)
     stock_map = {s["menu_item_id"]: s["quantity"] for s in stock_docs}
     
-    # Add availability based on stock
+    # Add availability based on stock (only for bebidas)
     items_with_stock = []
     for item in MENU_DATA:
         item_copy = item.copy()
-        stock_qty = stock_map.get(item["id"], 0)
-        item_copy["stock"] = stock_qty
-        item_copy["available"] = stock_qty > 0
+        if item["category"] in STOCK_CATEGORIES:
+            stock_qty = stock_map.get(item["id"], 0)
+            item_copy["stock"] = stock_qty
+            item_copy["available"] = stock_qty > 0
+        else:
+            # Non-beverage items are always available
+            item_copy["stock"] = None
+            item_copy["available"] = True
         items_with_stock.append(item_copy)
     
     return {
