@@ -5,6 +5,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
+import { Switch } from '../components/ui/switch';
 import { useCart } from '../context/CartContext';
 import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt } from 'lucide-react';
 
@@ -17,6 +18,7 @@ const PAYMENT_METHODS = [
 
 export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   const [customerName, setCustomerName] = useState('');
+  const [wantsSchedule, setWantsSchedule] = useState(false);
   const [pickupTime, setPickupTime] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const { items, total, itemCount } = useCart();
@@ -59,17 +61,21 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (customerName.trim() && pickupTime && paymentMethod) {
-      onSubmit(customerName.trim(), pickupTime, paymentMethod);
+    if (customerName.trim() && paymentMethod) {
+      const finalPickupTime = wantsSchedule && pickupTime ? pickupTime : null;
+      onSubmit(customerName.trim(), finalPickupTime, paymentMethod);
     }
   };
 
   const handleClose = () => {
     setCustomerName('');
+    setWantsSchedule(false);
     setPickupTime('');
     setPaymentMethod('');
     onClose();
   };
+
+  const canSubmit = customerName.trim() && paymentMethod && (!wantsSchedule || pickupTime);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -111,27 +117,44 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
             />
           </div>
 
-          {/* Pickup Time */}
-          <div className="space-y-2">
-            <Label htmlFor="pickup-time" className="text-sm font-medium flex items-center gap-2">
+          {/* Schedule Toggle */}
+          <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+            <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              Horário para Retirada
-            </Label>
-            <Select value={pickupTime} onValueChange={setPickupTime} required>
-              <SelectTrigger className="h-11" data-testid="pickup-time-select">
-                <SelectValue placeholder="Selecione o horário" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeSlots.length === 0 ? (
-                  <SelectItem value="closed" disabled>Fechado</SelectItem>
-                ) : (
-                  timeSlots.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              <Label htmlFor="schedule-toggle" className="text-sm font-medium cursor-pointer">
+                Agendar horário de retirada
+              </Label>
+            </div>
+            <Switch
+              id="schedule-toggle"
+              checked={wantsSchedule}
+              onCheckedChange={setWantsSchedule}
+              data-testid="schedule-toggle"
+            />
           </div>
+
+          {/* Pickup Time (conditional) */}
+          {wantsSchedule && (
+            <div className="space-y-2 animate-slideIn">
+              <Label htmlFor="pickup-time" className="text-sm font-medium">
+                Horário para Retirada
+              </Label>
+              <Select value={pickupTime} onValueChange={setPickupTime}>
+                <SelectTrigger className="h-11" data-testid="pickup-time-select">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeSlots.length === 0 ? (
+                    <SelectItem value="closed" disabled>Fechado</SelectItem>
+                  ) : (
+                    timeSlots.map((time) => (
+                      <SelectItem key={time} value={time}>{time}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Payment Method */}
           <div className="space-y-3">
@@ -167,7 +190,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
             <Button
               type="submit"
               className="w-full h-12 text-base font-semibold bg-brand-600 hover:bg-brand-700"
-              disabled={!customerName.trim() || !pickupTime || !paymentMethod || isLoading}
+              disabled={!canSubmit || isLoading}
               data-testid="confirm-order-button"
             >
               {isLoading ? 'Enviando...' : 'Confirmar Pedido'}
