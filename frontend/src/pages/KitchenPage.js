@@ -652,8 +652,12 @@ export const KitchenPage = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm opacity-80">Total do Dia</p>
+                  <p className="text-2xl font-bold">{formatCurrency(salesData.total || 0)}</p>
                 </div>
-                <p className="text-2xl font-bold">{salesData.order_count || 0} pedidos</p>
+                <div className="text-right">
+                  <p className="text-sm opacity-80">Pedidos</p>
+                  <p className="text-xl font-bold">{salesData.order_count || 0}</p>
+                </div>
               </div>
             </div>
           </TabsContent>
