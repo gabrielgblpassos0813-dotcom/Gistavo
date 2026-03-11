@@ -122,11 +122,92 @@ export const GestorPage = () => {
     }
   };
 
+  const fetchChartData = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    try {
+      const [user, pass] = atob(auth).split(':');
+      const response = await axios.get(`${API}/gestor/chart/monthly`, {
+        auth: { username: user, password: pass }
+      });
+      setChartData(response.data);
+    } catch (error) {
+      console.log('Error fetching chart data');
+    }
+  };
+
+  const fetchMenuItems = async (store = 'runner') => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    try {
+      const [user, pass] = atob(auth).split(':');
+      const response = await axios.get(`${API}/gestor/menu/${store}`, {
+        auth: { username: user, password: pass }
+      });
+      setMenuItems(response.data.menu);
+    } catch (error) {
+      console.log('Error fetching menu');
+    }
+  };
+
+  const handleSaveMenuItem = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      if (editingItem) {
+        await axios.put(`${API}/gestor/menu/${editingItem.id}`, {
+          name: newItem.name,
+          description: newItem.description,
+          price: parseFloat(newItem.price),
+          category: newItem.category,
+          image_url: newItem.image_url
+        }, { auth: { username: user, password: pass } });
+        toast.success('Item atualizado!');
+      } else {
+        await axios.post(`${API}/gestor/menu`, {
+          ...newItem,
+          price: parseFloat(newItem.price)
+        }, { auth: { username: user, password: pass } });
+        toast.success('Item adicionado!');
+      }
+      setShowMenuDialog(false);
+      setEditingItem(null);
+      setNewItem({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
+      fetchMenuItems(newItem.store);
+    } catch (error) {
+      toast.error('Erro ao salvar item');
+    }
+  };
+
+  const handleDeleteMenuItem = async (itemId) => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      await axios.delete(`${API}/gestor/menu/${itemId}`, {
+        auth: { username: user, password: pass }
+      });
+      toast.success('Item removido!');
+      fetchMenuItems(newItem.store);
+    } catch (error) {
+      toast.error('Erro ao remover item');
+    }
+  };
+
   useEffect(() => {
     const auth = localStorage.getItem('gestor_auth');
     if (auth) {
       setIsAuthenticated(true);
       fetchDashboard();
+      fetchChartData();
+      fetchMenuItems();
     }
   }, []);
 
