@@ -299,22 +299,22 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                   <Receipt className="h-4 w-4 text-muted-foreground" />
                   Forma de Pagamento
                 </Label>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-2 gap-2">
-                  {PAYMENT_METHODS.map((method) => {
+                <RadioGroup value={paymentMethod} onValueChange={(v) => { setPaymentMethod(v); if (v !== 'prazo') setSelectedPrazoCustomer(''); }} className="grid grid-cols-2 gap-2">
+                  {availablePaymentMethods.map((method) => {
                     const Icon = method.icon;
                     return (
                       <label
                         key={method.id}
                         className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
                           paymentMethod === method.id
-                            ? 'border-brand-500 bg-brand-50'
+                            ? method.id === 'prazo' ? 'border-amber-500 bg-amber-50' : 'border-brand-500 bg-brand-50'
                             : 'border-border hover:border-brand-200'
                         }`}
                         data-testid={`payment-${method.id}`}
                       >
                         <RadioGroupItem value={method.id} className="sr-only" />
-                        <Icon className={`h-4 w-4 ${paymentMethod === method.id ? 'text-brand-600' : 'text-muted-foreground'}`} />
-                        <span className={`text-sm font-medium ${paymentMethod === method.id ? 'text-brand-700' : 'text-foreground'}`}>
+                        <Icon className={`h-4 w-4 ${paymentMethod === method.id ? (method.id === 'prazo' ? 'text-amber-600' : 'text-brand-600') : 'text-muted-foreground'}`} />
+                        <span className={`text-sm font-medium ${paymentMethod === method.id ? (method.id === 'prazo' ? 'text-amber-700' : 'text-brand-700') : 'text-foreground'}`}>
                           {method.label}
                         </span>
                       </label>
@@ -327,6 +327,31 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
                   <p className="font-medium">ℹ️ Pagamento via PIX</p>
                   <p className="text-xs mt-1">Na próxima etapa você verá o QR Code e poderá enviar o comprovante.</p>
+                </div>
+              )}
+
+              {paymentMethod === 'prazo' && (
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                    <p className="font-medium">⚠️ Pagamento a Prazo</p>
+                    <p className="text-xs mt-1">O valor será registrado para pagamento posterior.</p>
+                  </div>
+                  
+                  {prazoCustomers.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Cliente cadastrado (opcional)</Label>
+                      <Select value={selectedPrazoCustomer} onValueChange={(v) => { setSelectedPrazoCustomer(v); if (v) setCustomerName(v); }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione ou digite o nome acima" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {prazoCustomers.map((c) => (
+                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
             </>
