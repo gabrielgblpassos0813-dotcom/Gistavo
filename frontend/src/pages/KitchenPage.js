@@ -715,6 +715,44 @@ export const KitchenPage = () => {
 
       <AddItemDialog isOpen={showAddDialog} onClose={() => setShowAddDialog(false)} onAdd={handleAddItem} />
       <PixProofDialog isOpen={!!proofDialogOrder} onClose={() => setProofDialogOrder(null)} order={proofDialogOrder} />
+      
+      {/* Hidden Clear Data Dialog */}
+      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base text-red-600 flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Limpar Dados da Loja
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Esta ação irá apagar <strong>todos os pedidos e histórico</strong> desta loja. Esta ação não pode ser desfeita.
+            </p>
+            <Input
+              type="password"
+              placeholder="Senha de administrador"
+              value={clearPassword}
+              onChange={(e) => setClearPassword(e.target.value)}
+              className="h-9"
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => { setShowClearDialog(false); setClearPassword(''); }}>
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                className="flex-1" 
+                onClick={handleClearStoreData}
+                disabled={isClearing || !clearPassword}
+              >
+                {isClearing ? 'Apagando...' : 'Apagar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
