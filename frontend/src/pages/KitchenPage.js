@@ -7,10 +7,11 @@ import { Input } from '../components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
-  Home, CreditCard, Banknote, Smartphone, DollarSign, Plus, Minus,
-  AlertTriangle, Coffee, Droplets, Sun, Moon
+  Home, CreditCard, Banknote, Smartphone, Plus, Minus,
+  AlertTriangle, Coffee, Droplets, Sun, Moon, Image, X, Check, History
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -20,6 +21,7 @@ const API = `${BACKEND_URL}/api`;
 const STORE_NAMES = { 'runner': 'Runner', 'gym-londres': 'GYM Londres' };
 
 const STATUS_CONFIG = {
+  pending_payment: { label: 'Aguardando PIX', color: 'bg-blue-500', bgLight: 'bg-blue-50', borderColor: 'border-l-blue-500' },
   received: { label: 'Recebido', color: 'bg-gray-500', bgLight: 'bg-gray-50', borderColor: 'border-l-gray-500' },
   preparing: { label: 'Preparando', color: 'bg-amber-500', bgLight: 'bg-amber-50', borderColor: 'border-l-amber-500' },
   ready: { label: 'Pronto', color: 'bg-brand-500', bgLight: 'bg-brand-50', borderColor: 'border-l-brand-500' }
@@ -29,6 +31,11 @@ const PAYMENT_ICONS = { pix: Smartphone, debit: CreditCard, credit: CreditCard, 
 const PAYMENT_LABELS = { pix: 'PIX', debit: 'Déb', credit: 'Créd', cash: 'Din' };
 
 const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
+
+const formatTime = (isoString) => {
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
 
 // Order Card Component - Mobile optimized
 const OrderCard = ({ order, onStatusChange, onDelete }) => {
@@ -81,6 +88,82 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// PIX Pending Card Component
+const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
+  const createdAt = new Date(order.created_at);
+  const now = new Date();
+  const minutesAgo = Math.floor((now - createdAt) / 60000);
+
+  return (
+    <div className="bg-white rounded-lg border-l-4 border-l-blue-500 shadow-sm">
+      <div className="px-2 py-1.5 bg-blue-50 flex items-center justify-between">
+        <span className="font-bold text-sm truncate flex-1">{order.customer_name}</span>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Smartphone className="h-3 w-3 text-blue-600" />
+          <span>{minutesAgo}m</span>
+        </div>
+      </div>
+      <div className="p-2">
+        <div className="text-xs space-y-0.5 mb-2">
+          {order.items.slice(0, 2).map((item, idx) => (
+            <div key={idx} className="truncate"><b>{item.quantity}x</b> {item.name}</div>
+          ))}
+          {order.items.length > 2 && <div className="text-muted-foreground">+{order.items.length - 2} itens</div>}
+        </div>
+        <div className="flex items-center justify-between gap-1 mb-2">
+          <span className="font-bold text-blue-600 text-sm">{formatPrice(order.total)}</span>
+          {order.pix_proof && (
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onViewProof(order)}>
+              <Image className="h-3 w-3 mr-1" />
+              Ver
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-1">
+          <Button 
+            size="sm" 
+            className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700" 
+            onClick={() => onApprove(order.id)}
+            disabled={!order.pix_proof}
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Aprovar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1 h-7 text-xs text-red-600 border-red-200 hover:bg-red-50" 
+            onClick={() => onReject(order.id)}
+          >
+            <X className="h-3 w-3 mr-1" />
+            Recusar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// History Card Component
+const HistoryCard = ({ order }) => {
+  return (
+    <div className="bg-white rounded-lg border shadow-sm p-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-medium text-sm">{order.customer_name}</span>
+        <span className="text-xs text-muted-foreground">{formatTime(order.delivered_at || order.created_at)}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          {PAYMENT_ICONS[order.payment_method] && React.createElement(PAYMENT_ICONS[order.payment_method], { className: "h-3 w-3" })}
+          <span>{PAYMENT_LABELS[order.payment_method]}</span>
+          <span>• {order.items?.length || 0} itens</span>
+        </div>
+        <span className="font-bold text-brand-600 text-sm">{formatPrice(order.total)}</span>
       </div>
     </div>
   );
@@ -158,30 +241,79 @@ const AddItemDialog = ({ isOpen, onClose, onAdd }) => {
   );
 };
 
+// PIX Proof Dialog
+const PixProofDialog = ({ isOpen, onClose, order }) => {
+  if (!order) return null;
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Comprovante PIX - {order.customer_name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="bg-secondary/50 rounded-lg p-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Valor</span>
+              <span className="font-bold text-brand-600">{formatPrice(order.total)}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-muted-foreground">Itens</span>
+              <span>{order.items?.length || 0}</span>
+            </div>
+          </div>
+          {order.pix_proof ? (
+            <img 
+              src={order.pix_proof} 
+              alt="Comprovante PIX" 
+              className="w-full max-h-[50vh] object-contain rounded-lg border"
+            />
+          ) : (
+            <div className="bg-gray-100 rounded-lg p-8 text-center text-muted-foreground">
+              <Image className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Comprovante não enviado</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const KitchenPage = () => {
   const { store } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('pedidos');
   const [orders, setOrders] = useState([]);
+  const [pendingPixOrders, setPendingPixOrders] = useState([]);
+  const [historyOrders, setHistoryOrders] = useState([]);
   const [stats, setStats] = useState({ pending: 0, preparing: 0, ready: 0 });
   const [cashData, setCashData] = useState({ total: 0, by_payment_method: {}, shifts: {} });
   const [stock, setStock] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [proofDialogOrder, setProofDialogOrder] = useState(null);
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
-      const [ordersRes, statsRes, cashRes, stockRes] = await Promise.all([
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = await Promise.all([
         axios.get(`${API}/orders/${store}`),
         axios.get(`${API}/kitchen/${store}/stats`),
         axios.get(`${API}/cash/${store}/today`),
-        axios.get(`${API}/stock/${store}`)
+        axios.get(`${API}/stock/${store}`),
+        axios.get(`${API}/orders/${store}/pending-pix`),
+        axios.get(`${API}/orders/${store}/history`)
       ]);
-      setOrders(ordersRes.data.orders.filter(o => o.status !== 'delivered'));
+      setOrders(ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status)));
       setStats(statsRes.data);
       setCashData(cashRes.data);
       setStock(stockRes.data.stock);
+      setPendingPixOrders(pixRes.data.orders);
+      setHistoryOrders(historyRes.data.orders);
       if (showToast) toast.success('Atualizado');
     } catch (error) {
       toast.error('Erro ao carregar');
@@ -203,7 +335,7 @@ export const KitchenPage = () => {
     try {
       await axios.patch(`${API}/orders/${store}/${orderId}/status`, { status: newStatus });
       fetchData();
-      toast.success(STATUS_CONFIG[newStatus].label);
+      toast.success(STATUS_CONFIG[newStatus]?.label || newStatus);
     } catch (error) {
       toast.error('Erro');
     }
@@ -216,6 +348,26 @@ export const KitchenPage = () => {
       toast.success('Entregue');
     } catch (error) {
       toast.error('Erro');
+    }
+  };
+
+  const handleApprovePayment = async (orderId) => {
+    try {
+      await axios.post(`${API}/orders/${store}/${orderId}/approve-payment`, { approved: true });
+      fetchData();
+      toast.success('Pagamento aprovado!');
+    } catch (error) {
+      toast.error('Erro ao aprovar');
+    }
+  };
+
+  const handleRejectPayment = async (orderId) => {
+    try {
+      await axios.post(`${API}/orders/${store}/${orderId}/approve-payment`, { approved: false, rejection_reason: 'Comprovante inválido' });
+      fetchData();
+      toast.error('Pagamento recusado');
+    } catch (error) {
+      toast.error('Erro ao recusar');
     }
   };
 
@@ -281,7 +433,11 @@ export const KitchenPage = () => {
         </div>
         
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-1 mt-2 text-center text-xs">
+        <div className="grid grid-cols-4 gap-1 mt-2 text-center text-xs">
+          <div className="bg-blue-100 rounded py-1">
+            <span className="font-bold text-blue-700">{pendingPixOrders.length}</span>
+            <span className="text-muted-foreground ml-1">PIX</span>
+          </div>
           <div className="bg-gray-100 rounded py-1">
             <span className="font-bold text-gray-700">{stats.pending}</span>
             <span className="text-muted-foreground ml-1">Aguard.</span>
@@ -299,15 +455,43 @@ export const KitchenPage = () => {
 
       <main className="p-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 h-9">
-            <TabsTrigger value="pedidos" className="text-xs h-7">
+          <TabsList className="grid w-full grid-cols-5 h-9">
+            <TabsTrigger value="pix" className="text-xs h-7 px-1">
+              PIX {pendingPixOrders.length > 0 && <Badge className="ml-1 bg-blue-600 h-4 min-w-4 p-0 justify-center text-[10px]">{pendingPixOrders.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="pedidos" className="text-xs h-7 px-1">
               Pedidos {(stats.pending + stats.preparing) > 0 && <Badge className="ml-1 bg-brand-600 h-4 min-w-4 p-0 justify-center text-[10px]">{stats.pending + stats.preparing}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="caixa" className="text-xs h-7">Caixa</TabsTrigger>
-            <TabsTrigger value="estoque" className="text-xs h-7">
-              Estoque {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
+            <TabsTrigger value="caixa" className="text-xs h-7 px-1">Caixa</TabsTrigger>
+            <TabsTrigger value="estoque" className="text-xs h-7 px-1">
+              Est. {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="text-xs h-7 px-1">
+              <History className="h-3 w-3" />
             </TabsTrigger>
           </TabsList>
+
+          {/* PIX PENDENTE TAB */}
+          <TabsContent value="pix" className="mt-2">
+            {pendingPixOrders.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {pendingPixOrders.map(order => (
+                  <PixPendingCard 
+                    key={order.id} 
+                    order={order} 
+                    onApprove={handleApprovePayment}
+                    onReject={handleRejectPayment}
+                    onViewProof={setProofDialogOrder}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Smartphone className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Nenhum PIX pendente</p>
+              </div>
+            )}
+          </TabsContent>
 
           {/* PEDIDOS TAB */}
           <TabsContent value="pedidos" className="mt-2">
@@ -489,10 +673,36 @@ export const KitchenPage = () => {
               </div>
             )}
           </TabsContent>
+
+          {/* HISTÓRICO TAB */}
+          <TabsContent value="historico" className="mt-2">
+            <div className="bg-white rounded-xl p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm flex items-center gap-1">
+                  <History className="h-4 w-4 text-muted-foreground" /> Últimas 24h
+                </h3>
+                <Badge variant="secondary">{historyOrders.length} pedidos</Badge>
+              </div>
+              <ScrollArea className="h-[60vh]">
+                <div className="space-y-2 pr-2">
+                  {historyOrders.map(order => (
+                    <HistoryCard key={order.id} order={order} />
+                  ))}
+                  {historyOrders.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <History className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum pedido nas últimas 24h</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
 
       <AddItemDialog isOpen={showAddDialog} onClose={() => setShowAddDialog(false)} onAdd={handleAddItem} />
+      <PixProofDialog isOpen={!!proofDialogOrder} onClose={() => setProofDialogOrder(null)} order={proofDialogOrder} />
     </div>
   );
 };
