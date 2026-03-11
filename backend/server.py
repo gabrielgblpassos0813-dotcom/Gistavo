@@ -709,8 +709,8 @@ async def get_today_cash(store: StoreLocation):
         "created_at": {"$gte": today.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
-    # Total count by payment method
-    by_payment_count = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
+    # Total VALUE by payment method (in R$)
+    by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
     total = 0
     
     # By shift (06:00-14:00 and 14:00-22:00)
@@ -720,7 +720,7 @@ async def get_today_cash(store: StoreLocation):
     for order in orders:
         payment = order.get("payment_method", "cash")
         amount = order.get("total", 0)
-        by_payment_count[payment] = by_payment_count.get(payment, 0) + 1  # Count instead of amount
+        by_payment_value[payment] = by_payment_value.get(payment, 0) + amount  # Value in R$
         total += amount
         
         # Determine shift based on order time
@@ -735,15 +735,15 @@ async def get_today_cash(store: StoreLocation):
             if 6 <= hour < 14:
                 shift_morning["total"] += amount
                 shift_morning["count"] += 1
-                shift_morning["by_payment"][payment] += 1  # Count instead of amount
+                shift_morning["by_payment"][payment] += amount  # Value in R$
             else:
                 shift_afternoon["total"] += amount
                 shift_afternoon["count"] += 1
-                shift_afternoon["by_payment"][payment] += 1  # Count instead of amount
+                shift_afternoon["by_payment"][payment] += amount  # Value in R$
         except Exception:
             shift_afternoon["total"] += amount
             shift_afternoon["count"] += 1
-            shift_afternoon["by_payment"][payment] += 1  # Count instead of amount
+            shift_afternoon["by_payment"][payment] += amount  # Value in R$
     
     return {
         "date": today.strftime("%Y-%m-%d"),
