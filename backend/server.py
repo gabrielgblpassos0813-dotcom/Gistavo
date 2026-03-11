@@ -730,7 +730,7 @@ async def get_today_cash(store: StoreLocation):
                 shift_afternoon["total"] += amount
                 shift_afternoon["count"] += 1
                 shift_afternoon["by_payment"][payment] += amount
-        except:
+        except Exception:
             shift_afternoon["total"] += amount
             shift_afternoon["count"] += 1
             shift_afternoon["by_payment"][payment] += amount
