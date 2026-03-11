@@ -101,10 +101,11 @@ export const GestorPage = () => {
       setIsAuthenticated(true);
       localStorage.setItem('gestor_auth', btoa(`${username}:${password}`));
       
-      // Fetch chart and menu data after successful login
+      // Fetch chart, menu, and prazo data after successful login
       setTimeout(() => {
         fetchChartData();
         fetchMenuItems();
+        fetchPrazoData();
       }, 500);
     } catch (error) {
       toast.error('Credenciais inválidas');
