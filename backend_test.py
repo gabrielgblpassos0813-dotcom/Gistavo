@@ -335,24 +335,26 @@ class GANOHAPITester:
 
 def main():
     print("🚀 Starting GANOH Café Bistrô API Tests")
-    print("=" * 50)
+    print("Testing digital menu system for 2 stores with payment methods and stock management")
+    print("=" * 80)
     
     tester = GANOHAPITester()
     
-    # Run all tests
+    # Run all tests in logical order
     tests = [
         tester.test_api_root,
-        tester.test_get_menu,
-        tester.test_get_categories,
-        tester.test_get_menu_by_category,
-        tester.test_create_order,
-        tester.test_create_order_with_pickup_time,
-        tester.test_get_orders,
-        tester.test_get_order_by_id,
-        tester.test_get_pickup_order_by_id,
-        tester.test_update_order_status,
+        tester.test_get_stores,
+        tester.test_get_menu_runner,
+        tester.test_get_menu_gym_londres,
+        tester.test_stock_initialization,
+        tester.test_get_stock,
+        tester.test_update_stock,
+        tester.test_menu_availability_with_zero_stock,
+        tester.test_create_order_with_payment_method,
+        tester.test_get_orders_by_store,
         tester.test_kitchen_stats,
-        tester.test_delete_order
+        tester.test_gestor_login,
+        tester.test_gestor_dashboard,
     ]
     
     failed_tests = []
@@ -366,7 +368,7 @@ def main():
             failed_tests.append(test.__name__)
     
     # Print results
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 80)
     print(f"📊 Test Results: {tester.tests_passed}/{tester.tests_run} passed")
     
     if failed_tests:
