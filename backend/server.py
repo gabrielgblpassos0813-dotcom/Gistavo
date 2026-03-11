@@ -321,12 +321,16 @@ async def create_order(order_input: OrderCreate):
                 detail=f"Estoque insuficiente para {item.name}"
             )
     
+    # Determine initial status based on payment method
+    initial_status = OrderStatus.PENDING_PAYMENT if order_input.payment_method == PaymentMethod.PIX else OrderStatus.RECEIVED
+    
     order = Order(
         store=order_input.store,
         customer_name=order_input.customer_name,
         items=order_input.items,
         total=order_input.total,
         payment_method=order_input.payment_method,
+        status=initial_status,
         prep_time=15,
         pickup_time=order_input.pickup_time
     )
@@ -338,15 +342,20 @@ async def create_order(order_input: OrderCreate):
     doc['payment_method'] = doc['payment_method'].value
     doc['status'] = doc['status'].value
     
+    # Add PIX proof if provided
+    if order_input.pix_proof:
+        doc['pix_proof'] = order_input.pix_proof
+    
     await db.orders.insert_one(doc)
     
-    # Update stock
-    for item in order_input.items:
-        await db.stock.update_one(
-            {"menu_item_id": item.menu_item_id.split("-")[0], "store": order_input.store.value},
-            {"$inc": {"quantity": -item.quantity}},
-            upsert=False
-        )
+    # Update stock (only for non-PIX or after PIX approval)
+    if order_input.payment_method != PaymentMethod.PIX:
+        for item in order_input.items:
+            await db.stock.update_one(
+                {"menu_item_id": item.menu_item_id.split("-")[0], "store": order_input.store.value},
+                {"$inc": {"quantity": -item.quantity}},
+                upsert=False
+            )
     
     return {**doc, "_id": None}
 
