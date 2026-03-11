@@ -68,8 +68,7 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
           ))}
           {order.items.length > 3 && <div className="text-muted-foreground">+{order.items.length - 3} itens</div>}
         </div>
-        <div className="flex items-center justify-between gap-1">
-          <span className="font-bold text-brand-600 text-sm">{formatPrice(order.total)}</span>
+        <div className="flex items-center justify-end gap-1">
           <div className="flex gap-1">
             {getNextStatus() === 'preparing' && (
               <Button size="sm" className="h-7 px-2 text-xs bg-amber-500 hover:bg-amber-600" onClick={() => onStatusChange(order.id, 'preparing')}>
@@ -115,8 +114,7 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
           ))}
           {order.items.length > 2 && <div className="text-muted-foreground">+{order.items.length - 2} itens</div>}
         </div>
-        <div className="flex items-center justify-between gap-1 mb-2">
-          <span className="font-bold text-blue-600 text-sm">{formatPrice(order.total)}</span>
+        <div className="flex items-center justify-end gap-1 mb-2">
           {order.pix_proof && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onViewProof(order)}>
               <Image className="h-3 w-3 mr-1" />
@@ -157,13 +155,10 @@ const HistoryCard = ({ order }) => {
         <span className="font-medium text-sm">{order.customer_name}</span>
         <span className="text-xs text-muted-foreground">{formatTime(order.delivered_at || order.created_at)}</span>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          {PAYMENT_ICONS[order.payment_method] && React.createElement(PAYMENT_ICONS[order.payment_method], { className: "h-3 w-3" })}
-          <span>{PAYMENT_LABELS[order.payment_method]}</span>
-          <span>• {order.items?.length || 0} itens</span>
-        </div>
-        <span className="font-bold text-brand-600 text-sm">{formatPrice(order.total)}</span>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        {PAYMENT_ICONS[order.payment_method] && React.createElement(PAYMENT_ICONS[order.payment_method], { className: "h-3 w-3" })}
+        <span>{PAYMENT_LABELS[order.payment_method]}</span>
+        <span>• {order.items?.length || 0} itens</span>
       </div>
     </div>
   );
@@ -254,10 +249,6 @@ const PixProofDialog = ({ isOpen, onClose, order }) => {
         <div className="space-y-3">
           <div className="bg-secondary/50 rounded-lg p-3">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Valor</span>
-              <span className="font-bold text-brand-600">{formatPrice(order.total)}</span>
-            </div>
-            <div className="flex justify-between text-sm mt-1">
               <span className="text-muted-foreground">Itens</span>
               <span>{order.items?.length || 0}</span>
             </div>
@@ -422,10 +413,6 @@ export const KitchenPage = () => {
             <span className="font-bold text-sm">{STORE_NAMES[store]}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Hoje</p>
-              <p className="font-bold text-brand-600 text-sm">{formatPrice(cashData.total)}</p>
-            </div>
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { setIsRefreshing(true); fetchData(true); }} disabled={isRefreshing}>
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
