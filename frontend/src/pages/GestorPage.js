@@ -96,6 +96,12 @@ export const GestorPage = () => {
       setDashboard(response.data);
       setIsAuthenticated(true);
       localStorage.setItem('gestor_auth', btoa(`${username}:${password}`));
+      
+      // Fetch chart and menu data after successful login
+      setTimeout(() => {
+        fetchChartData();
+        fetchMenuItems();
+      }, 500);
     } catch (error) {
       toast.error('Credenciais inválidas');
     } finally {
