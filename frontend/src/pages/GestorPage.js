@@ -185,7 +185,33 @@ export const GestorPage = () => {
         {dashboard && (
           <>
             {/* Combined Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-brand-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Receita Hoje</p>
+                      <p className="text-lg font-bold text-brand-600">{formatPrice(dashboard.combined.today_total)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Receita Mês</p>
+                      <p className="text-lg font-bold text-blue-600">{formatPrice(dashboard.combined.month_total)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
