@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
@@ -9,8 +9,12 @@ import { CartDrawer } from '../components/CartDrawer';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { ProductModal } from '../components/ProductModal';
 import { useCart } from '../context/CartContext';
-import { ShoppingBag, Clock, Leaf, Search, X, MapPin, Home } from 'lucide-react';
+import { ShoppingBag, Clock, Search, X, MapPin, Home, WifiOff, RefreshCw } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import { 
+  isOnline, saveOrderOffline, syncOfflineOrders, 
+  cacheMenuData, getCachedMenu, setupOfflineListener, getPendingOrdersCount 
+} from '../utils/offline';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
