@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
-import { CheckCircle2, Clock, ChefHat, Home, RefreshCw, Loader2, CreditCard, Banknote, Smartphone, WifiOff } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, Home, RefreshCw, Loader2, CreditCard, Banknote, Smartphone, WifiOff, XCircle, AlertCircle } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -11,6 +11,8 @@ const API = `${BACKEND_URL}/api`;
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png";
 
 const STATUS_CONFIG = {
+  pending_payment: { label: 'Aguardando Aprovação PIX', description: 'Seu comprovante está sendo verificado', icon: AlertCircle, color: 'text-blue-600', bgColor: 'bg-blue-50', step: 0 },
+  payment_rejected: { label: 'Pagamento Recusado', description: 'O comprovante não foi aprovado. Fale com o atendente.', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', step: -1 },
   received: { label: 'Pedido Recebido', description: 'Seu pedido está na fila', icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100', step: 1 },
   preparing: { label: 'Preparando', description: 'Estamos preparando seu pedido', icon: ChefHat, color: 'text-amber-600', bgColor: 'bg-amber-50', step: 2 },
   ready: { label: 'Pronto!', description: 'Seu pedido está pronto para retirada', icon: CheckCircle2, color: 'text-brand-600', bgColor: 'bg-brand-50', step: 3 },
