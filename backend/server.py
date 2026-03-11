@@ -389,16 +389,138 @@ async def get_order(store: StoreLocation, order_id: str):
 
 @api_router.patch("/orders/{store}/{order_id}/status")
 async def update_order_status(store: StoreLocation, order_id: str, status_update: OrderStatusUpdate):
+    # Get current order
+    order = await db.orders.find_one({"id": order_id, "store": store.value})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    # If moving to delivered, save to history
+    if status_update.status == OrderStatus.DELIVERED:
+        order_copy = {k: v for k, v in order.items() if k != '_id'}
+        order_copy['status'] = 'delivered'
+        order_copy['delivered_at'] = datetime.now(timezone.utc).isoformat()
+        await db.order_history.insert_one(order_copy)
+    
     result = await db.orders.update_one(
         {"id": order_id, "store": store.value},
         {"$set": {"status": status_update.status.value, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
-    
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return order
+
+# ==================== PIX PAYMENT ROUTES ====================
+
+@api_router.get("/pix/config")
+async def get_pix_config():
+    """Get PIX configuration for QR code generation"""
+    return {
+        "key": PIX_CONFIG["key"],
+        "key_type": PIX_CONFIG["key_type"],
+        "beneficiary_name": PIX_CONFIG["beneficiary_name"],
+        "city": PIX_CONFIG["city"],
+        "has_key": bool(PIX_CONFIG["key"])
+    }
+
+@api_router.post("/orders/{store}/{order_id}/pix-proof")
+async def upload_pix_proof(store: StoreLocation, order_id: str, proof: PixProofUpload):
+    """Upload PIX payment proof"""
+    order = await db.orders.find_one({"id": order_id, "store": store.value})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    if order.get("payment_method") != "pix":
+        raise HTTPException(status_code=400, detail="Este pedido não é PIX")
+    
+    result = await db.orders.update_one(
+        {"id": order_id, "store": store.value},
+        {
+            "$set": {
+                "pix_proof": proof.proof_image,
+                "pix_proof_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    return {"success": True, "message": "Comprovante enviado com sucesso"}
+
+@api_router.get("/orders/{store}/pending-pix")
+async def get_pending_pix_orders(store: StoreLocation):
+    """Get orders pending PIX approval"""
+    orders = await db.orders.find({
+        "store": store.value,
+        "payment_method": "pix",
+        "status": "pending_payment",
+        "pix_proof": {"$exists": True}
+    }, {"_id": 0}).sort("created_at", 1).to_list(100)
+    return {"orders": orders}
+
+@api_router.post("/orders/{store}/{order_id}/approve-payment")
+async def approve_or_reject_payment(store: StoreLocation, order_id: str, approval: PaymentApproval):
+    """Approve or reject PIX payment"""
+    order = await db.orders.find_one({"id": order_id, "store": store.value})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    if order.get("status") != "pending_payment":
+        raise HTTPException(status_code=400, detail="Pedido não está aguardando aprovação")
+    
+    if approval.approved:
+        # Update stock on approval
+        for item in order.get("items", []):
+            await db.stock.update_one(
+                {"menu_item_id": item["menu_item_id"].split("-")[0], "store": store.value},
+                {"$inc": {"quantity": -item["quantity"]}},
+                upsert=False
+            )
+        
+        await db.orders.update_one(
+            {"id": order_id, "store": store.value},
+            {
+                "$set": {
+                    "status": "received",
+                    "payment_approved_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        return {"success": True, "message": "Pagamento aprovado", "new_status": "received"}
+    else:
+        await db.orders.update_one(
+            {"id": order_id, "store": store.value},
+            {
+                "$set": {
+                    "status": "payment_rejected",
+                    "rejection_reason": approval.rejection_reason,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        return {"success": True, "message": "Pagamento rejeitado", "new_status": "payment_rejected"}
+
+# ==================== ORDER HISTORY ROUTES ====================
+
+@api_router.get("/orders/{store}/history")
+async def get_order_history(store: StoreLocation):
+    """Get delivered orders from the last 24 hours"""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    
+    orders = await db.order_history.find({
+        "store": store.value,
+        "delivered_at": {"$gte": cutoff.isoformat()}
+    }, {"_id": 0}).sort("delivered_at", -1).to_list(500)
+    
+    return {"orders": orders, "count": len(orders)}
+
+@api_router.delete("/orders/history/cleanup")
+async def cleanup_old_history():
+    """Clean up order history older than 24 hours (can be called by cron)"""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    result = await db.order_history.delete_many({
+        "delivered_at": {"$lt": cutoff.isoformat()}
+    })
+    return {"deleted": result.deleted_count}
 
 # ==================== STOCK ROUTES ====================
 
