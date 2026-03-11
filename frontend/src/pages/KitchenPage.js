@@ -393,6 +393,33 @@ export const KitchenPage = () => {
   const morningShift = salesData.shifts?.morning || { count: 0, by_payment: {} };
   const afternoonShift = salesData.shifts?.afternoon || { count: 0, by_payment: {} };
 
+  // Hidden clear button - requires 5 clicks on store name + password
+  const handleStoreNameClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    if (newCount >= 5) {
+      setShowClearDialog(true);
+      setClickCount(0);
+    }
+    // Reset after 3 seconds
+    setTimeout(() => setClickCount(0), 3000);
+  };
+
+  const handleClearStoreData = async () => {
+    setIsClearing(true);
+    try {
+      await axios.post(`${API}/admin/clear-store/${store}?password=${clearPassword}`);
+      toast.success('Dados da loja foram apagados!');
+      setShowClearDialog(false);
+      setClearPassword('');
+      fetchData(true);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Senha incorreta');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
