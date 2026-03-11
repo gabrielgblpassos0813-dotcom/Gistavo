@@ -199,6 +199,9 @@ const HistoryCard = ({ order }) => {
 const StockItem = ({ item, onUpdate }) => {
   const [qty, setQty] = useState(item.quantity);
   const [updating, setUpdating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(item.quantity.toString());
+  const inputRef = useRef(null);
 
   const handleUpdate = async (newQty) => {
     if (newQty < 0) return;
@@ -206,6 +209,29 @@ const StockItem = ({ item, onUpdate }) => {
     setQty(newQty);
     await onUpdate(item.menu_item_id, newQty);
     setUpdating(false);
+  };
+
+  const handleEditClick = () => {
+    setEditValue(qty.toString());
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 50);
+  };
+
+  const handleEditSubmit = () => {
+    const newQty = parseInt(editValue) || 0;
+    if (newQty >= 0) {
+      handleUpdate(newQty);
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleEditSubmit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditValue(qty.toString());
+    }
   };
 
   return (
@@ -218,7 +244,27 @@ const StockItem = ({ item, onUpdate }) => {
         <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleUpdate(qty - 1)} disabled={updating || qty <= 0}>
           <Minus className="h-3 w-3" />
         </Button>
-        <span className="w-8 text-center text-xs font-bold">{qty}</span>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="number"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleEditSubmit}
+            onKeyDown={handleEditKeyDown}
+            className="w-12 h-6 text-center text-xs font-bold border rounded focus:outline-none focus:ring-2 focus:ring-brand-500"
+            min="0"
+            autoFocus
+          />
+        ) : (
+          <button 
+            onClick={handleEditClick}
+            className="w-10 h-6 text-center text-xs font-bold hover:bg-gray-100 rounded cursor-pointer transition-colors"
+            title="Clique para editar"
+          >
+            {qty}
+          </button>
+        )}
         <Button size="icon" variant="outline" className="h-6 w-6" onClick={() => handleUpdate(qty + 1)} disabled={updating}>
           <Plus className="h-3 w-3" />
         </Button>
