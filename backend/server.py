@@ -748,7 +748,7 @@ async def get_today_cash(store: StoreLocation):
     return {
         "date": today.strftime("%Y-%m-%d"),
         "total": total,
-        "by_payment_method": by_payment_count,
+        "by_payment_method": by_payment_value,
         "order_count": len(orders),
         "shifts": {
             "morning": {
