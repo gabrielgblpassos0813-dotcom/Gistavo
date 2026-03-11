@@ -327,6 +327,22 @@ export const KitchenPage = () => {
   const [clearPassword, setClearPassword] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const prevOrderCount = useRef(0);
+  const audioRef = useRef(null);
+
+  // Initialize audio for new order notification
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp+fm5qUkIuHhYSDhIWIi5CUmJygoqOjoqGgn56dnJuampqampqam5ydnp+goaKio6OjoqGgnpuYlZKPjYuKiYmJiouNj5KVmJufoquvs7a4ubq5uLWyrqmjnZeSjouIhoWFhYaHiYuOkZWZnaGlqa2wsrS1tbW0s7GurKmmoZ2ZlpKPjIqJiIiIiYqMjpGUl5qeoaSnqautr6+vr66trKqopaKfnJmWk5GPjYyLi4uLjI2Oj5KUl5qcn6GjpaanqKiop6alpKKgnpyamJaUkpGQj4+Pj5CRkpOUlpeYmZqbnJ2dnZ2dnJybmpmYl5aVlJOSkZGQkJCQkZGSk5OUlZWWlpeXl5eXl5eWlpWVlJSTkpKRkZGRkZGRkpKSk5OTlJSUlJSUlJSUlJOTk5KSkpGRkZGRkZGRkZKSkpKSk5OTk5OTk5OTk5OTkpKSkpKSkZGRkZGRkZGRkZKSkpKSk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OT');
+  }, []);
+
+  // Play sound when new order arrives
+  const playNewOrderSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {}); // Ignore autoplay errors
+    }
+  }, [soundEnabled]);
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
@@ -338,7 +354,18 @@ export const KitchenPage = () => {
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`)
       ]);
-      setOrders(ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status)));
+      
+      const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
+      
+      // Check if there are new orders
+      const newPendingCount = newOrders.filter(o => o.status === 'received').length + pixRes.data.orders.length;
+      if (prevOrderCount.current > 0 && newPendingCount > prevOrderCount.current) {
+        playNewOrderSound();
+        toast.info('🔔 Novo pedido!', { duration: 3000 });
+      }
+      prevOrderCount.current = newPendingCount;
+      
+      setOrders(newOrders);
       setStats(statsRes.data);
       setSalesData(cashRes.data);
       setStock(stockRes.data.stock);
