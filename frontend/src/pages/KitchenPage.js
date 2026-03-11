@@ -158,17 +158,39 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
 
 // History Card Component
 const HistoryCard = ({ order }) => {
+  const [expanded, setExpanded] = useState(false);
+  
   return (
     <div className="bg-white rounded-lg border shadow-sm p-2">
       <div className="flex items-center justify-between mb-1">
         <span className="font-medium text-sm">{order.customer_name}</span>
-        <span className="text-xs text-muted-foreground">{formatTime(order.delivered_at || order.created_at)}</span>
+        <span className="text-xs text-muted-foreground">{formatTime(order.delivered_at || order.updated_at || order.created_at)}</span>
       </div>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        {PAYMENT_ICONS[order.payment_method] && React.createElement(PAYMENT_ICONS[order.payment_method], { className: "h-3 w-3" })}
-        <span>{PAYMENT_LABELS[order.payment_method]}</span>
-        <span>• {order.items?.length || 0} itens</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          {PAYMENT_ICONS[order.payment_method] && React.createElement(PAYMENT_ICONS[order.payment_method], { className: "h-3 w-3" })}
+          <span>{PAYMENT_LABELS[order.payment_method]}</span>
+          <span>• {order.items?.length || 0} itens</span>
+        </div>
+        <span className="text-sm font-bold text-brand-600">{formatCurrency(order.total)}</span>
       </div>
+      {/* Items expandable */}
+      <button 
+        onClick={() => setExpanded(!expanded)} 
+        className="text-xs text-brand-600 mt-1 hover:underline"
+      >
+        {expanded ? 'Ocultar itens ▲' : 'Ver itens ▼'}
+      </button>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t space-y-1">
+          {order.items?.map((item, idx) => (
+            <div key={idx} className="flex justify-between text-xs">
+              <span className="text-muted-foreground">{item.quantity}x {item.name}</span>
+              <span>{formatCurrency(item.price * item.quantity)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
