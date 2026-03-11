@@ -10,8 +10,8 @@ import { Label } from '../components/ui/label';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
-  Home, CreditCard, Banknote, Smartphone, Plus, Minus,
-  AlertTriangle, Coffee, Droplets, Sun, Moon, Image, X, Check, History
+  Home, Smartphone, Plus, Minus,
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -27,10 +27,8 @@ const STATUS_CONFIG = {
   ready: { label: 'Pronto', color: 'bg-brand-500', bgLight: 'bg-brand-50', borderColor: 'border-l-brand-500' }
 };
 
-const PAYMENT_ICONS = { pix: Smartphone, debit: CreditCard, credit: CreditCard, cash: Banknote };
+const PAYMENT_ICONS = { pix: Smartphone };
 const PAYMENT_LABELS = { pix: 'PIX', debit: 'Déb', credit: 'Créd', cash: 'Din' };
-
-const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
 
 const formatTime = (isoString) => {
   const date = new Date(isoString);
@@ -282,7 +280,6 @@ export const KitchenPage = () => {
   const [pendingPixOrders, setPendingPixOrders] = useState([]);
   const [historyOrders, setHistoryOrders] = useState([]);
   const [stats, setStats] = useState({ pending: 0, preparing: 0, ready: 0 });
-  const [cashData, setCashData] = useState({ total: 0, by_payment_method: {}, shifts: {} });
   const [stock, setStock] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -291,17 +288,15 @@ export const KitchenPage = () => {
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = await Promise.all([
+      const [ordersRes, statsRes, stockRes, pixRes, historyRes] = await Promise.all([
         axios.get(`${API}/orders/${store}`),
         axios.get(`${API}/kitchen/${store}/stats`),
-        axios.get(`${API}/cash/${store}/today`),
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`)
       ]);
       setOrders(ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status)));
       setStats(statsRes.data);
-      setCashData(cashRes.data);
       setStock(stockRes.data.stock);
       setPendingPixOrders(pixRes.data.orders);
       setHistoryOrders(historyRes.data.orders);
@@ -387,9 +382,6 @@ export const KitchenPage = () => {
   const bebidasStock = stock.filter(s => s.type === 'bebida');
   const ingredientesStock = stock.filter(s => s.type === 'ingrediente' || s.type === 'custom');
   const lowStockCount = stock.filter(s => s.low_stock).length;
-
-  const morningShift = cashData.shifts?.morning || { total: 0, count: 0, by_payment: {} };
-  const afternoonShift = cashData.shifts?.afternoon || { total: 0, count: 0, by_payment: {} };
 
   if (isLoading) {
     return (
