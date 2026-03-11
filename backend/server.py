@@ -370,21 +370,69 @@ async def update_order_status(store: StoreLocation, order_id: str, status_update
 
 # ==================== STOCK ROUTES ====================
 
+# Categorias que precisam de controle de estoque
+STOCK_CATEGORIES = ["Bebidas Quentes", "Bebidas Geladas"]
+
+# Ingredientes para estoque
+INGREDIENTES_ESTOQUE = [
+    {"id": "ing_1", "name": "Ovos (unidade)", "category": "Ingredientes"},
+    {"id": "ing_2", "name": "Atum (porção)", "category": "Ingredientes"},
+    {"id": "ing_3", "name": "Queijo Branco (porção)", "category": "Ingredientes"},
+    {"id": "ing_4", "name": "Mussarela (porção)", "category": "Ingredientes"},
+    {"id": "ing_5", "name": "Frango Desfiado (porção)", "category": "Ingredientes"},
+    {"id": "ing_6", "name": "Peito de Peru (porção)", "category": "Ingredientes"},
+    {"id": "ing_7", "name": "Mel (porção)", "category": "Ingredientes"},
+    {"id": "ing_8", "name": "Granola (porção)", "category": "Ingredientes"},
+    {"id": "ing_9", "name": "Nutella (porção)", "category": "Ingredientes"},
+    {"id": "ing_10", "name": "Pão Integral (unidade)", "category": "Ingredientes"},
+    {"id": "ing_11", "name": "Requeijão (porção)", "category": "Ingredientes"},
+    {"id": "ing_12", "name": "Whey Protein (dose)", "category": "Ingredientes"},
+    {"id": "ing_13", "name": "Açaí (litro)", "category": "Ingredientes"},
+    {"id": "ing_14", "name": "Leite (litro)", "category": "Ingredientes"},
+    {"id": "ing_15", "name": "Café (kg)", "category": "Ingredientes"},
+]
+
+class StockItemCreate(BaseModel):
+    name: str
+    category: str = "Ingredientes"
+    quantity: int = 0
+    min_quantity: int = 5
+
 @api_router.get("/stock/{store}")
 async def get_stock(store: StoreLocation):
     stock_items = await db.stock.find({"store": store.value}, {"_id": 0}).to_list(1000)
     
-    # Enrich with product names
+    # Get bebidas from menu
+    bebidas = [item for item in MENU_DATA if item["category"] in STOCK_CATEGORIES]
+    menu_map = {item["id"]: item for item in bebidas}
+    
     result = []
-    menu_map = {item["id"]: item for item in MENU_DATA}
     for stock in stock_items:
         menu_item = menu_map.get(stock["menu_item_id"])
+        ingrediente = next((i for i in INGREDIENTES_ESTOQUE if i["id"] == stock["menu_item_id"]), None)
+        
         if menu_item:
             result.append({
                 **stock,
                 "name": menu_item["name"],
                 "category": menu_item["category"],
-                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5)
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "type": "bebida"
+            })
+        elif ingrediente:
+            result.append({
+                **stock,
+                "name": ingrediente["name"],
+                "category": ingrediente["category"],
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "type": "ingrediente"
+            })
+        elif stock.get("name"):
+            # Custom item added by user
+            result.append({
+                **stock,
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "type": "custom"
             })
     
     return {"stock": result}
@@ -405,10 +453,42 @@ async def update_stock(store: StoreLocation, menu_item_id: str, stock_update: St
     stock = await db.stock.find_one({"menu_item_id": menu_item_id, "store": store.value}, {"_id": 0})
     return stock
 
+@api_router.post("/stock/{store}/add")
+async def add_stock_item(store: StoreLocation, item: StockItemCreate):
+    """Add a new custom item to stock"""
+    new_id = f"custom_{str(uuid.uuid4())[:8]}"
+    
+    doc = {
+        "id": str(uuid.uuid4()),
+        "menu_item_id": new_id,
+        "store": store.value,
+        "name": item.name,
+        "category": item.category,
+        "quantity": item.quantity,
+        "min_quantity": item.min_quantity,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.stock.insert_one(doc)
+    return {**doc, "_id": None}
+
+@api_router.delete("/stock/{store}/{menu_item_id}")
+async def delete_stock_item(store: StoreLocation, menu_item_id: str):
+    """Delete a custom stock item"""
+    if not menu_item_id.startswith("custom_"):
+        raise HTTPException(status_code=400, detail="Só é possível deletar itens personalizados")
+    
+    result = await db.stock.delete_one({"menu_item_id": menu_item_id, "store": store.value})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    return {"message": "Item removido"}
+
 @api_router.post("/stock/{store}/initialize")
 async def initialize_stock(store: StoreLocation, default_quantity: int = 50):
-    """Initialize stock for all menu items"""
-    for item in MENU_DATA:
+    """Initialize stock for bebidas and ingredientes only"""
+    # Bebidas
+    bebidas = [item for item in MENU_DATA if item["category"] in STOCK_CATEGORIES]
+    for item in bebidas:
         await db.stock.update_one(
             {"menu_item_id": item["id"], "store": store.value},
             {
@@ -423,6 +503,24 @@ async def initialize_stock(store: StoreLocation, default_quantity: int = 50):
             },
             upsert=True
         )
+    
+    # Ingredientes
+    for item in INGREDIENTES_ESTOQUE:
+        await db.stock.update_one(
+            {"menu_item_id": item["id"], "store": store.value},
+            {
+                "$setOnInsert": {
+                    "id": str(uuid.uuid4()),
+                    "menu_item_id": item["id"],
+                    "store": store.value,
+                    "quantity": default_quantity,
+                    "min_quantity": 10,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            },
+            upsert=True
+        )
+    
     return {"message": f"Estoque inicializado para {store.value}"}
 
 # ==================== KITCHEN ROUTES ====================
