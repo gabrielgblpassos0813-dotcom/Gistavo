@@ -151,7 +151,7 @@ export const MenuPage = () => {
     setShowCheckout(true);
   };
 
-  const handleSubmitOrder = async (customerName, pickupTime, paymentMethod) => {
+  const handleSubmitOrder = async (customerName, pickupTime, paymentMethod, pixProof = null) => {
     setIsSubmitting(true);
     try {
       const orderData = {
@@ -160,7 +160,8 @@ export const MenuPage = () => {
         items: items,
         total: total,
         payment_method: paymentMethod,
-        pickup_time: pickupTime
+        pickup_time: pickupTime,
+        pix_proof: pixProof
       };
 
       if (offline || !isOnline()) {
@@ -178,7 +179,12 @@ export const MenuPage = () => {
       
       clearCart();
       setShowCheckout(false);
-      toast.success('Pedido enviado com sucesso!');
+      
+      if (paymentMethod === 'pix') {
+        toast.success('Pedido enviado! Aguarde a aprovação do pagamento.');
+      } else {
+        toast.success('Pedido enviado com sucesso!');
+      }
       
       navigate(`/${store}/pedido/${response.data.id}`);
     } catch (error) {
@@ -191,7 +197,8 @@ export const MenuPage = () => {
           items: items,
           total: total,
           payment_method: paymentMethod,
-          pickup_time: pickupTime
+          pickup_time: pickupTime,
+          pix_proof: pixProof
         });
         clearCart();
         setShowCheckout(false);
