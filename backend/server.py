@@ -693,7 +693,7 @@ async def get_today_cash(store: StoreLocation):
     
     orders = await db.orders.find({
         "store": store.value,
-        "status": "delivered",
+        "status": {"$in": ["ready", "delivered"]},  # Conta pedidos prontos E entregues
         "created_at": {"$gte": today.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
