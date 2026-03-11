@@ -236,6 +236,29 @@ export const MenuPage = () => {
       
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-border/50">
+        {/* Offline Banner */}
+        {offline && (
+          <div className="bg-amber-500 text-white text-xs py-1.5 px-4 flex items-center justify-center gap-2">
+            <WifiOff className="h-3 w-3" />
+            <span>Modo offline - pedidos serão sincronizados quando a conexão voltar</span>
+          </div>
+        )}
+        {/* Pending Sync Banner */}
+        {!offline && pendingSync > 0 && (
+          <div className="bg-brand-600 text-white text-xs py-1.5 px-4 flex items-center justify-center gap-2">
+            <span>{pendingSync} pedido(s) pendente(s)</span>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-6 px-2 text-white hover:bg-white/20"
+              onClick={handleSync}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sincronizar
+            </Button>
+          </div>
+        )}
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
