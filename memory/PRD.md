@@ -20,8 +20,14 @@ Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Lo
 - Visão das duas lojas em abas
 - Vendas do dia e mês (total e por loja)
 - Vendas por forma de pagamento
-- Produtos mais vendidos / menos vendidos
+- **Produtos mais vendidos / menos vendidos com modal de detalhes** ✅
 - Alertas de estoque baixo
+
+### Painel da Cozinha
+- Kanban de pedidos (Aguardando, Preparando, Prontos)
+- **Vendas separadas por turno (Manhã 06:00-14:00 e Tarde/Noite 14:00-22:00)** ✅
+- **Layout mobile-friendly responsivo** ✅
+- Gestão de estoque integrada
 
 ### Estoque Automático
 - Por unidade
@@ -33,9 +39,12 @@ Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Lo
 - Só mostra horários futuros (a partir do momento atual + 15 min)
 - Intervalos de 15 minutos
 
-### Modo Offline (Básico)
-- Utilitário para salvar pedidos localmente quando offline
-- Sincronização quando conexão retornar
+### Modo Offline ✅ (NOVO)
+- Service Worker para cache de assets e cardápio
+- Pedidos salvos localmente quando offline
+- Sincronização automática quando conexão retorna
+- Banner indicando status offline
+- Botão de sincronização manual
 
 ## URLs do Sistema
 - `/` - Seleção de loja
@@ -43,9 +52,9 @@ Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Lo
 - `/gym-londres` - Cardápio GYM Londres
 - `/runner/cozinha` - Painel da cozinha Runner
 - `/gym-londres/cozinha` - Painel da cozinha GYM Londres
-- `/runner/estoque` - Gestão de estoque Runner
-- `/gym-londres/estoque` - Gestão de estoque GYM Londres
-- `/gestor/dashboard` - Painel do gestor (protegido)
+- `/gestor` - Painel do gestor (protegido)
+- `/{store}/pedido/{id}` - Acompanhamento de pedido
+- `/{store}/pedido/offline` - Página para pedido offline
 
 ## Categorias do Cardápio
 1. Omeletes, Tapiocas e Crepiocas
@@ -62,10 +71,51 @@ Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Lo
 ## Adicionais (não aparecem em bebidas)
 Ovos, Atum, Queijo Branco, Mussarela, Frango, Mel, Granola, Nutella
 
+## Arquitetura
+```
+/app/
+├── backend/
+│   ├── server.py        # FastAPI com todas as rotas
+│   ├── tests/           # Testes pytest
+│   └── .env
+├── frontend/
+│   ├── public/
+│   │   ├── service-worker.js  # PWA offline
+│   │   └── manifest.json
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── MenuPage.js      # Cardápio com offline
+│   │   │   ├── KitchenPage.js   # Cozinha com shifts
+│   │   │   ├── GestorPage.js    # Gestor com modal
+│   │   │   └── OrderTrackingPage.js
+│   │   ├── components/
+│   │   └── utils/
+│   │       └── offline.js       # Utilitários offline
+│   └── .env
+└── memory/
+    └── PRD.md
+```
+
 ## Backlog
-- P1: Notificação sonora para pedidos prontos
-- P1: Service Worker completo para modo offline robusto
-- P2: Histórico de pedidos do dia para impressão
-- P2: Metas de vendas configuráveis
-- P3: Relatórios exportáveis (PDF/Excel)
-- P3: QR Code por mesa
+
+### P1 - Alta Prioridade
+- [ ] Notificação sonora para pedidos prontos
+- [ ] Impressão de comanda
+
+### P2 - Média Prioridade
+- [ ] Histórico de pedidos do dia para impressão
+- [ ] Metas de vendas configuráveis
+- [ ] Relatórios exportáveis (PDF/Excel)
+
+### P3 - Baixa Prioridade
+- [ ] QR Code por mesa
+- [ ] Dashboard de analytics avançado
+
+## Changelog
+
+### 2025-03-11
+- ✅ Implementado vendas por turno na aba Caixa da cozinha
+- ✅ Melhorado layout mobile da página da cozinha
+- ✅ Adicionado modal de detalhes para produtos no painel do gestor
+- ✅ Implementado modo offline completo com Service Worker
+- ✅ Testes automatizados: 100% de cobertura (19 testes backend passando)
