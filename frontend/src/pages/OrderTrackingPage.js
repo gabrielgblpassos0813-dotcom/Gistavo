@@ -157,24 +157,36 @@ export const OrderTrackingPage = () => {
         </div>
 
         {/* Items */}
-        <div className="bg-white rounded-2xl shadow-lg p-5">
-          <h2 className="font-semibold mb-3">Itens do Pedido</h2>
-          <div className="space-y-2 mb-3 text-sm">
-            {order.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between py-1 border-b border-border/50 last:border-0">
-                <div>
-                  <span className="font-medium">{item.name}</span>
-                  <span className="text-muted-foreground ml-1">x{item.quantity}</span>
+        {!isOfflineOrder && (
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <h2 className="font-semibold mb-3">Itens do Pedido</h2>
+            <div className="space-y-2 mb-3 text-sm">
+              {order.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between py-1 border-b border-border/50 last:border-0">
+                  <div>
+                    <span className="font-medium">{item.name}</span>
+                    <span className="text-muted-foreground ml-1">x{item.quantity}</span>
+                  </div>
+                  <span>{formatPrice(item.price * item.quantity)}</span>
                 </div>
-                <span>{formatPrice(item.price * item.quantity)}</span>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="border-t pt-3 flex justify-between">
+              <span className="font-semibold">Total</span>
+              <span className="text-xl font-bold text-brand-600">{formatPrice(order.total)}</span>
+            </div>
           </div>
-          <div className="border-t pt-3 flex justify-between">
-            <span className="font-semibold">Total</span>
-            <span className="text-xl font-bold text-brand-600">{formatPrice(order.total)}</span>
+        )}
+
+        {isOfflineOrder && (
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <div className="text-center text-muted-foreground">
+              <WifiOff className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Seu pedido foi salvo localmente.</p>
+              <p className="text-sm">Quando a conexão for restaurada, ele será enviado automaticamente.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="mt-4 text-center">
           <Button variant="outline" onClick={() => navigate(`/${store}`)} className="rounded-full">
