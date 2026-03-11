@@ -440,13 +440,14 @@ export const KitchenPage = () => {
 
       <main className="p-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 h-9">
+          <TabsList className="grid w-full grid-cols-5 h-9">
             <TabsTrigger value="pix" className="text-xs h-7 px-1">
               PIX {pendingPixOrders.length > 0 && <Badge className="ml-1 bg-blue-600 h-4 min-w-4 p-0 justify-center text-[10px]">{pendingPixOrders.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="pedidos" className="text-xs h-7 px-1">
               Pedidos {(stats.pending + stats.preparing) > 0 && <Badge className="ml-1 bg-brand-600 h-4 min-w-4 p-0 justify-center text-[10px]">{stats.pending + stats.preparing}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="vendas" className="text-xs h-7 px-1">Vendas</TabsTrigger>
             <TabsTrigger value="estoque" className="text-xs h-7 px-1">
               Est. {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
             </TabsTrigger>
