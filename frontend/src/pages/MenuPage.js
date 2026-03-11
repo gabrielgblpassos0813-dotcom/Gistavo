@@ -9,7 +9,7 @@ import { CartDrawer } from '../components/CartDrawer';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { ProductModal } from '../components/ProductModal';
 import { useCart } from '../context/CartContext';
-import { ShoppingBag, Clock, Search, X, MapPin, Home, WifiOff, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Clock, Search, X, MapPin, WifiOff, RefreshCw } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { 
   isOnline, saveOrderOffline, syncOfflineOrders, 
@@ -268,9 +268,6 @@ export const MenuPage = () => {
         )}
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
-              <Home className="h-5 w-5" />
-            </Button>
             <img src={LOGO_URL} alt="GANOH Café Bistrô" className="h-10 w-auto" />
           </div>
           
