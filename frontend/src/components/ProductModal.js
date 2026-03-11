@@ -101,7 +101,7 @@ export const ProductModal = ({ item, isOpen, onClose, adicionais = [] }) => {
           </div>
 
           {/* Adicionais Section - Only for applicable categories */}
-          {showAdicionais && (
+          {showAdicionais && adicionais.length > 0 && (
             <div className="border-t border-border pt-4 mb-4">
               <h3 className="font-semibold text-foreground mb-3 text-sm">
                 Adicionais
