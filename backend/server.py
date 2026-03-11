@@ -711,12 +711,12 @@ async def get_today_cash(store: StoreLocation):
     }, {"_id": 0}).to_list(1000)
     
     # Total VALUE by payment method (in R$)
-    by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
+    by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}
     total = 0
     
     # By shift (06:00-14:00 and 14:00-22:00)
-    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0}}
-    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0}}
+    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}}
+    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}}
     
     for order in orders:
         payment = order.get("payment_method", "cash")
