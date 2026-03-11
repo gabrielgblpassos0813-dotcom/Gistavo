@@ -370,14 +370,14 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                   </p>
                 </div>
 
-                {/* PIX Copy-Paste */}
+                {/* PIX Copy-Paste - CNPJ */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">PIX Copia e Cola</Label>
+                  <Label className="text-sm font-medium">Chave PIX (CNPJ)</Label>
                   <div className="flex gap-2">
                     <Input 
-                      value={generatePixCode().substring(0, 40) + '...'} 
+                      value={PIX_DATA.key} 
                       readOnly 
-                      className="text-xs font-mono"
+                      className="text-base font-mono font-bold tracking-wider"
                     />
                     <Button 
                       type="button" 
