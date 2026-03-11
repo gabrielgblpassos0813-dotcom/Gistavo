@@ -10,8 +10,8 @@ import { Label } from '../components/ui/label';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
-  Home, Smartphone, Plus, Minus, Banknote,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History
+  Home, Smartphone, Plus, Minus, Banknote, CreditCard,
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -280,6 +280,7 @@ export const KitchenPage = () => {
   const [pendingPixOrders, setPendingPixOrders] = useState([]);
   const [historyOrders, setHistoryOrders] = useState([]);
   const [stats, setStats] = useState({ pending: 0, preparing: 0, ready: 0 });
+  const [salesData, setSalesData] = useState({ shifts: { morning: { count: 0, by_payment: {} }, afternoon: { count: 0, by_payment: {} } }, order_count: 0 });
   const [stock, setStock] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -288,15 +289,17 @@ export const KitchenPage = () => {
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
-      const [ordersRes, statsRes, stockRes, pixRes, historyRes] = await Promise.all([
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = await Promise.all([
         axios.get(`${API}/orders/${store}`),
         axios.get(`${API}/kitchen/${store}/stats`),
+        axios.get(`${API}/cash/${store}/today`),
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`)
       ]);
       setOrders(ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status)));
       setStats(statsRes.data);
+      setSalesData(cashRes.data);
       setStock(stockRes.data.stock);
       setPendingPixOrders(pixRes.data.orders);
       setHistoryOrders(historyRes.data.orders);
@@ -382,6 +385,9 @@ export const KitchenPage = () => {
   const bebidasStock = stock.filter(s => s.type === 'bebida');
   const ingredientesStock = stock.filter(s => s.type === 'ingrediente' || s.type === 'custom');
   const lowStockCount = stock.filter(s => s.low_stock).length;
+
+  const morningShift = salesData.shifts?.morning || { count: 0, by_payment: {} };
+  const afternoonShift = salesData.shifts?.afternoon || { count: 0, by_payment: {} };
 
   if (isLoading) {
     return (
