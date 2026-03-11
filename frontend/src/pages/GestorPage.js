@@ -254,17 +254,19 @@ export const GestorPage = () => {
               {Object.entries(dashboard.stores).map(([storeKey, storeData]) => (
                 <TabsContent key={storeKey} value={storeKey} className="space-y-4">
                   {/* Store Stats */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Card className="bg-brand-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Pedidos Hoje</p>
-                        <p className="text-xl font-bold text-brand-600">{storeData.today.order_count}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Receita Hoje</p>
+                        <p className="text-xl font-bold text-brand-600">{formatPrice(storeData.today.total)}</p>
+                        <p className="text-xs text-muted-foreground">{storeData.today.order_count} pedidos</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-blue-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Pedidos Mês</p>
-                        <p className="text-xl font-bold text-blue-600">{storeData.month.order_count}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Receita Mês</p>
+                        <p className="text-xl font-bold text-blue-600">{formatPrice(storeData.month.total)}</p>
+                        <p className="text-xs text-muted-foreground">{storeData.month.order_count} pedidos</p>
                       </CardContent>
                     </Card>
                     {storeData.low_stock_alerts > 0 && (
