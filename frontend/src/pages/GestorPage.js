@@ -939,6 +939,56 @@ export const GestorPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Prazo Customer Dialog */}
+      <Dialog open={showPrazoDialog} onOpenChange={setShowPrazoDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-amber-600" />
+              Cadastrar Cliente Prazo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome *</Label>
+              <Input 
+                value={newPrazoCustomer.name} 
+                onChange={(e) => setNewPrazoCustomer({...newPrazoCustomer, name: e.target.value})}
+                placeholder="Nome do cliente"
+              />
+            </div>
+            <div>
+              <Label>Telefone (opcional)</Label>
+              <Input 
+                value={newPrazoCustomer.phone} 
+                onChange={(e) => setNewPrazoCustomer({...newPrazoCustomer, phone: e.target.value})}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div>
+              <Label>Observações (opcional)</Label>
+              <Input 
+                value={newPrazoCustomer.notes} 
+                onChange={(e) => setNewPrazoCustomer({...newPrazoCustomer, notes: e.target.value})}
+                placeholder="Ex: Paga toda sexta"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowPrazoDialog(false); setNewPrazoCustomer({ name: '', phone: '', notes: '' }); }}>
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1 bg-amber-600 hover:bg-amber-700" 
+                onClick={handleAddPrazoCustomer}
+                disabled={!newPrazoCustomer.name}
+              >
+                Cadastrar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
