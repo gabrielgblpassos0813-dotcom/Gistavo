@@ -878,6 +878,125 @@ async def get_gestor_stock(store: StoreLocation, username: str = Depends(verify_
 async def update_gestor_stock(store: StoreLocation, menu_item_id: str, stock_update: StockUpdate, username: str = Depends(verify_gestor)):
     return await update_stock(store, menu_item_id, stock_update)
 
+# ==================== MONTHLY CHART DATA ====================
+
+@api_router.get("/gestor/chart/monthly")
+async def get_monthly_chart_data(username: str = Depends(verify_gestor)):
+    """Get daily sales data for the current month for chart visualization"""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all completed orders this month
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered"]},
+        "created_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
+    
+    # Group by day
+    daily_data = {}
+    for i in range(now.day):
+        day = (month_start + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_data[day] = {"date": day, "day": i + 1, "total": 0, "count": 0}
+    
+    for order in orders:
+        date = order.get("created_at", "")[:10]
+        if date in daily_data:
+            daily_data[date]["total"] += order.get("total", 0)
+            daily_data[date]["count"] += 1
+    
+    # Convert to sorted list
+    chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
+    
+    return {
+        "month": now.strftime("%B %Y"),
+        "data": chart_data,
+        "total_month": sum(d["total"] for d in chart_data),
+        "total_orders": sum(d["count"] for d in chart_data)
+    }
+
+# ==================== MENU MANAGEMENT ====================
+
+class MenuItemCreate(BaseModel):
+    name: str
+    description: str = ""
+    price: float
+    category: str
+    store: str
+    image_url: str = ""
+
+class MenuItemUpdate(BaseModel):
+    name: str = None
+    description: str = None
+    price: float = None
+    category: str = None
+    image_url: str = None
+    available: bool = None
+
+@api_router.get("/gestor/menu/{store}")
+async def get_store_menu(store: StoreLocation, username: str = Depends(verify_gestor)):
+    """Get menu items for a store"""
+    menu = await db.menu.find({"store": store.value}, {"_id": 0}).to_list(500)
+    return {"menu": menu, "count": len(menu)}
+
+@api_router.post("/gestor/menu")
+async def create_menu_item(item: MenuItemCreate, username: str = Depends(verify_gestor)):
+    """Create a new menu item"""
+    menu_item = {
+        "id": str(uuid4()),
+        "name": item.name,
+        "description": item.description,
+        "price": item.price,
+        "category": item.category,
+        "store": item.store,
+        "image_url": item.image_url,
+        "available": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.menu.insert_one(menu_item)
+    
+    # Also add to stock with default quantity
+    await db.stock.insert_one({
+        "store": item.store,
+        "menu_item_id": menu_item["id"],
+        "name": item.name,
+        "category": item.category,
+        "quantity": 50,
+        "low_stock": False
+    })
+    
+    return {**menu_item, "_id": None}
+
+@api_router.put("/gestor/menu/{item_id}")
+async def update_menu_item(item_id: str, update: MenuItemUpdate, username: str = Depends(verify_gestor)):
+    """Update a menu item"""
+    update_data = {k: v for k, v in update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.menu.update_one({"id": item_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    
+    # Update stock name if name changed
+    if "name" in update_data:
+        await db.stock.update_many({"menu_item_id": item_id}, {"$set": {"name": update_data["name"]}})
+    
+    return {"success": True, "message": "Item atualizado"}
+
+@api_router.delete("/gestor/menu/{item_id}")
+async def delete_menu_item(item_id: str, username: str = Depends(verify_gestor)):
+    """Delete a menu item"""
+    result = await db.menu.delete_one({"id": item_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    
+    # Also remove from stock
+    await db.stock.delete_many({"menu_item_id": item_id})
+    
+    return {"success": True, "message": "Item removido"}
+
 # ==================== ADMIN CLEAR DATA ROUTE ====================
 CLEAR_DATA_PASSWORD = "152637"
 
