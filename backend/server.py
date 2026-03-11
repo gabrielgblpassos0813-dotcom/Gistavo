@@ -432,7 +432,7 @@ async def upload_pix_proof(store: StoreLocation, order_id: str, proof: PixProofU
     if order.get("payment_method") != "pix":
         raise HTTPException(status_code=400, detail="Este pedido não é PIX")
     
-    result = await db.orders.update_one(
+    await db.orders.update_one(
         {"id": order_id, "store": store.value},
         {
             "$set": {
