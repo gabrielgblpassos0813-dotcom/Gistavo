@@ -8,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
-  BarChart3, TrendingUp, TrendingDown, ShoppingBag, 
+  BarChart3, TrendingUp, TrendingDown, ShoppingBag, DollarSign,
   AlertTriangle, RefreshCw, LogOut, Home, Store,
-  ChevronRight
+  ChevronRight, Trash2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -18,6 +18,8 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png";
+
+const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
 
 // Products List Dialog
 const ProductsDialog = ({ isOpen, onClose, title, products, type }) => {
