@@ -473,6 +473,27 @@ export const KitchenPage = () => {
     }
   };
 
+  const handlePayPrazo = async () => {
+    if (!selectedPrazoCustomer || !prazoPassword) return;
+    
+    setIsPaying(true);
+    try {
+      await axios.post(`${API}/prazo/pay-all/${encodeURIComponent(selectedPrazoCustomer.name)}`, {
+        amount: selectedPrazoCustomer.total,
+        password: prazoPassword
+      });
+      toast.success(`Pagamento de ${selectedPrazoCustomer.name} registrado!`);
+      setShowPrazoPayDialog(false);
+      setSelectedPrazoCustomer(null);
+      setPrazoPassword('');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao registrar pagamento');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   const handleStockUpdate = async (menuItemId, quantity) => {
     try {
       await axios.put(`${API}/stock/${store}/${menuItemId}`, { quantity });
