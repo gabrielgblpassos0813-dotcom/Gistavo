@@ -970,6 +970,50 @@ export const KitchenPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Prazo Payment Dialog */}
+      <Dialog open={showPrazoPayDialog} onOpenChange={setShowPrazoPayDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base text-green-600 flex items-center gap-2">
+              <Check className="h-4 w-4" />
+              Registrar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPrazoCustomer && (
+            <div className="space-y-3">
+              <div className="bg-amber-50 rounded-lg p-3">
+                <p className="font-medium">{selectedPrazoCustomer.name}</p>
+                <p className="text-2xl font-bold text-amber-600">{formatCurrency(selectedPrazoCustomer.total)}</p>
+                <p className="text-xs text-muted-foreground">{selectedPrazoCustomer.order_count} pedido(s) pendente(s)</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Digite a senha para confirmar:</p>
+                <Input
+                  type="password"
+                  placeholder="Senha (1234)"
+                  value={prazoPassword}
+                  onChange={(e) => setPrazoPassword(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setShowPrazoPayDialog(false); setPrazoPassword(''); setSelectedPrazoCustomer(null); }}>
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700" 
+                  onClick={handlePayPrazo}
+                  disabled={isPaying || !prazoPassword}
+                >
+                  {isPaying ? 'Processando...' : 'Confirmar Pagamento'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
