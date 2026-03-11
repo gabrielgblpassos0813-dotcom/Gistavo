@@ -442,14 +442,13 @@ export const KitchenPage = () => {
 
       <main className="p-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 h-9">
+          <TabsList className="grid w-full grid-cols-4 h-9">
             <TabsTrigger value="pix" className="text-xs h-7 px-1">
               PIX {pendingPixOrders.length > 0 && <Badge className="ml-1 bg-blue-600 h-4 min-w-4 p-0 justify-center text-[10px]">{pendingPixOrders.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="pedidos" className="text-xs h-7 px-1">
               Pedidos {(stats.pending + stats.preparing) > 0 && <Badge className="ml-1 bg-brand-600 h-4 min-w-4 p-0 justify-center text-[10px]">{stats.pending + stats.preparing}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="caixa" className="text-xs h-7 px-1">Caixa</TabsTrigger>
             <TabsTrigger value="estoque" className="text-xs h-7 px-1">
               Est. {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
             </TabsTrigger>
@@ -531,90 +530,6 @@ export const KitchenPage = () => {
                   <p className="text-sm">Nenhum pedido</p>
                 </div>
               )}
-            </div>
-          </TabsContent>
-
-          {/* CAIXA TAB */}
-          <TabsContent value="caixa" className="mt-2 space-y-3">
-            {/* Turno Manhã */}
-            <div className="bg-white rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Sun className="h-4 w-4 text-amber-500" />
-                <span className="font-semibold text-sm">Manhã (06:00 - 14:00)</span>
-                <Badge variant="secondary" className="ml-auto">{morningShift.count} pedidos</Badge>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center mb-3">
-                <div className="bg-brand-50 rounded-lg p-2">
-                  <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
-                  <p className="text-[10px] text-muted-foreground">PIX</p>
-                  <p className="text-xs font-bold text-brand-600">{formatPrice(morningShift.by_payment?.pix)}</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-2">
-                  <CreditCard className="h-4 w-4 mx-auto text-blue-600" />
-                  <p className="text-[10px] text-muted-foreground">Déb</p>
-                  <p className="text-xs font-bold text-blue-600">{formatPrice(morningShift.by_payment?.debit)}</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-2">
-                  <CreditCard className="h-4 w-4 mx-auto text-purple-600" />
-                  <p className="text-[10px] text-muted-foreground">Créd</p>
-                  <p className="text-xs font-bold text-purple-600">{formatPrice(morningShift.by_payment?.credit)}</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-2">
-                  <Banknote className="h-4 w-4 mx-auto text-green-600" />
-                  <p className="text-[10px] text-muted-foreground">Din</p>
-                  <p className="text-xs font-bold text-green-600">{formatPrice(morningShift.by_payment?.cash)}</p>
-                </div>
-              </div>
-              <div className="text-right border-t pt-2">
-                <span className="text-sm text-muted-foreground">Subtotal: </span>
-                <span className="font-bold text-brand-600">{formatPrice(morningShift.total)}</span>
-              </div>
-            </div>
-
-            {/* Turno Tarde */}
-            <div className="bg-white rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Moon className="h-4 w-4 text-indigo-500" />
-                <span className="font-semibold text-sm">Tarde/Noite (14:00 - 22:00)</span>
-                <Badge variant="secondary" className="ml-auto">{afternoonShift.count} pedidos</Badge>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center mb-3">
-                <div className="bg-brand-50 rounded-lg p-2">
-                  <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
-                  <p className="text-[10px] text-muted-foreground">PIX</p>
-                  <p className="text-xs font-bold text-brand-600">{formatPrice(afternoonShift.by_payment?.pix)}</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-2">
-                  <CreditCard className="h-4 w-4 mx-auto text-blue-600" />
-                  <p className="text-[10px] text-muted-foreground">Déb</p>
-                  <p className="text-xs font-bold text-blue-600">{formatPrice(afternoonShift.by_payment?.debit)}</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-2">
-                  <CreditCard className="h-4 w-4 mx-auto text-purple-600" />
-                  <p className="text-[10px] text-muted-foreground">Créd</p>
-                  <p className="text-xs font-bold text-purple-600">{formatPrice(afternoonShift.by_payment?.credit)}</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-2">
-                  <Banknote className="h-4 w-4 mx-auto text-green-600" />
-                  <p className="text-[10px] text-muted-foreground">Din</p>
-                  <p className="text-xs font-bold text-green-600">{formatPrice(afternoonShift.by_payment?.cash)}</p>
-                </div>
-              </div>
-              <div className="text-right border-t pt-2">
-                <span className="text-sm text-muted-foreground">Subtotal: </span>
-                <span className="font-bold text-brand-600">{formatPrice(afternoonShift.total)}</span>
-              </div>
-            </div>
-
-            {/* Total do Dia */}
-            <div className="bg-brand-600 text-white rounded-xl p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm opacity-80">Total do Dia</p>
-                  <p className="text-xs opacity-60">{cashData.order_count || 0} pedidos</p>
-                </div>
-                <p className="text-2xl font-bold">{formatPrice(cashData.total)}</p>
-              </div>
             </div>
           </TabsContent>
 
