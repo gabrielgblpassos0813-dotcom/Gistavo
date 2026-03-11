@@ -593,7 +593,7 @@ async def get_stock(store: StoreLocation):
 
 @api_router.put("/stock/{store}/{menu_item_id}")
 async def update_stock(store: StoreLocation, menu_item_id: str, stock_update: StockUpdate):
-    result = await db.stock.update_one(
+    await db.stock.update_one(
         {"menu_item_id": menu_item_id, "store": store.value},
         {
             "$set": {
