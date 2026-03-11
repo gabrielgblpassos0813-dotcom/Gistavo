@@ -439,7 +439,12 @@ export const KitchenPage = () => {
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
               <Home className="h-4 w-4" />
             </Button>
-            <span className="font-bold text-sm">{STORE_NAMES[store]}</span>
+            <span 
+              className="font-bold text-sm cursor-pointer select-none" 
+              onClick={handleStoreNameClick}
+            >
+              {STORE_NAMES[store]}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { setIsRefreshing(true); fetchData(true); }} disabled={isRefreshing}>
