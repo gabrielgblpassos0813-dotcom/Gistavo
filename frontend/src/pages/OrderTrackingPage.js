@@ -12,12 +12,19 @@ const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-40
 
 const STATUS_CONFIG = {
   pending_payment: { label: 'Aguardando Aprovação PIX', description: 'Seu comprovante está sendo verificado', icon: AlertCircle, color: 'text-blue-600', bgColor: 'bg-blue-50', step: 0 },
-  payment_rejected: { label: 'Pagamento Recusado', description: 'O comprovante não foi aprovado. Fale com o atendente.', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', step: -1 },
+  payment_rejected: { label: 'Pagamento Recusado', description: 'O comprovante não foi aprovado. Fale com o atendente.', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', step: 0 },
   received: { label: 'Pedido Recebido', description: 'Seu pedido está na fila', icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100', step: 1 },
   preparing: { label: 'Preparando', description: 'Estamos preparando seu pedido', icon: ChefHat, color: 'text-amber-600', bgColor: 'bg-amber-50', step: 2 },
   ready: { label: 'Pronto!', description: 'Seu pedido está pronto para retirada', icon: CheckCircle2, color: 'text-brand-600', bgColor: 'bg-brand-50', step: 3 },
   pending_sync: { label: 'Aguardando Sincronização', description: 'Seu pedido será enviado quando a conexão voltar', icon: WifiOff, color: 'text-amber-600', bgColor: 'bg-amber-50', step: 0 }
 };
+
+// Apenas os passos para a barra de progresso
+const PROGRESS_STEPS = [
+  { step: 1, label: 'Recebido' },
+  { step: 2, label: 'Preparando' },
+  { step: 3, label: 'Pronto' }
+];
 
 const PAYMENT_LABELS = { pix: 'PIX', debit: 'Cartão de Débito', credit: 'Cartão de Crédito', cash: 'Dinheiro' };
 const PAYMENT_ICONS = { pix: Smartphone, debit: CreditCard, credit: CreditCard, cash: Banknote };
@@ -122,19 +129,23 @@ export const OrderTrackingPage = () => {
             <p className="text-sm text-muted-foreground">{statusConfig.description}</p>
           </div>
 
-          {/* Progress */}
-          <div className="flex items-center justify-center gap-2 mb-5">
-            {Object.entries(STATUS_CONFIG).map(([key, config], index) => (
-              <React.Fragment key={key}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  config.step <= statusConfig.step ? 'bg-brand-600 text-white' : 'bg-gray-200'
-                }`}>
-                  {config.step}
-                </div>
-                {index < 2 && <div className={`h-1 w-8 ${config.step < statusConfig.step ? 'bg-brand-600' : 'bg-gray-200'}`} />}
-              </React.Fragment>
-            ))}
-          </div>
+          {/* Progress - Só mostra se não for PIX pendente/rejeitado */}
+          {order.status !== 'pending_payment' && order.status !== 'payment_rejected' && order.status !== 'pending_sync' && (
+            <div className="flex items-center justify-center gap-2 mb-5">
+              {PROGRESS_STEPS.map((item, index) => (
+                <React.Fragment key={item.step}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    item.step <= statusConfig.step ? 'bg-brand-600 text-white' : 'bg-gray-200'
+                  }`}>
+                    {item.step}
+                  </div>
+                  {index < PROGRESS_STEPS.length - 1 && (
+                    <div className={`h-1 w-8 ${item.step < statusConfig.step ? 'bg-brand-600' : 'bg-gray-200'}`} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          )}
 
           {/* Info */}
           <div className="bg-secondary/50 rounded-xl p-3 space-y-2 text-sm">
