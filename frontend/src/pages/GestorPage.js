@@ -212,6 +212,55 @@ export const GestorPage = () => {
     }
   };
 
+  const fetchPrazoData = async () => {
+    try {
+      const [customersRes, debtsRes] = await Promise.all([
+        axios.get(`${API}/prazo/customers`),
+        axios.get(`${API}/prazo/debts`)
+      ]);
+      setPrazoCustomers(customersRes.data.customers || []);
+      setPrazoDebts(debtsRes.data);
+    } catch (error) {
+      console.log('Error fetching prazo data');
+    }
+  };
+
+  const handleAddPrazoCustomer = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth || !newPrazoCustomer.name) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      await axios.post(`${API}/prazo/customers`, newPrazoCustomer, {
+        auth: { username: user, password: pass }
+      });
+      toast.success('Cliente cadastrado!');
+      setShowPrazoDialog(false);
+      setNewPrazoCustomer({ name: '', phone: '', notes: '' });
+      fetchPrazoData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao cadastrar');
+    }
+  };
+
+  const handleDeletePrazoCustomer = async (customerId) => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      await axios.delete(`${API}/prazo/customers/${customerId}`, {
+        auth: { username: user, password: pass }
+      });
+      toast.success('Cliente removido!');
+      fetchPrazoData();
+    } catch (error) {
+      toast.error('Erro ao remover');
+    }
+  };
+
   useEffect(() => {
     const auth = localStorage.getItem('gestor_auth');
     if (auth) {
@@ -219,6 +268,7 @@ export const GestorPage = () => {
       fetchDashboard();
       fetchChartData();
       fetchMenuItems();
+      fetchPrazoData();
     }
   }, []);
 
