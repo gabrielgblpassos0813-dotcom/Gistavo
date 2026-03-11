@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
-import { CheckCircle2, Clock, ChefHat, Home, RefreshCw, Loader2, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { CheckCircle2, Clock, ChefHat, Home, RefreshCw, Loader2, CreditCard, Banknote, Smartphone, WifiOff } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -13,7 +13,8 @@ const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-40
 const STATUS_CONFIG = {
   received: { label: 'Pedido Recebido', description: 'Seu pedido está na fila', icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100', step: 1 },
   preparing: { label: 'Preparando', description: 'Estamos preparando seu pedido', icon: ChefHat, color: 'text-amber-600', bgColor: 'bg-amber-50', step: 2 },
-  ready: { label: 'Pronto!', description: 'Seu pedido está pronto para retirada', icon: CheckCircle2, color: 'text-brand-600', bgColor: 'bg-brand-50', step: 3 }
+  ready: { label: 'Pronto!', description: 'Seu pedido está pronto para retirada', icon: CheckCircle2, color: 'text-brand-600', bgColor: 'bg-brand-50', step: 3 },
+  pending_sync: { label: 'Aguardando Sincronização', description: 'Seu pedido será enviado quando a conexão voltar', icon: WifiOff, color: 'text-amber-600', bgColor: 'bg-amber-50', step: 0 }
 };
 
 const PAYMENT_LABELS = { pix: 'PIX', debit: 'Cartão de Débito', credit: 'Cartão de Crédito', cash: 'Dinheiro' };
@@ -21,12 +22,29 @@ const PAYMENT_ICONS = { pix: Smartphone, debit: CreditCard, credit: CreditCard, 
 
 export const OrderTrackingPage = () => {
   const { store, orderId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isOfflineOrder, setIsOfflineOrder] = useState(false);
 
   const fetchOrder = async (showToast = false) => {
+    // Handle offline orders
+    if (orderId === 'offline') {
+      setIsOfflineOrder(true);
+      const customerName = searchParams.get('name') || 'Cliente';
+      setOrder({
+        id: 'offline',
+        customer_name: customerName,
+        status: 'pending_sync',
+        items: [],
+        total: 0
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.get(`${API}/orders/${store}/${orderId}`);
       setOrder(response.data);
@@ -42,8 +60,10 @@ export const OrderTrackingPage = () => {
 
   useEffect(() => {
     fetchOrder();
-    const interval = setInterval(() => fetchOrder(), 10000);
-    return () => clearInterval(interval);
+    if (orderId !== 'offline') {
+      const interval = setInterval(() => fetchOrder(), 10000);
+      return () => clearInterval(interval);
+    }
   }, [store, orderId]);
 
   const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
