@@ -333,7 +333,30 @@ export const KitchenPage = () => {
 
   // Initialize audio for new order notification
   useEffect(() => {
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp+fm5qUkIuHhYSDhIWIi5CUmJygoqOjoqGgn56dnJuampqampqam5ydnp+goaKio6OjoqGgnpuYlZKPjYuKiYmJiouNj5KVmJufoquvs7a4ubq5uLWyrqmjnZeSjouIhoWFhYaHiYuOkZWZnaGlqa2wsrS1tbW0s7GurKmmoZ2ZlpKPjIqJiIiIiYqMjpGUl5qeoaSnqautr6+vr66trKqopaKfnJmWk5GPjYyLi4uLjI2Oj5KUl5qcn6GjpaanqKiop6alpKKgnpyamJaUkpGQj4+Pj5CRkpOUlpeYmZqbnJ2dnZ2dnJybmpmYl5aVlJOSkZGQkJCQkZGSk5OUlZWWlpeXl5eXl5eWlpWVlJSTkpKRkZGRkZGRkpKSk5OTlJSUlJSUlJSUlJOTk5KSkpGRkZGRkZGRkZKSkpKSk5OTk5OTk5OTk5OTkpKSkpKSkZGRkZGRkZGRkZKSkpKSk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OT');
+    // Create a better notification sound using Web Audio API
+    const createNotificationSound = () => {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 880; // A5 note
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (e) {
+        console.log('Audio not supported');
+      }
+    };
+    
+    audioRef.current = { play: createNotificationSound };
   }, []);
 
   // Play sound when new order arrives
