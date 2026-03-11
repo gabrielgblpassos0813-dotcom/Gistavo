@@ -73,6 +73,9 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
           ))}
           {order.items.length > 3 && <div className="text-muted-foreground">+{order.items.length - 3} itens</div>}
         </div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-brand-600">{formatCurrency(order.total)}</span>
+        </div>
         <div className="flex items-center justify-end gap-1">
           <div className="flex gap-1">
             {getNextStatus() === 'preparing' && (
