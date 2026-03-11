@@ -2,6 +2,7 @@ import requests
 import sys
 import json
 from datetime import datetime
+import base64
 
 class GANOHAPITester:
     def __init__(self, base_url="https://bistro-order-1.preview.emergentagent.com"):
@@ -9,8 +10,8 @@ class GANOHAPITester:
         self.api_url = f"{base_url}/api"
         self.tests_run = 0
         self.tests_passed = 0
-        self.created_order_id = None
-        self.pickup_order_id = None
+        self.created_order_ids = {}  # Store order IDs by store
+        self.gestor_auth = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
         """Run a single API test"""
