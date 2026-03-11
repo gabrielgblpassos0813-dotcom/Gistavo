@@ -100,10 +100,12 @@ export const OrderTrackingPage = () => {
       <header className="bg-white/80 backdrop-blur-md border-b">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <img src={LOGO_URL} alt="GANOH" className="h-8" />
-          <Button variant="outline" size="sm" onClick={() => { setIsRefreshing(true); fetchOrder(true); }} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          {!isOfflineOrder && (
+            <Button variant="outline" size="sm" onClick={() => { setIsRefreshing(true); fetchOrder(true); }} disabled={isRefreshing}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          )}
         </div>
       </header>
 
