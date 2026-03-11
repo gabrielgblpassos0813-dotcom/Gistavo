@@ -73,6 +73,10 @@ export const GestorPage = () => {
   const [dashboard, setDashboard] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [productsDialog, setProductsDialog] = useState({ open: false, title: '', products: [], type: 'top' });
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [clearPassword, setClearPassword] = useState('');
+  const [clickCount, setClickCount] = useState(0);
+  const [isClearing, setIsClearing] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -126,6 +130,33 @@ export const GestorPage = () => {
 
   const openProductsDialog = (title, products, type) => {
     setProductsDialog({ open: true, title, products, type });
+  };
+
+  // Hidden clear button - requires 5 clicks on logo + password
+  const handleLogoClick = () => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    if (newCount >= 5) {
+      setShowClearDialog(true);
+      setClickCount(0);
+    }
+    // Reset after 3 seconds
+    setTimeout(() => setClickCount(0), 3000);
+  };
+
+  const handleClearData = async () => {
+    setIsClearing(true);
+    try {
+      await axios.post(`${API}/admin/clear-data?password=${clearPassword}`);
+      toast.success('Todos os dados foram apagados!');
+      setShowClearDialog(false);
+      setClearPassword('');
+      fetchDashboard(true);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Senha incorreta');
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   if (!isAuthenticated) {
