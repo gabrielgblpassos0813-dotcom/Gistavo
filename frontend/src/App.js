@@ -5,7 +5,6 @@ import { MenuPage } from "./pages/MenuPage";
 import { OrderTrackingPage } from "./pages/OrderTrackingPage";
 import { KitchenPage } from "./pages/KitchenPage";
 import { GestorPage } from "./pages/GestorPage";
-import { StockPage } from "./pages/StockPage";
 import { StoreSelectorPage } from "./pages/StoreSelectorPage";
 
 function App() {
@@ -20,7 +19,6 @@ function App() {
           <Route path="/:store" element={<MenuPage />} />
           <Route path="/:store/pedido/:orderId" element={<OrderTrackingPage />} />
           <Route path="/:store/cozinha" element={<KitchenPage />} />
-          <Route path="/:store/estoque" element={<StockPage />} />
           
           {/* Gestor (manager) panel */}
           <Route path="/gestor/dashboard" element={<GestorPage />} />
