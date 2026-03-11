@@ -109,9 +109,25 @@ export const MenuPage = () => {
       if (response.data.categories.length > 0) {
         setActiveCategory(response.data.categories[0]);
       }
+      // Cache menu data for offline use
+      cacheMenuData(store, response.data);
     } catch (error) {
       console.error('Erro ao carregar cardápio:', error);
-      toast.error('Erro ao carregar cardápio');
+      // Try to load from cache if offline
+      const cachedMenu = getCachedMenu(store);
+      if (cachedMenu) {
+        const availableItems = cachedMenu.items.filter(item => item.available);
+        setMenuItems(availableItems);
+        setCategories(cachedMenu.categories);
+        setAdicionais(cachedMenu.adicionais || []);
+        setStoreInfo(cachedMenu.store);
+        if (cachedMenu.categories.length > 0) {
+          setActiveCategory(cachedMenu.categories[0]);
+        }
+        toast.info('Usando cardápio em cache (modo offline)');
+      } else {
+        toast.error('Erro ao carregar cardápio');
+      }
     } finally {
       setIsLoading(false);
     }
