@@ -35,6 +35,13 @@ const formatTime = (isoString) => {
   return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+};
+
 // Order Card Component - Mobile optimized
 const OrderCard = ({ order, onStatusChange, onDelete }) => {
   const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.received;
