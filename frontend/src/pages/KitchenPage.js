@@ -257,9 +257,13 @@ const PixProofDialog = ({ isOpen, onClose, order }) => {
         </DialogHeader>
         <div className="space-y-3">
           <div className="bg-secondary/50 rounded-lg p-3">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-sm mb-1">
               <span className="text-muted-foreground">Itens</span>
               <span>{order.items?.length || 0}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-bold text-brand-600">{formatCurrency(order.total)}</span>
             </div>
           </div>
           {order.pix_proof ? (
