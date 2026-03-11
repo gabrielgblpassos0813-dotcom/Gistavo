@@ -5,17 +5,6 @@ import { Checkbox } from '../components/ui/checkbox';
 import { useCart } from '../context/CartContext';
 import { Plus, Minus, Clock, X } from 'lucide-react';
 
-const ADICIONAIS = [
-  { id: "72", name: "Ovos", price: 3.50 },
-  { id: "73", name: "Atum", price: 7.00 },
-  { id: "74", name: "Queijo Branco", price: 8.00 },
-  { id: "75", name: "Mussarela", price: 3.00 },
-  { id: "76", name: "Frango", price: 7.00 },
-  { id: "77", name: "Mel", price: 3.50 },
-  { id: "78", name: "Granola", price: 3.50 },
-  { id: "79", name: "Nutella", price: 5.00 },
-];
-
 // Categorias que NÃO mostram adicionais
 const CATEGORIES_WITHOUT_ADICIONAIS = [
   "Bebidas Quentes",
@@ -23,7 +12,7 @@ const CATEGORIES_WITHOUT_ADICIONAIS = [
   "Suplementos"
 ];
 
-export const ProductModal = ({ item, isOpen, onClose }) => {
+export const ProductModal = ({ item, isOpen, onClose, adicionais = [] }) => {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedAdicionais, setSelectedAdicionais] = useState([]);
