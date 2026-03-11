@@ -1,51 +1,53 @@
-# GANOH Café Bistrô - Cardápio Digital
+# GANOH Café Bistrô - Sistema de Cardápio Digital
 
 ## Problema Original
-Criar um cardápio digital estilo iFood para a cafeteria bistrô GANOH. Sem entregas - apenas para clientes presenciais. Tempo estimado de 15 minutos para preparo.
+Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Londres). Sem entregas, apenas clientes presenciais.
 
-## Escolhas do Usuário
-- Identificação do cliente: por nome (sem número de mesa)
-- Acompanhamento do pedido: status em tempo real (Recebido → Preparando → Pronto)
-- Painel administrativo: sim, para cozinha gerenciar pedidos
-- Design visual: tema claro/clean (branco com verde como destaque)
-- Tempo estimado: 15 minutos fixo para todos os itens
-- Adicionais: aparecem no modal do produto (estilo iFood)
-- Pesquisa: barra de busca com lupa
+## Requisitos Implementados
 
-## User Personas
-1. **Cliente presencial**: pessoa no café que usa celular para fazer pedido
-2. **Equipe da cozinha**: funcionários que gerenciam pedidos pelo painel
+### Multi-Loja
+- **Runner**: Cardápio e painel admin próprios
+- **GYM Londres**: Cardápio e painel admin próprios
+- Mesmo cardápio para ambas, estoque separado
 
-## Requisitos Core
-- Cardápio por categorias (10 categorias)
-- Cards de produtos com imagem, nome, descrição, preço
-- Carrinho de compras
-- Modal de produto com adicionais opcionais
-- Busca de itens
-- Checkout com nome do cliente
-- Acompanhamento de status em tempo real
-- Painel Kanban para cozinha
+### Formas de Pagamento
+- PIX, Cartão de Débito, Cartão de Crédito, Dinheiro
+- Salvo por pedido para fechamento de caixa
+- Relatório separado por forma de pagamento
 
-## O Que Foi Implementado (10/03/2026)
+### Painel do Gestor (com login)
+- **Credenciais**: gestor / ganoh2024
+- Visão das duas lojas em abas
+- Vendas do dia e mês (total e por loja)
+- Vendas por forma de pagamento
+- Produtos mais vendidos / menos vendidos
+- Alertas de estoque baixo
 
-### Backend (FastAPI)
-- GET /api/menu - Lista cardápio completo
-- GET /api/categories - Lista categorias
-- POST /api/orders - Cria pedido
-- GET /api/orders - Lista pedidos
-- GET /api/orders/{id} - Detalhes do pedido
-- PATCH /api/orders/{id}/status - Atualiza status
-- GET /api/kitchen/stats - Estatísticas da cozinha
+### Estoque Automático
+- Por unidade
+- Quando estoque = 0, produto fica indisponível
+- Alertas de estoque baixo (≤ 5 unidades)
+- Gerenciamento por loja
 
-### Frontend (React)
-- **MenuPage** - Cardápio com categorias, busca, produtos
-- **ProductModal** - Detalhes do produto com adicionais
-- **CartDrawer** - Carrinho lateral
-- **CheckoutModal** - Finalização com nome
-- **OrderTrackingPage** - Acompanhamento do pedido
-- **KitchenPage** - Painel Kanban para cozinha
+### Horário de Retirada
+- Só mostra horários futuros (a partir do momento atual + 15 min)
+- Intervalos de 15 minutos
 
-### Categorias do Cardápio
+### Modo Offline (Básico)
+- Utilitário para salvar pedidos localmente quando offline
+- Sincronização quando conexão retornar
+
+## URLs do Sistema
+- `/` - Seleção de loja
+- `/runner` - Cardápio Runner
+- `/gym-londres` - Cardápio GYM Londres
+- `/runner/cozinha` - Painel da cozinha Runner
+- `/gym-londres/cozinha` - Painel da cozinha GYM Londres
+- `/runner/estoque` - Gestão de estoque Runner
+- `/gym-londres/estoque` - Gestão de estoque GYM Londres
+- `/gestor/dashboard` - Painel do gestor (protegido)
+
+## Categorias do Cardápio
 1. Omeletes, Tapiocas e Crepiocas
 2. Brunchs
 3. Toasts
@@ -57,13 +59,13 @@ Criar um cardápio digital estilo iFood para a cafeteria bistrô GANOH. Sem entr
 9. Bebidas Geladas
 10. Suplementos
 
-### Adicionais Disponíveis
+## Adicionais (não aparecem em bebidas)
 Ovos, Atum, Queijo Branco, Mussarela, Frango, Mel, Granola, Nutella
 
-## Backlog (Próximas Melhorias)
+## Backlog
 - P1: Notificação sonora para pedidos prontos
-- P1: Histórico de pedidos do dia
-- P2: Impressão de comanda
-- P2: Personalização de tempos por categoria
-- P3: Dashboard com relatórios de vendas
-- P3: QR Code para mesa acessar cardápio
+- P1: Service Worker completo para modo offline robusto
+- P2: Histórico de pedidos do dia para impressão
+- P2: Metas de vendas configuráveis
+- P3: Relatórios exportáveis (PDF/Excel)
+- P3: QR Code por mesa
