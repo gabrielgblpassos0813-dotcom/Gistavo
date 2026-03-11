@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,8 +9,7 @@ import { CartDrawer } from '../components/CartDrawer';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { ProductModal } from '../components/ProductModal';
 import { useCart } from '../context/CartContext';
-import { ShoppingBag, Clock, Leaf, Search, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ShoppingBag, Clock, Leaf, Search, X, MapPin, Home } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -17,23 +17,18 @@ const API = `${BACKEND_URL}/api`;
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png";
 
-// Categories to show (excluding Adicionais)
-const DISPLAY_CATEGORIES = [
-  "Omeletes, Tapiocas e Crepiocas",
-  "Brunchs",
-  "Toasts",
-  "Shakes Proteicos",
-  "Açaí",
-  "Sucos e Vitaminas",
-  "Saladas",
-  "Bebidas Quentes",
-  "Bebidas Geladas",
-  "Suplementos"
-];
+const STORE_NAMES = {
+  'runner': 'Runner',
+  'gym-londres': 'GYM Londres'
+};
 
 export const MenuPage = () => {
+  const { store } = useParams();
+  const navigate = useNavigate();
+  
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [adicionais, setAdicionais] = useState([]);
   const [activeCategory, setActiveCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -41,25 +36,29 @@ export const MenuPage = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [storeInfo, setStoreInfo] = useState(null);
   
   const { setIsOpen, itemCount, items, total, clearCart } = useCart();
-  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchMenu();
-  }, []);
+    if (store && ['runner', 'gym-londres'].includes(store)) {
+      fetchMenu();
+    } else {
+      navigate('/');
+    }
+  }, [store]);
 
   const fetchMenu = async () => {
     try {
-      const response = await axios.get(`${API}/menu`);
-      // Filter out "Adicionais" from items
-      const filteredItems = response.data.items.filter(item => item.category !== 'Adicionais');
-      setMenuItems(filteredItems);
-      // Filter categories to exclude "Adicionais"
-      const filteredCategories = response.data.categories.filter(cat => DISPLAY_CATEGORIES.includes(cat));
-      setCategories(filteredCategories);
-      if (filteredCategories.length > 0) {
-        setActiveCategory(filteredCategories[0]);
+      const response = await axios.get(`${API}/menu/${store}`);
+      // Filter only available items (in stock)
+      const availableItems = response.data.items.filter(item => item.available);
+      setMenuItems(availableItems);
+      setCategories(response.data.categories);
+      setAdicionais(response.data.adicionais || []);
+      setStoreInfo(response.data.store);
+      if (response.data.categories.length > 0) {
+        setActiveCategory(response.data.categories[0]);
       }
     } catch (error) {
       console.error('Erro ao carregar cardápio:', error);
@@ -69,7 +68,6 @@ export const MenuPage = () => {
     }
   };
 
-  // Filter items based on search or category
   const getDisplayedItems = () => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -88,13 +86,15 @@ export const MenuPage = () => {
     setShowCheckout(true);
   };
 
-  const handleSubmitOrder = async (customerName, pickupTime) => {
+  const handleSubmitOrder = async (customerName, pickupTime, paymentMethod) => {
     setIsSubmitting(true);
     try {
       const orderData = {
+        store: store,
         customer_name: customerName,
         items: items,
         total: total,
+        payment_method: paymentMethod,
         pickup_time: pickupTime
       };
 
@@ -104,10 +104,11 @@ export const MenuPage = () => {
       setShowCheckout(false);
       toast.success('Pedido enviado com sucesso!');
       
-      navigate(`/pedido/${response.data.id}`);
+      navigate(`/${store}/pedido/${response.data.id}`);
     } catch (error) {
       console.error('Erro ao enviar pedido:', error);
-      toast.error('Erro ao enviar pedido. Tente novamente.');
+      const message = error.response?.data?.detail || 'Erro ao enviar pedido. Tente novamente.';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -122,10 +123,6 @@ export const MenuPage = () => {
     if (isSearching) {
       setSearchQuery('');
     }
-  };
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
   };
 
   if (isLoading) {
@@ -147,61 +144,46 @@ export const MenuPage = () => {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img 
-              src={LOGO_URL} 
-              alt="GANOH Café Bistrô" 
-              className="h-12 w-auto"
-            />
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
+              <Home className="h-5 w-5" />
+            </Button>
+            <img src={LOGO_URL} alt="GANOH Café Bistrô" className="h-10 w-auto" />
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Search Button/Input */}
             {isSearching ? (
               <div className="flex items-center gap-2 animate-slideIn">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Buscar item..."
+                    placeholder="Buscar..."
                     value={searchQuery}
-                    onChange={handleSearchChange}
-                    className="pl-9 pr-4 h-11 w-48 md:w-64 rounded-full border-brand-200 focus:border-brand-500"
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-10 w-40 md:w-56 rounded-full"
                     autoFocus
                     data-testid="search-input"
                   />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11 rounded-full"
-                  onClick={handleSearchToggle}
-                  data-testid="close-search-button"
-                >
+                <Button variant="ghost" size="icon" onClick={handleSearchToggle}>
                   <X className="h-5 w-5" />
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-11 w-11 rounded-full border-brand-200 hover:bg-brand-50"
-                onClick={handleSearchToggle}
-                data-testid="search-button"
-              >
+              <Button variant="outline" size="icon" className="rounded-full" onClick={handleSearchToggle} data-testid="search-button">
                 <Search className="h-5 w-5 text-brand-600" />
               </Button>
             )}
             
-            {/* Cart Button */}
             <Button
               variant="outline"
-              className="relative h-11 px-4 rounded-full border-brand-200 hover:bg-brand-50"
+              className="relative h-10 px-4 rounded-full"
               onClick={() => setIsOpen(true)}
               data-testid="cart-button"
             >
               <ShoppingBag className="h-5 w-5 text-brand-600" />
               {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 h-6 w-6 bg-brand-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 h-5 w-5 bg-brand-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
                   {itemCount}
                 </span>
               )}
@@ -211,19 +193,16 @@ export const MenuPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-brand-50 to-background py-8 px-4">
+      <section className="bg-gradient-to-b from-brand-50 to-background py-6 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 text-brand-600 mb-2">
-            <Leaf className="h-5 w-5" />
-            <span className="text-sm font-medium">Café & Bistrô</span>
+            <MapPin className="h-4 w-4" />
+            <span className="text-sm font-medium">{STORE_NAMES[store] || store}</span>
           </div>
-          <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-2">
-            Bem-vindo ao GANOH
+          <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-1">
+            GANOH Café Bistrô
           </h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Escolha seus itens favoritos e faça seu pedido
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span>Tempo estimado: ~15 minutos</span>
           </div>
@@ -232,15 +211,15 @@ export const MenuPage = () => {
 
       {/* Search Results or Category Navigation */}
       {searchQuery.trim() ? (
-        <div className="bg-white/95 backdrop-blur-sm border-b border-border/30 py-4 px-4">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-border/30 py-3 px-4">
           <div className="max-w-7xl mx-auto">
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {displayedItems.length} resultado{displayedItems.length !== 1 ? 's' : ''} para "{searchQuery}"
             </p>
           </div>
         </div>
       ) : (
-        <div className="sticky top-[73px] z-40 bg-white/95 backdrop-blur-sm border-b border-border/30 py-3 px-4">
+        <div className="sticky top-[65px] z-40 bg-white/95 backdrop-blur-sm border-b border-border/30 py-3 px-4">
           <div className="max-w-7xl mx-auto">
             <CategoryNav
               categories={categories}
@@ -252,24 +231,17 @@ export const MenuPage = () => {
       )}
 
       {/* Products Grid */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-6">
         {!searchQuery.trim() && (
-          <h2 className="font-heading text-2xl font-semibold mb-6 text-foreground">
+          <h2 className="font-heading text-xl font-semibold mb-4 text-foreground">
             {activeCategory}
           </h2>
         )}
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {displayedItems.map((item, index) => (
-            <div 
-              key={item.id} 
-              className="animate-slideIn"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <ProductCard 
-                item={item} 
-                onClick={() => handleProductClick(item)}
-              />
+            <div key={item.id} className="animate-slideIn" style={{ animationDelay: `${index * 30}ms` }}>
+              <ProductCard item={item} onClick={() => handleProductClick(item)} />
             </div>
           ))}
         </div>
@@ -278,43 +250,33 @@ export const MenuPage = () => {
           <div className="text-center py-12">
             <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-muted-foreground">
-              {searchQuery.trim() 
-                ? `Nenhum item encontrado para "${searchQuery}"`
-                : 'Nenhum item disponível nesta categoria'
-              }
+              {searchQuery.trim() ? `Nenhum item encontrado` : 'Nenhum item disponível'}
             </p>
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="bg-secondary/50 border-t border-border/50 py-6 px-4 mt-auto">
+      <footer className="bg-secondary/50 border-t border-border/50 py-4 px-4 mt-auto">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-sm text-muted-foreground">
-            GANOH Café Bistrô • Cardápio Digital
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            WhatsApp: (11) 99638-5796 • @ganohcafe_
+          <p className="text-xs text-muted-foreground">
+            GANOH Café Bistrô • {STORE_NAMES[store]}
           </p>
         </div>
       </footer>
 
-      {/* Cart Drawer */}
       <CartDrawer onCheckout={handleCheckout} />
-
-      {/* Checkout Modal */}
       <CheckoutModal
         isOpen={showCheckout}
         onClose={() => setShowCheckout(false)}
         onSubmit={handleSubmitOrder}
         isLoading={isSubmitting}
       />
-
-      {/* Product Modal with Adicionais */}
       <ProductModal
         item={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        adicionais={adicionais}
       />
     </div>
   );
