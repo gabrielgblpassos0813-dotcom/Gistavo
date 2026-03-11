@@ -110,7 +110,7 @@ export const ProductModal = ({ item, isOpen, onClose, adicionais = [] }) => {
                 </span>
               </h3>
               <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {ADICIONAIS.map((adicional) => {
+                {adicionais.map((adicional) => {
                   const isSelected = selectedAdicionais.some(a => a.id === adicional.id);
                   return (
                     <label
