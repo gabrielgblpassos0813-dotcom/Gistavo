@@ -122,7 +122,8 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
           ))}
           {order.items.length > 2 && <div className="text-muted-foreground">+{order.items.length - 2} itens</div>}
         </div>
-        <div className="flex items-center justify-end gap-1 mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-blue-600">{formatCurrency(order.total)}</span>
           {order.pix_proof && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => onViewProof(order)}>
               <Image className="h-3 w-3 mr-1" />
