@@ -286,6 +286,10 @@ export const KitchenPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [proofDialogOrder, setProofDialogOrder] = useState(null);
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [clearPassword, setClearPassword] = useState('');
+  const [clickCount, setClickCount] = useState(0);
+  const [isClearing, setIsClearing] = useState(false);
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
