@@ -79,6 +79,12 @@ export const GestorPage = () => {
   const [clearPassword, setClearPassword] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
+  const [chartData, setChartData] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [showMenuDialog, setShowMenuDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [newItem, setNewItem] = useState({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
+  const [activeMainTab, setActiveMainTab] = useState('dashboard');
 
   const handleLogin = async (e) => {
     e.preventDefault();
