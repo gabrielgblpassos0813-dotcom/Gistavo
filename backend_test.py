@@ -13,7 +13,7 @@ class GANOHAPITester:
         self.created_order_ids = {}  # Store order IDs by store
         self.gestor_auth = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, params=None, auth=None):
         """Run a single API test"""
         url = f"{self.api_url}/{endpoint}" if endpoint else self.api_url
         headers = {'Content-Type': 'application/json'}
@@ -23,14 +23,24 @@ class GANOHAPITester:
         print(f"   URL: {url}")
         
         try:
+            kwargs = {'headers': headers}
+            if params:
+                kwargs['params'] = params
+            if data:
+                kwargs['json'] = data
+            if auth:
+                kwargs['auth'] = auth
+
             if method == 'GET':
-                response = requests.get(url, headers=headers, params=params)
+                response = requests.get(url, **kwargs)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
+                response = requests.post(url, **kwargs)
             elif method == 'PATCH':
-                response = requests.patch(url, json=data, headers=headers)
+                response = requests.patch(url, **kwargs)
+            elif method == 'PUT':
+                response = requests.put(url, **kwargs)
             elif method == 'DELETE':
-                response = requests.delete(url, headers=headers)
+                response = requests.delete(url, **kwargs)
 
             success = response.status_code == expected_status
             if success:
