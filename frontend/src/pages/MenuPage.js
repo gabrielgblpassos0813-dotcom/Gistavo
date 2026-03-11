@@ -163,6 +163,17 @@ export const MenuPage = () => {
         pickup_time: pickupTime
       };
 
+      if (offline || !isOnline()) {
+        // Save order offline
+        const offlineOrder = saveOrderOffline(orderData);
+        clearCart();
+        setShowCheckout(false);
+        setPendingSync(getPendingOrdersCount());
+        toast.success('Pedido salvo localmente! Será sincronizado quando a conexão voltar.');
+        navigate(`/${store}/pedido/offline?name=${encodeURIComponent(customerName)}`);
+        return;
+      }
+
       const response = await axios.post(`${API}/orders`, orderData);
       
       clearCart();
@@ -172,6 +183,24 @@ export const MenuPage = () => {
       navigate(`/${store}/pedido/${response.data.id}`);
     } catch (error) {
       console.error('Erro ao enviar pedido:', error);
+      // If network error, save offline
+      if (!error.response) {
+        const offlineOrder = saveOrderOffline({
+          store: store,
+          customer_name: customerName,
+          items: items,
+          total: total,
+          payment_method: paymentMethod,
+          pickup_time: pickupTime
+        });
+        clearCart();
+        setShowCheckout(false);
+        setOffline(true);
+        setPendingSync(getPendingOrdersCount());
+        toast.warning('Sem conexão. Pedido salvo localmente.');
+        navigate(`/${store}/pedido/offline?name=${encodeURIComponent(customerName)}`);
+        return;
+      }
       const message = error.response?.data?.detail || 'Erro ao enviar pedido. Tente novamente.';
       toast.error(message);
     } finally {
