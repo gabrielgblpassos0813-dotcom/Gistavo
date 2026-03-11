@@ -362,8 +362,11 @@ export const KitchenPage = () => {
   // Play sound when new order arrives
   const playNewOrderSound = useCallback(() => {
     if (soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {}); // Ignore autoplay errors
+      try {
+        audioRef.current.play();
+      } catch (e) {
+        console.log('Could not play sound');
+      }
     }
   }, [soundEnabled]);
 
