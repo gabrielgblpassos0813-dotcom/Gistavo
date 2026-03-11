@@ -5,10 +5,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   BarChart3, TrendingUp, TrendingDown, DollarSign, ShoppingBag, 
-  Package, AlertTriangle, RefreshCw, LogOut, Home, Store,
-  CreditCard, Banknote, Smartphone
+  AlertTriangle, RefreshCw, LogOut, Home, Store,
+  CreditCard, Banknote, Smartphone, ChevronRight
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -16,6 +18,54 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png";
+
+const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
+
+// Products List Dialog
+const ProductsDialog = ({ isOpen, onClose, title, products, type }) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {type === 'top' ? <TrendingUp className="h-5 w-5 text-brand-600" /> : <TrendingDown className="h-5 w-5 text-red-500" />}
+            {title}
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh]">
+          <div className="space-y-2 pr-4">
+            {products.map((product, idx) => (
+              <div 
+                key={idx} 
+                className={`flex items-center justify-between p-3 rounded-lg border ${
+                  type === 'top' ? 'bg-brand-50/50 border-brand-100' : 'bg-red-50/50 border-red-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    type === 'top' ? 'bg-brand-600 text-white' : 'bg-red-500 text-white'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-sm">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{product.count} vendidos</p>
+                  </div>
+                </div>
+                <span className={`font-bold ${type === 'top' ? 'text-brand-600' : 'text-red-600'}`}>
+                  {formatPrice(product.revenue)}
+                </span>
+              </div>
+            ))}
+            {products.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Sem dados disponíveis</p>
+            )}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export const GestorPage = () => {
   const navigate = useNavigate();
@@ -25,6 +75,7 @@ export const GestorPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [productsDialog, setProductsDialog] = useState({ open: false, title: '', products: [], type: 'top' });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -76,7 +127,9 @@ export const GestorPage = () => {
     setDashboard(null);
   };
 
-  const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
+  const openProductsDialog = (title, products, type) => {
+    setProductsDialog({ open: true, title, products, type });
+  };
 
   if (!isAuthenticated) {
     return (
@@ -90,26 +143,8 @@ export const GestorPage = () => {
           </div>
           
           <form onSubmit={handleLogin} className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-            <div>
-              <Input
-                type="text"
-                placeholder="Usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                data-testid="gestor-username"
-              />
-            </div>
-            <div>
-              <Input
-                type="password"
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                data-testid="gestor-password"
-              />
-            </div>
+            <Input type="text" placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} required data-testid="gestor-username" />
+            <Input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="gestor-password" />
             <Button type="submit" className="w-full bg-brand-600 hover:bg-brand-700" disabled={isLoading}>
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
@@ -136,12 +171,11 @@ export const GestorPage = () => {
             <img src={LOGO_URL} alt="GANOH" className="h-8" />
             <div>
               <h1 className="font-heading text-lg font-bold">Painel do Gestor</h1>
-              <p className="text-xs text-muted-foreground">Visão Geral</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => { setIsRefreshing(true); fetchDashboard(true); }} disabled={isRefreshing}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
@@ -151,10 +185,10 @@ export const GestorPage = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Combined Stats */}
         {dashboard && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Combined Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -162,7 +196,7 @@ export const GestorPage = () => {
                       <DollarSign className="h-5 w-5 text-brand-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Hoje (Total)</p>
+                      <p className="text-xs text-muted-foreground">Hoje</p>
                       <p className="text-lg font-bold text-brand-600">{formatPrice(dashboard.combined.today_total)}</p>
                     </div>
                   </div>
@@ -175,7 +209,7 @@ export const GestorPage = () => {
                       <TrendingUp className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Mês (Total)</p>
+                      <p className="text-xs text-muted-foreground">Mês</p>
                       <p className="text-lg font-bold text-blue-600">{formatPrice(dashboard.combined.month_total)}</p>
                     </div>
                   </div>
@@ -244,8 +278,8 @@ export const GestorPage = () => {
                           <AlertTriangle className="h-6 w-6 text-red-500" />
                           <div>
                             <p className="font-medium text-red-700">{storeData.low_stock_alerts} produtos com estoque baixo</p>
-                            <Button variant="link" className="h-auto p-0 text-red-600" onClick={() => navigate(`/${storeKey}/estoque`)}>
-                              Ver estoque →
+                            <Button variant="link" className="h-auto p-0 text-red-600" onClick={() => navigate(`/${storeKey}/cozinha`)}>
+                              Ver na cozinha →
                             </Button>
                           </div>
                         </CardContent>
@@ -284,53 +318,70 @@ export const GestorPage = () => {
                     </CardContent>
                   </Card>
 
-                  {/* Top and Low Products */}
+                  {/* Top and Low Products - CLICKABLE */}
                   <div className="grid md:grid-cols-2 gap-4">
-                    <Card>
+                    <Card 
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => openProductsDialog(`Mais Vendidos - ${storeData.name}`, storeData.top_products, 'top')}
+                    >
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-brand-600" />
-                          Mais Vendidos (Mês)
+                        <CardTitle className="text-base flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-brand-600" />
+                            Mais Vendidos (Mês)
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {storeData.top_products.map((product, idx) => (
+                          {storeData.top_products.slice(0, 3).map((product, idx) => (
                             <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-border/50 last:border-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground w-4">{idx + 1}.</span>
-                                <span className="font-medium truncate max-w-[150px]">{product.name}</span>
+                                <span className="bg-brand-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs">{idx + 1}</span>
+                                <span className="font-medium truncate max-w-[120px]">{product.name}</span>
                               </div>
                               <div className="text-right">
-                                <span className="font-semibold">{product.count}x</span>
-                                <span className="text-xs text-muted-foreground ml-2">{formatPrice(product.revenue)}</span>
+                                <span className="font-semibold text-brand-600">{product.count}x</span>
                               </div>
                             </div>
                           ))}
                           {storeData.top_products.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
+                            <p className="text-sm text-muted-foreground text-center py-2">Sem dados</p>
+                          )}
+                          {storeData.top_products.length > 3 && (
+                            <p className="text-xs text-brand-600 text-center pt-2">Ver todos ({storeData.top_products.length})</p>
                           )}
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card 
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => openProductsDialog(`Menos Vendidos - ${storeData.name}`, storeData.low_products, 'low')}
+                    >
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-red-500" />
-                          Menos Vendidos (Mês)
+                        <CardTitle className="text-base flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <TrendingDown className="h-4 w-4 text-red-500" />
+                            Menos Vendidos (Mês)
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {storeData.low_products.map((product, idx) => (
+                          {storeData.low_products.slice(0, 3).map((product, idx) => (
                             <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-border/50 last:border-0">
-                              <span className="font-medium truncate max-w-[180px]">{product.name}</span>
-                              <span className="text-muted-foreground">{product.count}x</span>
+                              <span className="font-medium truncate max-w-[150px]">{product.name}</span>
+                              <span className="text-red-600 font-semibold">{product.count}x</span>
                             </div>
                           ))}
                           {storeData.low_products.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-4">Sem dados</p>
+                            <p className="text-sm text-muted-foreground text-center py-2">Sem dados</p>
+                          )}
+                          {storeData.low_products.length > 3 && (
+                            <p className="text-xs text-red-600 text-center pt-2">Ver todos ({storeData.low_products.length})</p>
                           )}
                         </div>
                       </CardContent>
@@ -342,9 +393,6 @@ export const GestorPage = () => {
                     <Button variant="outline" onClick={() => navigate(`/${storeKey}/cozinha`)}>
                       Ver Cozinha
                     </Button>
-                    <Button variant="outline" onClick={() => navigate(`/${storeKey}/estoque`)}>
-                      <Package className="h-4 w-4 mr-2" /> Gerenciar Estoque
-                    </Button>
                   </div>
                 </TabsContent>
               ))}
@@ -352,6 +400,15 @@ export const GestorPage = () => {
           </>
         )}
       </main>
+
+      {/* Products Dialog */}
+      <ProductsDialog 
+        isOpen={productsDialog.open}
+        onClose={() => setProductsDialog({ ...productsDialog, open: false })}
+        title={productsDialog.title}
+        products={productsDialog.products}
+        type={productsDialog.type}
+      />
     </div>
   );
 };
