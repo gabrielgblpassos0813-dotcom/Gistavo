@@ -797,6 +797,69 @@ export const KitchenPage = () => {
             </div>
           </TabsContent>
 
+          {/* PRAZO TAB - Only for Runner */}
+          {store === 'runner' && (
+            <TabsContent value="prazo" className="mt-2 space-y-3">
+              {/* Total Prazo */}
+              <div className="bg-amber-600 text-white rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm opacity-80">Total a Receber (Prazo)</p>
+                    <p className="text-2xl font-bold">{formatCurrency(prazoDebts.total_prazo || 0)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm opacity-80">Clientes</p>
+                    <p className="text-xl font-bold">{prazoDebts.customer_count || 0}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de devedores */}
+              {prazoDebts.debts?.length > 0 ? (
+                <div className="space-y-2">
+                  {prazoDebts.debts.map((debt, idx) => (
+                    <div key={idx} className="bg-white rounded-lg p-3 border shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{debt.name}</p>
+                          <p className="text-xs text-muted-foreground">{debt.order_count} pedido(s)</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-amber-600">{formatCurrency(debt.total)}</span>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            onClick={() => {
+                              setSelectedPrazoCustomer(debt);
+                              setShowPrazoPayDialog(true);
+                            }}
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Pagar
+                          </Button>
+                        </div>
+                      </div>
+                      {/* Orders detail */}
+                      <div className="mt-2 pt-2 border-t space-y-1">
+                        {debt.orders.map((order, oidx) => (
+                          <div key={oidx} className="flex justify-between text-xs text-muted-foreground">
+                            <span>{new Date(order.date).toLocaleDateString('pt-BR')} - {order.items?.map(i => i.name).join(', ')}</span>
+                            <span>{formatCurrency(order.total)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarClock className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Nenhum débito pendente</p>
+                </div>
+              )}
+            </TabsContent>
+          )}
+
           {/* ESTOQUE TAB */}
           <TabsContent value="estoque" className="mt-2 space-y-3">
             {/* Bebidas */}
