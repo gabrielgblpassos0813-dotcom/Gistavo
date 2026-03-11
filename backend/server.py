@@ -57,6 +57,7 @@ class PaymentMethod(str, Enum):
     DEBIT = "debit"
     CREDIT = "credit"
     CASH = "cash"
+    PRAZO = "prazo"  # Credit/Tab - pay later
 
 # PIX Configuration (same for both stores)
 PIX_CONFIG = {
