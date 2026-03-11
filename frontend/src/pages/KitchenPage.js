@@ -627,22 +627,22 @@ export const KitchenPage = () => {
                 <div className="bg-brand-50 rounded-lg p-2">
                   <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
                   <p className="text-[10px] text-muted-foreground">PIX</p>
-                  <p className="text-sm font-bold text-brand-600">{afternoonShift.by_payment?.pix || 0}</p>
+                  <p className="text-sm font-bold text-brand-600">{formatCurrency(afternoonShift.by_payment?.pix || 0)}</p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-2">
                   <CreditCard className="h-4 w-4 mx-auto text-blue-600" />
                   <p className="text-[10px] text-muted-foreground">Débito</p>
-                  <p className="text-sm font-bold text-blue-600">{afternoonShift.by_payment?.debit || 0}</p>
+                  <p className="text-sm font-bold text-blue-600">{formatCurrency(afternoonShift.by_payment?.debit || 0)}</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-2">
                   <CreditCard className="h-4 w-4 mx-auto text-purple-600" />
                   <p className="text-[10px] text-muted-foreground">Crédito</p>
-                  <p className="text-sm font-bold text-purple-600">{afternoonShift.by_payment?.credit || 0}</p>
+                  <p className="text-sm font-bold text-purple-600">{formatCurrency(afternoonShift.by_payment?.credit || 0)}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-2">
                   <Banknote className="h-4 w-4 mx-auto text-green-600" />
                   <p className="text-[10px] text-muted-foreground">Dinheiro</p>
-                  <p className="text-sm font-bold text-green-600">{afternoonShift.by_payment?.cash || 0}</p>
+                  <p className="text-sm font-bold text-green-600">{formatCurrency(afternoonShift.by_payment?.cash || 0)}</p>
                 </div>
               </div>
             </div>
