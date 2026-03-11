@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -7,14 +7,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Switch } from '../components/ui/switch';
 import { useCart } from '../context/CartContext';
-import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode } from 'lucide-react';
+import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
+
+const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const PAYMENT_METHODS = [
   { id: 'pix', label: 'PIX', icon: Smartphone },
   { id: 'debit', label: 'Cartão de Débito', icon: CreditCard },
   { id: 'credit', label: 'Cartão de Crédito', icon: CreditCard },
   { id: 'cash', label: 'Dinheiro', icon: Banknote },
+];
+
+const PAYMENT_METHODS_RUNNER = [
+  { id: 'pix', label: 'PIX', icon: Smartphone },
+  { id: 'debit', label: 'Cartão de Débito', icon: CreditCard },
+  { id: 'credit', label: 'Cartão de Crédito', icon: CreditCard },
+  { id: 'cash', label: 'Dinheiro', icon: Banknote },
+  { id: 'prazo', label: 'Prazo (Fiado)', icon: CalendarClock },
 ];
 
 // Placeholder PIX data - will be configured by store owner
@@ -25,7 +36,7 @@ const PIX_DATA = {
   city: "São Paulo"
 };
 
-export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
+export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'runner' }) => {
   const [customerName, setCustomerName] = useState('');
   const [wantsSchedule, setWantsSchedule] = useState(false);
   const [pickupTime, setPickupTime] = useState('');
@@ -34,8 +45,22 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading }) => {
   const [pixProofPreview, setPixProofPreview] = useState(null);
   const [step, setStep] = useState(1); // 1: info, 2: pix payment
   const [copied, setCopied] = useState(false);
+  const [prazoCustomers, setPrazoCustomers] = useState([]);
+  const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState('');
   const fileInputRef = useRef(null);
   const { items, total, itemCount } = useCart();
+
+  // Fetch prazo customers for Runner
+  useEffect(() => {
+    if (store === 'runner' && isOpen) {
+      axios.get(`${API}/prazo/customers`)
+        .then(res => setPrazoCustomers(res.data.customers || []))
+        .catch(() => {});
+    }
+  }, [store, isOpen]);
+
+  // Get available payment methods based on store
+  const availablePaymentMethods = store === 'runner' ? PAYMENT_METHODS_RUNNER : PAYMENT_METHODS;
 
   // Generate time slots from now until closing (22:00)
   const timeSlots = useMemo(() => {
