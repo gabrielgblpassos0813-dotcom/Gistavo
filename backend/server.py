@@ -401,7 +401,7 @@ async def update_order_status(store: StoreLocation, order_id: str, status_update
         order_copy['delivered_at'] = datetime.now(timezone.utc).isoformat()
         await db.order_history.insert_one(order_copy)
     
-    result = await db.orders.update_one(
+    await db.orders.update_one(
         {"id": order_id, "store": store.value},
         {"$set": {"status": status_update.status.value, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
