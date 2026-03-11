@@ -8,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
-  BarChart3, TrendingUp, TrendingDown, DollarSign, ShoppingBag, 
+  BarChart3, TrendingUp, TrendingDown, ShoppingBag, 
   AlertTriangle, RefreshCw, LogOut, Home, Store,
-  CreditCard, Banknote, Smartphone, ChevronRight
+  ChevronRight
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -18,8 +18,6 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_3ce8b343-7b4a-4022-9f41-1db1d4d9bedc/artifacts/1ydsie4g_IMG_3253.png";
-
-const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
 
 // Products List Dialog
 const ProductsDialog = ({ isOpen, onClose, title, products, type }) => {
@@ -52,9 +50,6 @@ const ProductsDialog = ({ isOpen, onClose, title, products, type }) => {
                     <p className="text-xs text-muted-foreground">{product.count} vendidos</p>
                   </div>
                 </div>
-                <span className={`font-bold ${type === 'top' ? 'text-brand-600' : 'text-red-600'}`}>
-                  {formatPrice(product.revenue)}
-                </span>
               </div>
             ))}
             {products.length === 0 && (
@@ -188,33 +183,7 @@ export const GestorPage = () => {
         {dashboard && (
           <>
             {/* Combined Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-brand-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Hoje</p>
-                      <p className="text-lg font-bold text-brand-600">{formatPrice(dashboard.combined.today_total)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Mês</p>
-                      <p className="text-lg font-bold text-blue-600">{formatPrice(dashboard.combined.month_total)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-2 gap-3 mb-6">
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -257,19 +226,17 @@ export const GestorPage = () => {
               {Object.entries(dashboard.stores).map(([storeKey, storeData]) => (
                 <TabsContent key={storeKey} value={storeKey} className="space-y-4">
                   {/* Store Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <Card className="bg-brand-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Vendas Hoje</p>
-                        <p className="text-xl font-bold text-brand-600">{formatPrice(storeData.today.total)}</p>
-                        <p className="text-xs text-muted-foreground">{storeData.today.order_count} pedidos</p>
+                        <p className="text-xs text-muted-foreground mb-1">Pedidos Hoje</p>
+                        <p className="text-xl font-bold text-brand-600">{storeData.today.order_count}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-blue-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Vendas Mês</p>
-                        <p className="text-xl font-bold text-blue-600">{formatPrice(storeData.month.total)}</p>
-                        <p className="text-xs text-muted-foreground">{storeData.month.order_count} pedidos</p>
+                        <p className="text-xs text-muted-foreground mb-1">Pedidos Mês</p>
+                        <p className="text-xl font-bold text-blue-600">{storeData.month.order_count}</p>
                       </CardContent>
                     </Card>
                     {storeData.low_stock_alerts > 0 && (
@@ -286,37 +253,6 @@ export const GestorPage = () => {
                       </Card>
                     )}
                   </div>
-
-                  {/* Payment Breakdown */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Pagamentos de Hoje</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-4 gap-2 text-center">
-                        <div className="bg-secondary/50 rounded-lg p-2">
-                          <Smartphone className="h-4 w-4 mx-auto mb-1 text-brand-600" />
-                          <p className="text-xs text-muted-foreground">PIX</p>
-                          <p className="font-semibold text-sm">{formatPrice(storeData.today.by_payment_method.pix)}</p>
-                        </div>
-                        <div className="bg-secondary/50 rounded-lg p-2">
-                          <CreditCard className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-                          <p className="text-xs text-muted-foreground">Débito</p>
-                          <p className="font-semibold text-sm">{formatPrice(storeData.today.by_payment_method.debit)}</p>
-                        </div>
-                        <div className="bg-secondary/50 rounded-lg p-2">
-                          <CreditCard className="h-4 w-4 mx-auto mb-1 text-purple-600" />
-                          <p className="text-xs text-muted-foreground">Crédito</p>
-                          <p className="font-semibold text-sm">{formatPrice(storeData.today.by_payment_method.credit)}</p>
-                        </div>
-                        <div className="bg-secondary/50 rounded-lg p-2">
-                          <Banknote className="h-4 w-4 mx-auto mb-1 text-green-600" />
-                          <p className="text-xs text-muted-foreground">Dinheiro</p>
-                          <p className="font-semibold text-sm">{formatPrice(storeData.today.by_payment_method.cash)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
 
                   {/* Top and Low Products - CLICKABLE */}
                   <div className="grid md:grid-cols-2 gap-4">
