@@ -392,6 +392,7 @@ export const MenuPage = () => {
         onClose={() => setShowCheckout(false)}
         onSubmit={handleSubmitOrder}
         isLoading={isSubmitting}
+        store={store}
       />
       <ProductModal
         item={selectedProduct}
