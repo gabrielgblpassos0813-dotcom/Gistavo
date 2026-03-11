@@ -28,10 +28,10 @@ const PAYMENT_METHODS_RUNNER = [
   { id: 'prazo', label: 'Prazo (Fiado)', icon: CalendarClock },
 ];
 
-// Placeholder PIX data - will be configured by store owner
+// PIX data - configured by store owner
 const PIX_DATA = {
-  key: "ganoh@email.com", // Placeholder - owner will set real key
-  keyType: "email",
+  key: "49289019000199",
+  keyType: "CNPJ",
   beneficiaryName: "GANOH Café Bistrô",
   city: "São Paulo"
 };
