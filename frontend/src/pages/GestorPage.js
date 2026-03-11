@@ -633,6 +633,95 @@ export const GestorPage = () => {
             </Card>
           </TabsContent>
 
+          {/* PRAZO TAB */}
+          <TabsContent value="prazo">
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Clientes Cadastrados */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-amber-600" />
+                      Clientes Prazo
+                    </span>
+                    <Button 
+                      size="sm" 
+                      className="bg-amber-600 hover:bg-amber-700"
+                      onClick={() => setShowPrazoDialog(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Novo Cliente
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {prazoCustomers.length > 0 ? (
+                    <div className="space-y-2">
+                      {prazoCustomers.map((customer) => (
+                        <div key={customer.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border">
+                          <div className="flex-1">
+                            <p className="font-medium">{customer.name}</p>
+                            {customer.phone && <p className="text-xs text-muted-foreground">{customer.phone}</p>}
+                            {customer.notes && <p className="text-xs text-muted-foreground italic">{customer.notes}</p>}
+                          </div>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="text-red-600"
+                            onClick={() => handleDeletePrazoCustomer(customer.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <UserPlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p>Nenhum cliente cadastrado</p>
+                      <p className="text-sm">Clique em "Novo Cliente" para começar</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Débitos Pendentes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarClock className="h-5 w-5 text-amber-600" />
+                    Débitos Pendentes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Total */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-amber-700">Total a Receber</p>
+                    <p className="text-2xl font-bold text-amber-600">{formatPrice(prazoDebts.total_prazo || 0)}</p>
+                    <p className="text-xs text-muted-foreground">{prazoDebts.customer_count || 0} cliente(s) com débito</p>
+                  </div>
+
+                  {prazoDebts.debts?.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {prazoDebts.debts.map((debt, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-secondary/30 rounded border">
+                          <div>
+                            <p className="font-medium text-sm">{debt.name}</p>
+                            <p className="text-xs text-muted-foreground">{debt.order_count} pedido(s)</p>
+                          </div>
+                          <span className="font-bold text-amber-600">{formatPrice(debt.total)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground text-sm py-4">
+                      Nenhum débito pendente
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* MENU TAB */}
           <TabsContent value="menu">
             <Card>
