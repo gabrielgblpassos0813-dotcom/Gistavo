@@ -41,8 +41,35 @@ export const MenuPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [storeInfo, setStoreInfo] = useState(null);
+  const [offline, setOffline] = useState(!isOnline());
+  const [pendingSync, setPendingSync] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const { setIsOpen, itemCount, items, total, clearCart } = useCart();
+
+  // Sync offline orders when back online
+  const handleSync = useCallback(async () => {
+    if (!isOnline()) return;
+    
+    const pending = getPendingOrdersCount();
+    if (pending === 0) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await syncOfflineOrders(BACKEND_URL);
+      if (result.synced > 0) {
+        toast.success(`${result.synced} pedido(s) sincronizado(s)!`);
+      }
+      if (result.failed > 0) {
+        toast.error(`${result.failed} pedido(s) falharam ao sincronizar`);
+      }
+      setPendingSync(getPendingOrdersCount());
+    } catch (error) {
+      console.error('Sync error:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (store && ['runner', 'gym-londres'].includes(store)) {
@@ -50,7 +77,25 @@ export const MenuPage = () => {
     } else {
       navigate('/');
     }
-  }, [store]);
+    
+    // Setup offline listener
+    const cleanup = setupOfflineListener(
+      () => {
+        setOffline(false);
+        toast.success('Conexão restaurada!');
+        handleSync();
+      },
+      () => {
+        setOffline(true);
+        toast.warning('Você está offline. Pedidos serão salvos localmente.');
+      }
+    );
+    
+    // Check pending orders on mount
+    setPendingSync(getPendingOrdersCount());
+    
+    return cleanup;
+  }, [store, handleSync]);
 
   const fetchMenu = async () => {
     try {
