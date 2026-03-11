@@ -377,14 +377,22 @@ export const KitchenPage = () => {
 
   const fetchData = useCallback(async (showToast = false) => {
     try {
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = await Promise.all([
+      const requests = [
         axios.get(`${API}/orders/${store}`),
         axios.get(`${API}/kitchen/${store}/stats`),
         axios.get(`${API}/cash/${store}/today`),
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`)
-      ]);
+      ];
+      
+      // Fetch prazo debts only for runner
+      if (store === 'runner') {
+        requests.push(axios.get(`${API}/prazo/debts`));
+      }
+      
+      const results = await Promise.all(requests);
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = results;
       
       const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
       
@@ -402,6 +410,12 @@ export const KitchenPage = () => {
       setStock(stockRes.data.stock);
       setPendingPixOrders(pixRes.data.orders);
       setHistoryOrders(historyRes.data.orders);
+      
+      // Set prazo debts for runner
+      if (store === 'runner' && results[6]) {
+        setPrazoDebts(results[6].data);
+      }
+      
       if (showToast) toast.success('Atualizado');
     } catch (error) {
       toast.error('Erro ao carregar');
@@ -409,7 +423,7 @@ export const KitchenPage = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [store]);
+  }, [store, playNewOrderSound]);
 
   useEffect(() => {
     if (store) {
