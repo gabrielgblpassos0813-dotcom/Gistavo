@@ -532,6 +532,81 @@ export const KitchenPage = () => {
             </div>
           </TabsContent>
 
+          {/* VENDAS TAB */}
+          <TabsContent value="vendas" className="mt-2 space-y-3">
+            {/* Turno Manhã */}
+            <div className="bg-white rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Sun className="h-4 w-4 text-amber-500" />
+                <span className="font-semibold text-sm">Manhã (06:00 - 14:00)</span>
+                <Badge variant="secondary" className="ml-auto">{morningShift.count} pedidos</Badge>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-brand-50 rounded-lg p-2">
+                  <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
+                  <p className="text-[10px] text-muted-foreground">PIX</p>
+                  <p className="text-sm font-bold text-brand-600">{morningShift.by_payment?.pix || 0}</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-2">
+                  <CreditCard className="h-4 w-4 mx-auto text-blue-600" />
+                  <p className="text-[10px] text-muted-foreground">Débito</p>
+                  <p className="text-sm font-bold text-blue-600">{morningShift.by_payment?.debit || 0}</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-2">
+                  <CreditCard className="h-4 w-4 mx-auto text-purple-600" />
+                  <p className="text-[10px] text-muted-foreground">Crédito</p>
+                  <p className="text-sm font-bold text-purple-600">{morningShift.by_payment?.credit || 0}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-2">
+                  <Banknote className="h-4 w-4 mx-auto text-green-600" />
+                  <p className="text-[10px] text-muted-foreground">Dinheiro</p>
+                  <p className="text-sm font-bold text-green-600">{morningShift.by_payment?.cash || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Turno Tarde */}
+            <div className="bg-white rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Moon className="h-4 w-4 text-indigo-500" />
+                <span className="font-semibold text-sm">Tarde/Noite (14:00 - 22:00)</span>
+                <Badge variant="secondary" className="ml-auto">{afternoonShift.count} pedidos</Badge>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-brand-50 rounded-lg p-2">
+                  <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
+                  <p className="text-[10px] text-muted-foreground">PIX</p>
+                  <p className="text-sm font-bold text-brand-600">{afternoonShift.by_payment?.pix || 0}</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-2">
+                  <CreditCard className="h-4 w-4 mx-auto text-blue-600" />
+                  <p className="text-[10px] text-muted-foreground">Débito</p>
+                  <p className="text-sm font-bold text-blue-600">{afternoonShift.by_payment?.debit || 0}</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-2">
+                  <CreditCard className="h-4 w-4 mx-auto text-purple-600" />
+                  <p className="text-[10px] text-muted-foreground">Crédito</p>
+                  <p className="text-sm font-bold text-purple-600">{afternoonShift.by_payment?.credit || 0}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-2">
+                  <Banknote className="h-4 w-4 mx-auto text-green-600" />
+                  <p className="text-[10px] text-muted-foreground">Dinheiro</p>
+                  <p className="text-sm font-bold text-green-600">{afternoonShift.by_payment?.cash || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Total do Dia */}
+            <div className="bg-brand-600 text-white rounded-xl p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm opacity-80">Total do Dia</p>
+                </div>
+                <p className="text-2xl font-bold">{salesData.order_count || 0} pedidos</p>
+              </div>
+            </div>
+          </TabsContent>
+
           {/* ESTOQUE TAB */}
           <TabsContent value="estoque" className="mt-2 space-y-3">
             {/* Bebidas */}
