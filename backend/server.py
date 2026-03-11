@@ -380,6 +380,29 @@ async def get_orders(store: StoreLocation, status: Optional[str] = None):
     orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"orders": orders}
 
+@api_router.get("/orders/{store}/pending-pix")
+async def get_pending_pix_orders(store: StoreLocation):
+    """Get orders pending PIX approval"""
+    orders = await db.orders.find({
+        "store": store.value,
+        "payment_method": "pix",
+        "status": "pending_payment",
+        "pix_proof": {"$exists": True}
+    }, {"_id": 0}).sort("created_at", 1).to_list(100)
+    return {"orders": orders}
+
+@api_router.get("/orders/{store}/history")
+async def get_order_history(store: StoreLocation):
+    """Get delivered orders from the last 24 hours"""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    
+    orders = await db.order_history.find({
+        "store": store.value,
+        "delivered_at": {"$gte": cutoff.isoformat()}
+    }, {"_id": 0}).sort("delivered_at", -1).to_list(500)
+    
+    return {"orders": orders, "count": len(orders)}
+
 @api_router.get("/orders/{store}/{order_id}")
 async def get_order(store: StoreLocation, order_id: str):
     order = await db.orders.find_one({"id": order_id, "store": store.value}, {"_id": 0})
