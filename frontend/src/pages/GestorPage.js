@@ -411,6 +411,42 @@ export const GestorPage = () => {
         products={productsDialog.products}
         type={productsDialog.type}
       />
+
+      {/* Hidden Clear Data Dialog */}
+      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Limpar Todos os Dados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá apagar <strong>todos os pedidos e histórico</strong> de todas as lojas. Esta ação não pode ser desfeita.
+            </p>
+            <Input
+              type="password"
+              placeholder="Digite a senha de administrador"
+              value={clearPassword}
+              onChange={(e) => setClearPassword(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowClearDialog(false); setClearPassword(''); }}>
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="flex-1" 
+                onClick={handleClearData}
+                disabled={isClearing || !clearPassword}
+              >
+                {isClearing ? 'Apagando...' : 'Apagar Tudo'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
