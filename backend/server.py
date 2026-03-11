@@ -393,15 +393,27 @@ async def get_pending_pix_orders(store: StoreLocation):
 
 @api_router.get("/orders/{store}/history")
 async def get_order_history(store: StoreLocation):
-    """Get delivered orders from the last 24 hours"""
+    """Get ready and delivered orders from the last 24 hours"""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     
-    orders = await db.order_history.find({
+    # Get from order_history (delivered orders)
+    history_orders = await db.order_history.find({
         "store": store.value,
         "delivered_at": {"$gte": cutoff.isoformat()}
     }, {"_id": 0}).sort("delivered_at", -1).to_list(500)
     
-    return {"orders": orders, "count": len(orders)}
+    # Get ready orders from main orders collection
+    ready_orders = await db.orders.find({
+        "store": store.value,
+        "status": "ready",
+        "created_at": {"$gte": cutoff.isoformat()}
+    }, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Combine and sort by most recent
+    all_orders = history_orders + ready_orders
+    all_orders.sort(key=lambda x: x.get('delivered_at', x.get('updated_at', x.get('created_at', ''))), reverse=True)
+    
+    return {"orders": all_orders, "count": len(all_orders)}
 
 @api_router.get("/orders/{store}/{order_id}")
 async def get_order(store: StoreLocation, order_id: str):
