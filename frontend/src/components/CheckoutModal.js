@@ -96,17 +96,13 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
     }).format(price);
   };
 
-  // Generate PIX copy-paste code
-  const generatePixCode = () => {
-    // Simplified PIX code - in production, use proper EMV format
-    const pixCode = `00020126580014br.gov.bcb.pix0136${PIX_DATA.key}5204000053039865404${total.toFixed(2)}5802BR5925${PIX_DATA.beneficiaryName}6009${PIX_DATA.city}62070503***6304`;
-    return pixCode;
-  };
+  // PIX copy-paste - just the CNPJ key
+  const getPixKey = () => PIX_DATA.key;
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText(generatePixCode());
+    navigator.clipboard.writeText(PIX_DATA.key);
     setCopied(true);
-    toast.success('Código PIX copiado!');
+    toast.success('CNPJ copiado!');
     setTimeout(() => setCopied(false), 3000);
   };
 
