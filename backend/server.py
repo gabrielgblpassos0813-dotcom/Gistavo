@@ -943,7 +943,7 @@ async def get_store_menu(store: StoreLocation, username: str = Depends(verify_ge
 async def create_menu_item(item: MenuItemCreate, username: str = Depends(verify_gestor)):
     """Create a new menu item"""
     menu_item = {
-        "id": str(uuid4()),
+        "id": str(uuid.uuid4()),
         "name": item.name,
         "description": item.description,
         "price": item.price,
@@ -1025,7 +1025,7 @@ async def create_prazo_customer(customer: PrazoCustomerCreate, username: str = D
         raise HTTPException(status_code=400, detail="Cliente já cadastrado")
     
     new_customer = {
-        "id": str(uuid4()),
+        "id": str(uuid.uuid4()),
         "name": customer.name,
         "phone": customer.phone,
         "notes": customer.notes,
