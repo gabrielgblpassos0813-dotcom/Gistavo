@@ -869,33 +869,6 @@ async def update_gestor_stock(store: StoreLocation, menu_item_id: str, stock_upd
 # Include router
 app.include_router(api_router)
 
-# ==================== ADMIN CLEAR DATA ROUTE ====================
-CLEAR_DATA_PASSWORD = "152637"
-
-@api_router.post("/admin/clear-data")
-async def clear_all_data(password: str):
-    """Clear all orders and history. Protected with password."""
-    if password != CLEAR_DATA_PASSWORD:
-        raise HTTPException(status_code=403, detail="Senha incorreta")
-    
-    # Delete all orders
-    await db.orders.delete_many({})
-    
-    return {"success": True, "message": "Todos os pedidos e histórico foram apagados"}
-
-@api_router.post("/admin/clear-store/{store}")
-async def clear_store_data(store: StoreLocation, password: str):
-    """Clear orders for a specific store. Protected with password."""
-    if password != CLEAR_DATA_PASSWORD:
-        raise HTTPException(status_code=403, detail="Senha incorreta")
-    
-    # Delete orders for this store
-    result = await db.orders.delete_many({"store": store.value})
-    
-    return {"success": True, "message": f"Pedidos da loja {store.value} apagados", "deleted_count": result.deleted_count}
-
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
