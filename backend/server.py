@@ -772,21 +772,21 @@ async def get_gestor_dashboard(username: str = Depends(verify_gestor)):
             "created_at": {"$gte": month_start.isoformat()}
         }, {"_id": 0}).to_list(10000)
         
-        # Calculate totals
-        today_total = sum(o.get("total", 0) for o in today_orders if o.get("status") == "delivered")
-        month_total = sum(o.get("total", 0) for o in month_orders if o.get("status") == "delivered")
+        # Calculate totals - inclui pedidos prontos e entregues
+        today_total = sum(o.get("total", 0) for o in today_orders if o.get("status") in ["ready", "delivered"])
+        month_total = sum(o.get("total", 0) for o in month_orders if o.get("status") in ["ready", "delivered"])
         
         # By payment method (today)
         today_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
         for order in today_orders:
-            if order.get("status") == "delivered":
+            if order.get("status") in ["ready", "delivered"]:
                 pm = order.get("payment_method", "cash")
                 today_by_payment[pm] = today_by_payment.get(pm, 0) + order.get("total", 0)
         
         # Product sales count
         product_sales = {}
         for order in month_orders:
-            if order.get("status") == "delivered":
+            if order.get("status") in ["ready", "delivered"]:
                 for item in order.get("items", []):
                     name = item.get("name", "").split(" + ")[0]  # Remove adicionais from name
                     if name not in product_sales:
@@ -809,12 +809,12 @@ async def get_gestor_dashboard(username: str = Depends(verify_gestor)):
             "name": STORES[store_key]["name"],
             "today": {
                 "total": today_total,
-                "order_count": len([o for o in today_orders if o.get("status") == "delivered"]),
+                "order_count": len([o for o in today_orders if o.get("status") in ["ready", "delivered"]]),
                 "by_payment_method": today_by_payment
             },
             "month": {
                 "total": month_total,
-                "order_count": len([o for o in month_orders if o.get("status") == "delivered"])
+                "order_count": len([o for o in month_orders if o.get("status") in ["ready", "delivered"]])
             },
             "top_products": top_products,
             "low_products": low_products,
