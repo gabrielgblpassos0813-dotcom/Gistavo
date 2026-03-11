@@ -45,6 +45,8 @@ def verify_gestor(credentials: HTTPBasicCredentials = Depends(security)):
 
 # Enums
 class OrderStatus(str, Enum):
+    PENDING_PAYMENT = "pending_payment"  # Waiting for PIX proof
+    PAYMENT_REJECTED = "payment_rejected"  # PIX rejected
     RECEIVED = "received"
     PREPARING = "preparing"
     READY = "ready"
@@ -55,6 +57,14 @@ class PaymentMethod(str, Enum):
     DEBIT = "debit"
     CREDIT = "credit"
     CASH = "cash"
+
+# PIX Configuration (same for both stores)
+PIX_CONFIG = {
+    "key": "",  # Will be set by store owner
+    "key_type": "cpf",  # cpf, cnpj, email, phone, random
+    "beneficiary_name": "GANOH Café Bistrô",
+    "city": "São Paulo"
+}
 
 class StoreLocation(str, Enum):
     RUNNER = "runner"
