@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { ScrollArea } from '../components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
   BarChart3, TrendingUp, TrendingDown, ShoppingBag, DollarSign,
   AlertTriangle, RefreshCw, LogOut, Home, Store,
-  ChevronRight, Trash2
+  ChevronRight, Trash2, Plus, Pencil, UtensilsCrossed
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
