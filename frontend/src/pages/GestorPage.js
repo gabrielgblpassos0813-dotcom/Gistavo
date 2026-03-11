@@ -370,12 +370,15 @@ export const GestorPage = () => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Main Navigation Tabs */}
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" /> Dashboard
             </TabsTrigger>
             <TabsTrigger value="chart" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Gráfico Mensal
+              <TrendingUp className="h-4 w-4" /> Gráfico
+            </TabsTrigger>
+            <TabsTrigger value="prazo" className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4" /> Prazo
             </TabsTrigger>
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <UtensilsCrossed className="h-4 w-4" /> Cardápio
