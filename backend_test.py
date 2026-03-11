@@ -112,13 +112,13 @@ class GANOHAPITester:
                     "customer_name": f"Test Customer {payment_method.upper()}",
                     "items": [
                         {
-                            "menu_item_id": "1",
-                            "name": "Frango com Requeijão",
-                            "price": 25.50,
+                            "menu_item_id": "2",  # Use item 2 instead of 1 (which has 0 stock)
+                            "name": "Frango, Mussarela, Tomate e Orégano",
+                            "price": 26.00,
                             "quantity": 1
                         }
                     ],
-                    "total": 25.50,
+                    "total": 26.00,
                     "payment_method": payment_method
                 }
                 
