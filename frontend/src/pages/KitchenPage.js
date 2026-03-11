@@ -615,7 +615,7 @@ export const KitchenPage = () => {
 
       <main className="p-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 h-9">
+          <TabsList className={`grid w-full h-9 ${store === 'runner' ? 'grid-cols-6' : 'grid-cols-5'}`}>
             <TabsTrigger value="pix" className="text-xs h-7 px-1">
               PIX {pendingPixOrders.length > 0 && <Badge className="ml-1 bg-blue-600 h-4 min-w-4 p-0 justify-center text-[10px]">{pendingPixOrders.length}</Badge>}
             </TabsTrigger>
@@ -623,6 +623,11 @@ export const KitchenPage = () => {
               Pedidos {(stats.pending + stats.preparing) > 0 && <Badge className="ml-1 bg-brand-600 h-4 min-w-4 p-0 justify-center text-[10px]">{stats.pending + stats.preparing}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="vendas" className="text-xs h-7 px-1">Vendas</TabsTrigger>
+            {store === 'runner' && (
+              <TabsTrigger value="prazo" className="text-xs h-7 px-1">
+                Prazo {prazoDebts.customer_count > 0 && <Badge className="ml-1 bg-amber-600 h-4 min-w-4 p-0 justify-center text-[10px]">{prazoDebts.customer_count}</Badge>}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="estoque" className="text-xs h-7 px-1">
               Est. {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
             </TabsTrigger>
