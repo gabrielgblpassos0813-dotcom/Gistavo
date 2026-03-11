@@ -506,7 +506,241 @@ export const GestorPage = () => {
             </Tabs>
           </>
         )}
+          </TabsContent>
+
+          {/* CHART TAB */}
+          <TabsContent value="chart">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-brand-600" />
+                  Vendas do Mês
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {chartData ? (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-sm text-muted-foreground">{chartData.month}</span>
+                      <span className="text-lg font-bold text-brand-600">{formatPrice(chartData.total_month)}</span>
+                    </div>
+                    {/* Simple Bar Chart */}
+                    <div className="h-64 flex items-end justify-between gap-1 border-b border-l p-2">
+                      {chartData.data.map((day, idx) => {
+                        const maxValue = Math.max(...chartData.data.map(d => d.total), 1);
+                        const height = (day.total / maxValue) * 100;
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex-1 flex flex-col items-center justify-end group relative"
+                          >
+                            <div 
+                              className="w-full bg-brand-600 rounded-t hover:bg-brand-700 transition-colors cursor-pointer min-h-[2px]"
+                              style={{ height: `${Math.max(height, 2)}%` }}
+                              title={`Dia ${day.day}: ${formatPrice(day.total)} (${day.count} pedidos)`}
+                            />
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                              Dia {day.day}: {formatPrice(day.total)}
+                              <br/>{day.count} pedidos
+                            </div>
+                            <span className="text-[8px] text-muted-foreground mt-1">{day.day}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4 text-center">
+                      <div className="bg-brand-50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground">Total do Mês</p>
+                        <p className="text-xl font-bold text-brand-600">{formatPrice(chartData.total_month)}</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground">Total de Pedidos</p>
+                        <p className="text-xl font-bold text-blue-600">{chartData.total_orders}</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Carregando dados do gráfico...
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* MENU TAB */}
+          <TabsContent value="menu">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <UtensilsCrossed className="h-5 w-5 text-brand-600" />
+                    Gerenciar Cardápio
+                  </span>
+                  <Button 
+                    size="sm" 
+                    className="bg-brand-600 hover:bg-brand-700"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setNewItem({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
+                      setShowMenuDialog(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar Item
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Store selector for menu */}
+                <div className="mb-4">
+                  <Select value={newItem.store} onValueChange={(v) => { setNewItem({...newItem, store: v}); fetchMenuItems(v); }}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Selecione a loja" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="runner">Runner</SelectItem>
+                      <SelectItem value="gym-londres">GYM Londres</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {menuItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {menuItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">{item.category} • {formatPrice(item.price)}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button 
+                            size="icon" 
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingItem(item);
+                              setNewItem({
+                                name: item.name,
+                                description: item.description || '',
+                                price: item.price.toString(),
+                                category: item.category,
+                                store: item.store,
+                                image_url: item.image_url || ''
+                              });
+                              setShowMenuDialog(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="text-red-600"
+                            onClick={() => handleDeleteMenuItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <UtensilsCrossed className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                    <p>Nenhum item no cardápio</p>
+                    <p className="text-sm">Clique em "Adicionar Item" para começar</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
+
+      {/* Menu Item Dialog */}
+      <Dialog open={showMenuDialog} onOpenChange={setShowMenuDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Item ao Cardápio'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome *</Label>
+              <Input 
+                value={newItem.name} 
+                onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                placeholder="Ex: Café Expresso"
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Input 
+                value={newItem.description} 
+                onChange={(e) => setNewItem({...newItem, description: e.target.value})}
+                placeholder="Ex: Café forte e encorpado"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Preço *</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  value={newItem.price} 
+                  onChange={(e) => setNewItem({...newItem, price: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={newItem.category} onValueChange={(v) => setNewItem({...newItem, category: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Lanches">Lanches</SelectItem>
+                    <SelectItem value="Bebidas">Bebidas</SelectItem>
+                    <SelectItem value="Sobremesas">Sobremesas</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {!editingItem && (
+              <div>
+                <Label>Loja *</Label>
+                <Select value={newItem.store} onValueChange={(v) => setNewItem({...newItem, store: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="runner">Runner</SelectItem>
+                    <SelectItem value="gym-londres">GYM Londres</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>URL da Imagem (opcional)</Label>
+              <Input 
+                value={newItem.image_url} 
+                onChange={(e) => setNewItem({...newItem, image_url: e.target.value})}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMenuDialog(false)}>Cancelar</Button>
+            <Button 
+              className="bg-brand-600 hover:bg-brand-700" 
+              onClick={handleSaveMenuItem}
+              disabled={!newItem.name || !newItem.price}
+            >
+              {editingItem ? 'Salvar' : 'Adicionar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Products Dialog */}
       <ProductsDialog 
