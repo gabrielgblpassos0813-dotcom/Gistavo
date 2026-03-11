@@ -122,9 +122,17 @@ class OrderCreate(BaseModel):
     payment_method: PaymentMethod
     pickup_time: Optional[str] = None
     offline_id: Optional[str] = None  # For offline sync
+    pix_proof: Optional[str] = None  # Base64 image of PIX proof
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+class PixProofUpload(BaseModel):
+    proof_image: str  # Base64 encoded image
+
+class PaymentApproval(BaseModel):
+    approved: bool
+    rejection_reason: Optional[str] = None
 
 class SalesReport(BaseModel):
     total_sales: float
