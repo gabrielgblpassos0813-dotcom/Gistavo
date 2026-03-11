@@ -328,6 +328,11 @@ export const KitchenPage = () => {
   const [clickCount, setClickCount] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [prazoDebts, setPrazoDebts] = useState({ debts: [], total_prazo: 0 });
+  const [showPrazoPayDialog, setShowPrazoPayDialog] = useState(false);
+  const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState(null);
+  const [prazoPassword, setPrazoPassword] = useState('');
+  const [isPaying, setIsPaying] = useState(false);
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
