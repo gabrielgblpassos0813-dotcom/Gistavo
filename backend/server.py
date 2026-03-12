@@ -1346,11 +1346,8 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
         
-        # Create FileContent for the image
-        image_content = FileContent(
-            content_type="image/jpeg",
-            file_content_base64=analysis.image_base64
-        )
+        # Create ImageContent for the image (uses content_type="image" internally)
+        image_content = ImageContent(image_base64=analysis.image_base64)
         
         # Create user message with image
         user_message = UserMessage(
@@ -1423,18 +1420,13 @@ Para CADA imagem, extraia as informações e retorne um JSON com uma lista:
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
         
-        # Create FileContent for each image
-        file_contents = []
-        for img_base64 in data.images:
-            file_contents.append(FileContent(
-                content_type="image/jpeg",
-                file_content_base64=img_base64
-            ))
+        # Create ImageContent for each image
+        image_contents = [ImageContent(image_base64=img) for img in data.images]
         
         # Create user message with all images
         user_message = UserMessage(
             text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste: valor, o que foi comprado e onde foi comprado para cada uma.",
-            file_contents=file_contents
+            file_contents=image_contents
         )
         
         response = await chat.send_message(user_message)
