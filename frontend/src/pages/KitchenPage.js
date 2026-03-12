@@ -101,10 +101,17 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
 };
 
 // PIX Pending Card Component
-const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
+const PixPendingCard = ({ order, onApprove, onReject, onViewProof, onAutoVerify }) => {
   const createdAt = new Date(order.created_at);
   const now = new Date();
   const minutesAgo = Math.floor((now - createdAt) / 60000);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleAutoVerify = async () => {
+    setIsVerifying(true);
+    await onAutoVerify(order.id);
+    setIsVerifying(false);
+  };
 
   return (
     <div className="bg-white rounded-lg border-l-4 border-l-blue-500 shadow-sm">
@@ -131,6 +138,28 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
             </Button>
           )}
         </div>
+        
+        {/* AI Auto-verify button */}
+        {order.pix_proof && (
+          <Button 
+            size="sm" 
+            className="w-full h-8 text-xs bg-purple-600 hover:bg-purple-700 mb-2" 
+            onClick={handleAutoVerify}
+            disabled={isVerifying}
+          >
+            {isVerifying ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                IA Analisando...
+              </>
+            ) : (
+              <>
+                🤖 Auto-Verificar com IA
+              </>
+            )}
+          </Button>
+        )}
+        
         <div className="flex gap-1">
           <Button 
             size="sm" 
