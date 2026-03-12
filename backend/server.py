@@ -1342,7 +1342,7 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
     "amount": valor numérico em reais (apenas o número, sem R$),
     "category": "uma das categorias: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros",
     "confidence": "alta, média ou baixa",
-    "notes": "observações adicionais sobre o documento"
+    "notes": "local ou observações adicionais sobre o documento"
 }
 
 Categorias possíveis:
@@ -1359,13 +1359,9 @@ Categorias possíveis:
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
         
-        # Create image content from base64
-        image_content = ImageContent(image_base64=analysis.image_base64)
-        
-        user_message = UserMessage(
-            text="Analise este comprovante/nota fiscal e extraia as informações de gasto.",
-            image_contents=[image_content]
-        )
+        # Create user message with image using the correct format
+        user_message = UserMessage(text="Analise este comprovante/nota fiscal e extraia as informações de gasto.")
+        user_message.add_image(image_base64=analysis.image_base64)
         
         response = await chat.send_message(user_message)
         
@@ -1395,6 +1391,81 @@ Responda APENAS com o JSON, sem texto adicional."""
     except Exception as e:
         logger.error(f"Error analyzing expense image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao analisar imagem: {str(e)}")
+
+# Multi-image analysis for expenses
+class MultiImageAnalysis(BaseModel):
+    images: list  # List of base64 images
+
+@api_router.post("/expenses/analyze-multiple")
+async def analyze_multiple_expense_images(data: MultiImageAnalysis, username: str = Depends(verify_gestor)):
+    """Use AI to analyze multiple expense receipt/invoice images and return a list"""
+    try:
+        llm_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not llm_key:
+            raise HTTPException(status_code=500, detail="LLM key not configured")
+        
+        if not data.images or len(data.images) == 0:
+            raise HTTPException(status_code=400, detail="Nenhuma imagem enviada")
+        
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"expense-multi-{uuid.uuid4()}",
+            system_message=f"""Você é um assistente especializado em analisar notas fiscais, recibos e comprovantes de gastos.
+Você vai receber {len(data.images)} imagem(ns) de comprovantes.
+
+Para CADA imagem, extraia as informações e retorne um JSON com uma lista:
+{{
+    "expenses": [
+        {{
+            "id": 1,
+            "description": "descrição do gasto",
+            "amount": valor numérico em reais (apenas o número, sem R$),
+            "notes": "local ou observações",
+            "suggested_category": "categoria sugerida"
+        }},
+        ...
+    ]
+}}
+
+Categorias possíveis: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros
+
+Responda APENAS com o JSON, sem texto adicional."""
+        ).with_model("openai", "gpt-4o")
+        
+        # Create user message with multiple images
+        user_message = UserMessage(text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste todas as informações de cada gasto.")
+        
+        for img_base64 in data.images:
+            user_message.add_image(image_base64=img_base64)
+        
+        response = await chat.send_message(user_message)
+        
+        # Parse JSON from response
+        import json
+        try:
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1]
+                if clean_response.startswith("json"):
+                    clean_response = clean_response[4:]
+            clean_response = clean_response.strip()
+            
+            result = json.loads(clean_response)
+            return {
+                "success": True,
+                "count": len(result.get("expenses", [])),
+                "expenses": result.get("expenses", [])
+            }
+        except json.JSONDecodeError:
+            return {
+                "success": False,
+                "error": "Não foi possível extrair informações das imagens",
+                "raw_response": response
+            }
+            
+    except Exception as e:
+        logger.error(f"Error analyzing multiple expense images: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao analisar imagens: {str(e)}")
 
 # ==================== PRAZO WHATSAPP LINK ====================
 @api_router.get("/prazo/whatsapp-link/{customer_name}")
