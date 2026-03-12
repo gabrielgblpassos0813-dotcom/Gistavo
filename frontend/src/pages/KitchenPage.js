@@ -101,16 +101,17 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
 };
 
 // PIX Pending Card Component
-const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
+const PixPendingCard = ({ order, onApprove, onReject, onViewProof, onRetryVerify }) => {
   const createdAt = new Date(order.created_at);
   const proofUploadedAt = order.pix_proof_at ? new Date(order.pix_proof_at) : null;
   const now = new Date();
   const minutesAgo = Math.floor((now - createdAt) / 60000);
   
   // Calculate time since proof upload for verification status
-  const secondsSinceProofUpload = proofUploadedAt ? Math.floor((now - proofUploadedAt) / 1000) : 0;
-  const isVerifying = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload < 60;
-  const verificationTimedOut = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload >= 60;
+  // If no pix_proof_at, consider it as already timed out (legacy order)
+  const secondsSinceProofUpload = proofUploadedAt ? Math.floor((now - proofUploadedAt) / 1000) : 999;
+  const isVerifying = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload < 30;
+  const verificationTimedOut = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload >= 30;
 
   return (
     <div className="bg-white rounded-lg border-l-4 border-l-blue-500 shadow-sm">
