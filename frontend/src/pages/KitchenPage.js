@@ -536,6 +536,17 @@ export const KitchenPage = () => {
     }
   };
 
+  const handleSendWhatsApp = async (customerName) => {
+    try {
+      const response = await axios.get(`${API}/prazo/whatsapp-link/${encodeURIComponent(customerName)}`);
+      window.open(response.data.url, '_blank');
+      toast.success('Abrindo WhatsApp...');
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Erro ao gerar link do WhatsApp';
+      toast.error(message);
+    }
+  };
+
   const handleStockUpdate = async (menuItemId, quantity) => {
     try {
       await axios.put(`${API}/stock/${store}/${menuItemId}`, { quantity });
