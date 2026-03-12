@@ -273,6 +273,158 @@ export const GestorPage = () => {
     }
   };
 
+  // ==================== EXPENSES (GASTOS) FUNCTIONS ====================
+  const fetchExpenses = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      const [expensesRes, chartRes] = await Promise.all([
+        axios.get(`${API}/expenses`, { auth: { username: user, password: pass } }),
+        axios.get(`${API}/gestor/chart/monthly-with-expenses`, { auth: { username: user, password: pass } })
+      ]);
+      setExpenses(expensesRes.data.expenses || []);
+      setExpensesChartData(chartRes.data);
+    } catch (error) {
+      console.log('Error fetching expenses');
+    }
+  };
+
+  const compressImage = (file, maxWidth = 800, quality = 0.6) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleExpenseImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Imagem muito grande. Máximo 10MB.');
+        return;
+      }
+      
+      toast.loading('Processando imagem...', { id: 'compress' });
+      
+      try {
+        const compressedImage = await compressImage(file);
+        setExpenseImage(compressedImage);
+        setExpenseImagePreview(compressedImage);
+        toast.success('Imagem carregada!', { id: 'compress' });
+      } catch (error) {
+        toast.error('Erro ao processar imagem', { id: 'compress' });
+      }
+    }
+  };
+
+  const handleAnalyzeExpense = async () => {
+    if (!expenseImage) {
+      toast.error('Selecione uma imagem primeiro');
+      return;
+    }
+    
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    setIsAnalyzing(true);
+    
+    try {
+      // Remove the data:image/jpeg;base64, prefix
+      const base64Data = expenseImage.split(',')[1] || expenseImage;
+      
+      const response = await axios.post(`${API}/expenses/analyze-image`, {
+        image_base64: base64Data
+      }, { auth: { username: user, password: pass } });
+      
+      if (response.data.success && response.data.analysis) {
+        const analysis = response.data.analysis;
+        setAnalyzedExpense(analysis);
+        setNewExpense({
+          description: analysis.description || '',
+          amount: analysis.amount?.toString() || '',
+          category: EXPENSE_CATEGORIES.includes(analysis.category) ? analysis.category : 'outros',
+          store: 'all',
+          notes: analysis.notes || ''
+        });
+        toast.success(`Análise concluída! Confiança: ${analysis.confidence || 'média'}`);
+      } else {
+        toast.error('Não foi possível analisar a imagem');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao analisar imagem');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleSaveExpense = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth || !newExpense.description || !newExpense.amount) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      await axios.post(`${API}/expenses`, {
+        ...newExpense,
+        amount: parseFloat(newExpense.amount),
+        image_url: expenseImagePreview || ''
+      }, { auth: { username: user, password: pass } });
+      
+      toast.success('Gasto registrado!');
+      setShowExpenseDialog(false);
+      setNewExpense({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
+      setExpenseImage(null);
+      setExpenseImagePreview(null);
+      setAnalyzedExpense(null);
+      fetchExpenses();
+      fetchChartData();
+    } catch (error) {
+      toast.error('Erro ao salvar gasto');
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    const [user, pass] = atob(auth).split(':');
+    
+    try {
+      await axios.delete(`${API}/expenses/${expenseId}`, {
+        auth: { username: user, password: pass }
+      });
+      toast.success('Gasto removido!');
+      fetchExpenses();
+      fetchChartData();
+    } catch (error) {
+      toast.error('Erro ao remover gasto');
+    }
+  };
+
   useEffect(() => {
     const auth = localStorage.getItem('gestor_auth');
     if (auth) {
