@@ -69,7 +69,7 @@ export const StoreSelectorPage = () => {
           <Button
             variant="outline"
             className="w-full mt-3 h-auto py-3 flex items-center justify-center gap-2"
-            onClick={() => navigate('/gestor/dashboard')}
+            onClick={() => navigate('/auth')}
           >
             <BarChart3 className="h-5 w-5 text-brand-600" />
             <span>Painel do Gestor</span>
