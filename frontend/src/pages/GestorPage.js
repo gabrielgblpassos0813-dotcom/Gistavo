@@ -529,18 +529,8 @@ export const GestorPage = () => {
     setChatMessages(prev => [...prev, { role: 'user', content: input }]);
     setChatInput('');
     
-    // Parse all commands
-    const parseMultipleCommands = (text) => {
-      const commands = [];
-      const parts = text.split(/[.,;]|\se\s+o\s+de\s/i).filter(p => p.trim());
-      for (const part of parts) {
-        const cmd = parseExpenseCommand(part);
-        if (cmd) commands.push(cmd);
-      }
-      return commands;
-    };
-    
-    const allCommands = parseMultipleCommands(input);
+    // Parse all commands using global regex
+    const allCommands = parseAllExpenseCommands(input);
     
     if (allCommands.length > 0) {
       const savedExpenses = [];
