@@ -846,6 +846,8 @@ Responda APENAS em formato JSON:
         
         payer_name = analysis.get("payer_name", "Desconhecido")
         extracted_amount = analysis.get("amount", 0)
+        transaction_time = analysis.get("transaction_time", datetime.now().strftime("%H:%M"))
+        transaction_date = analysis.get("transaction_date", datetime.now().strftime("%d/%m/%Y"))
         is_valid = analysis.get("is_valid", False)
         
         # Save analysis to order
