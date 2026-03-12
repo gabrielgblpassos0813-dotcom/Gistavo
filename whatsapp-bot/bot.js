@@ -5,10 +5,23 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
+// Load .env file if exists
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+        const [key, value] = line.split('=');
+        if (key && value) {
+            process.env[key.trim()] = value.trim();
+        }
+    });
+}
+
 // Configuration
 // Para enviar para grupo, use o formato: 'XXXXXXXXX@g.us'
 // Para enviar para número, use: '5511XXXXXXXXX@s.whatsapp.net'
-const NOTIFICATION_TARGET = process.env.WHATSAPP_TARGET || '5511970731504@s.whatsapp.net';
+// Grupo GANOH-Londres configurado como padrão
+const NOTIFICATION_TARGET = process.env.WHATSAPP_TARGET || '120363424613813278@g.us';
 const AUTH_FOLDER = path.join(__dirname, 'auth_info');
 const PORT = 8002;
 
