@@ -11,7 +11,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
