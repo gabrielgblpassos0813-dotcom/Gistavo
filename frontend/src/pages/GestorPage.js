@@ -1337,19 +1337,19 @@ export const GestorPage = () => {
                       </span>
                     </div>
                     {/* Bar Chart */}
-                    <div className="h-64 flex items-end justify-between gap-1 border-b border-l p-2 overflow-x-auto">
+                    <div className="h-64 flex items-end justify-between gap-0.5 border-b border-l p-2 overflow-x-auto">
                       {chartData.data.map((item, idx) => {
                         const values = chartData.data.map(d => d.total);
                         const maxValue = Math.max(...values, 1);
-                        const height = (item.total / maxValue) * 100;
+                        const height = item.total > 0 ? Math.max((item.total / maxValue) * 100, 8) : 2;
                         return (
                           <div 
                             key={idx} 
-                            className="flex-1 min-w-[20px] flex flex-col items-center justify-end group relative"
+                            className="flex-1 min-w-[12px] max-w-[30px] flex flex-col items-center justify-end group relative"
                           >
                             <div 
-                              className="w-full bg-brand-600 rounded-t hover:bg-brand-700 transition-colors cursor-pointer min-h-[2px]"
-                              style={{ height: `${Math.max(height, 2)}%` }}
+                              className={`w-full rounded-t transition-colors cursor-pointer ${item.total > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-200'}`}
+                              style={{ height: `${height}%` }}
                             />
                             <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
                               {chartPeriod === 'day' ? item.hour : 
