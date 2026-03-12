@@ -346,27 +346,70 @@ export const GestorPage = () => {
   };
 
   const handleExpenseImageChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Imagem muito grande. Máximo 10MB.');
-        return;
-      }
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    // Filter files by size
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    if (validFiles.length < files.length) {
+      toast.error(`${files.length - validFiles.length} imagem(ns) muito grande(s). Máximo 10MB.`);
+    }
+    
+    if (validFiles.length === 0) return;
+    
+    toast.loading(`Processando ${validFiles.length} imagem(ns)...`, { id: 'compress' });
+    
+    try {
+      const compressedImages = await Promise.all(
+        validFiles.map(file => compressImage(file))
+      );
       
-      toast.loading('Processando imagem...', { id: 'compress' });
+      // Store all images
+      setExpenseImages(compressedImages);
+      setExpenseImagePreview(compressedImages[0]); // Show first as preview
+      toast.dismiss('compress');
       
-      try {
-        const compressedImage = await compressImage(file);
-        setExpenseImage(compressedImage);
-        setExpenseImagePreview(compressedImage);
-        toast.dismiss('compress');
+      // Auto-start AI analysis with multiple images
+      startExpenseChatWithMultipleImages(compressedImages);
+    } catch (error) {
+      toast.error('Erro ao processar imagens', { id: 'compress' });
+    }
+  };
+
+  // Parse commands like "o gasto de 6 reais é compras" or "6 reais mercado"
+  const parseExpenseCommand = (input) => {
+    const normalized = input.toLowerCase().trim();
+    
+    // Pattern: "o gasto de X reais é CATEGORIA" or "X reais é CATEGORIA"
+    const patterns = [
+      /(?:o\s+)?gasto\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(?:é|e|=|:)?\s*(\w+)/i,
+      /(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(?:é|e|=|:)?\s*(\w+)/i,
+      /(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(\w+)/i,
+      /(\w+)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)/i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match) {
+        let amount, categoryWord;
         
-        // Auto-start AI analysis when image is loaded
-        startExpenseChatWithImage(compressedImage);
-      } catch (error) {
-        toast.error('Erro ao processar imagem', { id: 'compress' });
+        // Check which group is the number
+        if (!isNaN(parseFloat(match[1].replace(',', '.')))) {
+          amount = parseFloat(match[1].replace(',', '.'));
+          categoryWord = match[2];
+        } else {
+          amount = parseFloat(match[2].replace(',', '.'));
+          categoryWord = match[1];
+        }
+        
+        const category = matchCategory(categoryWord);
+        if (category && amount) {
+          return { amount, category };
+        }
       }
     }
+    
+    return null;
   };
 
   // Smart category matching - understands variations
