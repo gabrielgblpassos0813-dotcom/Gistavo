@@ -341,16 +341,30 @@ export const GestorPage = () => {
   };
 
   // ==================== EXPENSES (GASTOS) FUNCTIONS ====================
-  const fetchExpenses = async () => {
+  const fetchExpenses = async (period = expensesPeriod, date = expensesSelectedDate, month = expensesSelectedMonth, year = expensesSelectedYear) => {
     const auth = localStorage.getItem('gestor_auth');
     if (!auth) return;
     
     const [user, pass] = atob(auth).split(':');
     
     try {
+      let chartEndpoint = `${API}/gestor/chart/monthly-with-expenses`;
+      let params = {};
+      
+      if (period === 'day') {
+        params = { date };
+        chartEndpoint = `${API}/gestor/chart/daily-with-expenses`;
+      } else if (period === 'month') {
+        params = { month, year };
+        chartEndpoint = `${API}/gestor/chart/monthly-with-expenses`;
+      } else if (period === 'year') {
+        params = { year };
+        chartEndpoint = `${API}/gestor/chart/yearly-with-expenses`;
+      }
+      
       const [expensesRes, chartRes] = await Promise.all([
         axios.get(`${API}/expenses`, { auth: { username: user, password: pass } }),
-        axios.get(`${API}/gestor/chart/monthly-with-expenses`, { auth: { username: user, password: pass } })
+        axios.get(chartEndpoint, { auth: { username: user, password: pass }, params })
       ]);
       setExpenses(expensesRes.data.expenses || []);
       setExpensesChartData(chartRes.data);
