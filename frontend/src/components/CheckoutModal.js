@@ -43,17 +43,17 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
   const fileInputRef = useRef(null);
   const { items, total, itemCount } = useCart();
 
-  // Fetch prazo customers for Runner
+  // Fetch prazo customers for both stores
   useEffect(() => {
-    if (store === 'runner' && isOpen) {
+    if (isOpen) {
       axios.get(`${API}/prazo/customers`)
         .then(res => setPrazoCustomers(res.data.customers || []))
         .catch(() => {});
     }
-  }, [store, isOpen]);
+  }, [isOpen]);
 
-  // Get available payment methods based on store
-  const availablePaymentMethods = store === 'runner' ? PAYMENT_METHODS_RUNNER : PAYMENT_METHODS;
+  // Get available payment methods (same for all stores now)
+  const availablePaymentMethods = PAYMENT_METHODS;
 
   // Generate time slots from now until closing (22:00)
   const timeSlots = useMemo(() => {
