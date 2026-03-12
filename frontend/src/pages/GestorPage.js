@@ -115,6 +115,11 @@ export const GestorPage = () => {
   const [pendingExpensesList, setPendingExpensesList] = useState([]);
   const [awaitingCategory, setAwaitingCategory] = useState(false);
   const [expenseImages, setExpenseImages] = useState([]);
+  
+  // WhatsApp Bot states
+  const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
+  const [whatsappQR, setWhatsappQR] = useState(null);
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
