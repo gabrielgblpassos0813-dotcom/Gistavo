@@ -119,6 +119,9 @@ export const GestorPage = () => {
   // WhatsApp Bot states
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
   const [whatsappQR, setWhatsappQR] = useState(null);
+  const [whatsappGroups, setWhatsappGroups] = useState([]);
+  const [whatsappTarget, setWhatsappTarget] = useState('');
+  const [whatsappTargetInput, setWhatsappTargetInput] = useState('');
   
   const handleLogin = async (e) => {
     e.preventDefault();
