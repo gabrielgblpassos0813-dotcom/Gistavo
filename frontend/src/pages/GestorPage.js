@@ -111,6 +111,12 @@ export const GestorPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const EXPENSE_CATEGORIES = ['contador', 'fornecedor', 'mercado', 'suplementos', 'VT', 'Vivo', 'sistema', 'salário', 'outros'];
   
+  // Expenses chart period filters
+  const [expensesPeriod, setExpensesPeriod] = useState('month');
+  const [expensesSelectedMonth, setExpensesSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [expensesSelectedYear, setExpensesSelectedYear] = useState(new Date().getFullYear());
+  const [expensesSelectedDate, setExpensesSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  
   // AI Chat for expenses
   const [showExpenseChat, setShowExpenseChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
