@@ -193,13 +193,24 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 ## Próximas Tarefas (Backlog)
 
 ### P1 - Prioridade Alta
-- [ ] Implementar isolamento completo de dados por tenant
+- [ ] Implementar categorização automática de novos itens como "Doces" (exceto "água")
+- [ ] Verificar QR Code PIX no CheckoutModal (`/app/frontend/public/images/pix-qrcode.png`)
 - [ ] Adicionar metas de vendas para o gestor
 
 ### P2 - Melhorias
 - [ ] Refatorar server.py em routers separados
 - [ ] Extrair componentes de GestorPage e KitchenPage
 - [ ] Adicionar testes automatizados
+- [ ] Implementar isolamento completo de dados por tenant
+
+---
+
+## Changelog
+
+### 12/03/2026 - Correção de Gráficos e Verificação PIX
+- ✅ **Corrigido**: Gráficos de vendas e gastos não renderizavam barras (problema de CSS com `height: %` em flex containers)
+- ✅ **Melhorado**: UI de verificação PIX na cozinha agora mostra contador de tempo e timeout para verificação manual
+- ✅ **Melhorado**: Exibição do horário da transação PIX extraído pela IA
 
 ---
 
