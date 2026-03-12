@@ -1620,6 +1620,91 @@ export const GestorPage = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* WHATSAPP TAB */}
+          <TabsContent value="whatsapp">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-green-600" />
+                  WhatsApp Bot - Notificações PIX
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-sm text-muted-foreground mb-4">
+                  Conecte o WhatsApp para receber notificações automáticas quando um PIX for aprovado.
+                </div>
+                
+                {/* Status */}
+                <div className="flex items-center gap-3 p-4 bg-secondary/30 rounded-lg">
+                  <div className={`w-3 h-3 rounded-full ${
+                    whatsappStatus === 'connected' ? 'bg-green-500' :
+                    whatsappStatus === 'waiting_qr' ? 'bg-yellow-500 animate-pulse' :
+                    whatsappStatus === 'reconnecting' ? 'bg-blue-500 animate-pulse' :
+                    'bg-red-500'
+                  }`} />
+                  <span className="font-medium">
+                    {whatsappStatus === 'connected' ? '✅ Conectado' :
+                     whatsappStatus === 'waiting_qr' ? '📱 Aguardando QR Code...' :
+                     whatsappStatus === 'reconnecting' ? '🔄 Reconectando...' :
+                     whatsappStatus === 'offline' ? '⚠️ Bot offline (inicie o serviço)' :
+                     '❌ Desconectado'}
+                  </span>
+                </div>
+
+                {/* QR Code */}
+                {whatsappQR && whatsappStatus !== 'connected' && (
+                  <div className="bg-white p-6 rounded-lg border text-center">
+                    <p className="text-sm font-medium mb-4">Escaneie o QR Code com seu WhatsApp:</p>
+                    <div className="inline-block p-4 bg-white border rounded-lg">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(whatsappQR)}`}
+                        alt="WhatsApp QR Code"
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      1. Abra o WhatsApp no celular<br/>
+                      2. Vá em Configurações → Aparelhos Conectados<br/>
+                      3. Escaneie o código acima
+                    </p>
+                  </div>
+                )}
+
+                {whatsappStatus === 'connected' && (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <p className="text-green-700 font-medium">🎉 WhatsApp conectado com sucesso!</p>
+                    <p className="text-sm text-green-600 mt-2">
+                      Quando um PIX for aprovado na cozinha, você receberá uma notificação automática no número 5511970731504 com:
+                    </p>
+                    <ul className="text-sm text-green-600 mt-2 list-disc list-inside">
+                      <li>Nome do cliente</li>
+                      <li>Valor do pedido</li>
+                      <li>Local (Runner ou GYM Londres)</li>
+                      <li>Horário</li>
+                    </ul>
+                  </div>
+                )}
+
+                {whatsappStatus === 'offline' && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <p className="text-yellow-700 font-medium">⚠️ Serviço do bot não está rodando</p>
+                    <p className="text-sm text-yellow-600 mt-2">
+                      O bot do WhatsApp precisa ser iniciado no servidor.
+                    </p>
+                  </div>
+                )}
+
+                <Button 
+                  variant="outline" 
+                  onClick={fetchWhatsAppStatus}
+                  className="w-full"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Status
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
 
