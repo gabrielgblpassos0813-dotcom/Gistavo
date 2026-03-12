@@ -1697,6 +1697,100 @@ Por favor, escolha uma das categorias:
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Chat Dialog for Expense Analysis */}
+      <Dialog open={showExpenseChat} onOpenChange={(open) => { if (!open) closeExpenseChat(); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-brand-600" />
+              Chat com IA - Análise de Gasto
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Image Preview */}
+          {expenseImagePreview && (
+            <div className="w-full h-24 rounded-lg overflow-hidden border">
+              <img 
+                src={expenseImagePreview} 
+                alt="Comprovante" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 max-h-64 min-h-32">
+            {chatMessages.map((msg, idx) => (
+              <div 
+                key={idx} 
+                className={`p-3 rounded-lg text-sm ${
+                  msg.role === 'user' 
+                    ? 'bg-brand-100 ml-8' 
+                    : msg.role === 'system'
+                    ? 'bg-gray-100 text-center text-muted-foreground'
+                    : 'bg-secondary mr-8'
+                }`}
+              >
+                {msg.content.split('\n').map((line, lidx) => (
+                  <p key={lidx} className="whitespace-pre-wrap">
+                    {line.replace(/\*\*(.*?)\*\*/g, (_, text) => text)}
+                  </p>
+                ))}
+              </div>
+            ))}
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm justify-center py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analisando imagem...
+              </div>
+            )}
+          </div>
+          
+          {/* Chat Input */}
+          {awaitingCategory && (
+            <div className="flex gap-2 mt-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Digite a categoria..."
+                onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
+                disabled={isAnalyzing}
+              />
+              <Button 
+                onClick={handleChatSubmit}
+                disabled={!chatInput.trim() || isAnalyzing}
+                className="bg-brand-600 hover:bg-brand-700"
+              >
+                Enviar
+              </Button>
+            </div>
+          )}
+          
+          {/* Quick category buttons */}
+          {awaitingCategory && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {EXPENSE_CATEGORIES.map(cat => (
+                <Button
+                  key={cat}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => { setChatInput(cat); }}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+          )}
+          
+          <DialogFooter className="mt-2">
+            <Button variant="outline" className="w-full" onClick={closeExpenseChat}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
