@@ -1196,67 +1196,166 @@ export const GestorPage = () => {
           <TabsContent value="chart">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
+                <CardTitle className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-brand-600" />
-                    {chartViewMode === 'month' ? 'Vendas do Mês' : 'Vendas por Grupo'}
+                    {chartPeriod === 'day' ? 'Vendas do Dia' : chartPeriod === 'month' ? 'Vendas do Mês' : 'Vendas do Ano'}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
-                      variant={chartViewMode === 'month' ? 'default' : 'outline'}
+                      variant={chartPeriod === 'day' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setChartViewMode('month')}
-                      className={chartViewMode === 'month' ? 'bg-brand-600' : ''}
+                      onClick={() => { setChartPeriod('day'); fetchChartData('day'); }}
+                      className={chartPeriod === 'day' ? 'bg-brand-600' : ''}
                     >
-                      Vendas por Mês
+                      Dia
                     </Button>
                     <Button 
-                      variant={chartViewMode === 'group' ? 'default' : 'outline'}
+                      variant={chartPeriod === 'month' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => { setChartViewMode('group'); fetchSalesByCategory(); }}
-                      className={chartViewMode === 'group' ? 'bg-brand-600' : ''}
+                      onClick={() => { setChartPeriod('month'); fetchChartData('month'); }}
+                      className={chartPeriod === 'month' ? 'bg-brand-600' : ''}
                     >
-                      Vendas por Grupo
+                      Mês
+                    </Button>
+                    <Button 
+                      variant={chartPeriod === 'year' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setChartPeriod('year'); fetchChartData('year'); }}
+                      className={chartPeriod === 'year' ? 'bg-brand-600' : ''}
+                    >
+                      Ano
                     </Button>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {chartViewMode === 'month' && chartData ? (
+                {/* Period Selectors */}
+                <div className="flex gap-2 mb-4 flex-wrap items-center">
+                  {chartPeriod === 'day' && (
+                    <Input 
+                      type="date" 
+                      value={chartSelectedDate instanceof Date ? chartSelectedDate.toISOString().split('T')[0] : chartSelectedDate}
+                      onChange={(e) => {
+                        setChartSelectedDate(e.target.value);
+                        fetchChartData('day', e.target.value);
+                      }}
+                      className="w-auto"
+                    />
+                  )}
+                  {chartPeriod === 'month' && (
+                    <>
+                      <Select 
+                        value={chartSelectedMonth.toString()} 
+                        onValueChange={(v) => {
+                          const m = parseInt(v);
+                          setChartSelectedMonth(m);
+                          fetchChartData('month', null, m, chartSelectedYear);
+                        }}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                            <SelectItem key={i+1} value={(i+1).toString()}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select 
+                        value={chartSelectedYear.toString()} 
+                        onValueChange={(v) => {
+                          const y = parseInt(v);
+                          setChartSelectedYear(y);
+                          fetchChartData('month', null, chartSelectedMonth, y);
+                        }}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[2024, 2025, 2026].map(y => (
+                            <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+                  {chartPeriod === 'year' && (
+                    <Select 
+                      value={chartSelectedYear.toString()} 
+                      onValueChange={(v) => {
+                        const y = parseInt(v);
+                        setChartSelectedYear(y);
+                        fetchChartData('year', null, null, y);
+                      }}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2024, 2025, 2026].map(y => (
+                          <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {chartData ? (
                   <>
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-sm text-muted-foreground">{chartData.month}</span>
-                      <span className="text-lg font-bold text-brand-600">{formatPrice(chartData.total_month)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {chartPeriod === 'day' ? chartData.date : 
+                         chartPeriod === 'month' ? chartData.month : 
+                         `Ano ${chartData.year}`}
+                      </span>
+                      <span className="text-lg font-bold text-brand-600">
+                        {formatPrice(chartPeriod === 'day' ? chartData.total_day : 
+                                    chartPeriod === 'month' ? chartData.total_month : 
+                                    chartData.total_year)}
+                      </span>
                     </div>
-                    {/* Simple Bar Chart */}
-                    <div className="h-64 flex items-end justify-between gap-1 border-b border-l p-2">
-                      {chartData.data.map((day, idx) => {
-                        const maxValue = Math.max(...chartData.data.map(d => d.total), 1);
-                        const height = (day.total / maxValue) * 100;
+                    {/* Bar Chart */}
+                    <div className="h-64 flex items-end justify-between gap-1 border-b border-l p-2 overflow-x-auto">
+                      {chartData.data.map((item, idx) => {
+                        const values = chartData.data.map(d => d.total);
+                        const maxValue = Math.max(...values, 1);
+                        const height = (item.total / maxValue) * 100;
                         return (
                           <div 
                             key={idx} 
-                            className="flex-1 flex flex-col items-center justify-end group relative"
+                            className="flex-1 min-w-[20px] flex flex-col items-center justify-end group relative"
                           >
                             <div 
                               className="w-full bg-brand-600 rounded-t hover:bg-brand-700 transition-colors cursor-pointer min-h-[2px]"
                               style={{ height: `${Math.max(height, 2)}%` }}
-                              title={`Dia ${day.day}: ${formatPrice(day.total)} (${day.count} pedidos)`}
                             />
-                            {/* Tooltip */}
                             <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                              Dia {day.day}: {formatPrice(day.total)}
-                              <br/>{day.count} pedidos
+                              {chartPeriod === 'day' ? item.hour : 
+                               chartPeriod === 'month' ? `Dia ${item.day}` : 
+                               item.month_name}: {formatPrice(item.total)}
+                              <br/>{item.count} pedidos
                             </div>
-                            <span className="text-[8px] text-muted-foreground mt-1">{day.day}</span>
+                            <span className="text-[8px] text-muted-foreground mt-1">
+                              {chartPeriod === 'day' ? item.hour?.slice(0,2) : 
+                               chartPeriod === 'month' ? item.day : 
+                               item.month_name?.slice(0,3)}
+                            </span>
                           </div>
                         );
                       })}
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-4 text-center">
                       <div className="bg-brand-50 rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground">Total do Mês</p>
-                        <p className="text-xl font-bold text-brand-600">{formatPrice(chartData.total_month)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Total {chartPeriod === 'day' ? 'do Dia' : chartPeriod === 'month' ? 'do Mês' : 'do Ano'}
+                        </p>
+                        <p className="text-xl font-bold text-brand-600">
+                          {formatPrice(chartPeriod === 'day' ? chartData.total_day : 
+                                      chartPeriod === 'month' ? chartData.total_month : 
+                                      chartData.total_year)}
+                        </p>
                       </div>
                       <div className="bg-blue-50 rounded-lg p-3">
                         <p className="text-xs text-muted-foreground">Total de Pedidos</p>
@@ -1264,7 +1363,14 @@ export const GestorPage = () => {
                       </div>
                     </div>
                   </>
-                ) : chartViewMode === 'group' && salesByCategory ? (
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Carregando dados...
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
                   <>
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-sm text-muted-foreground">{salesByCategory.month}</span>
