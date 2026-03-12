@@ -1338,30 +1338,25 @@ async def analyze_expense_image(analysis: ExpenseAnalysis, username: str = Depen
             system_message="""Você é um assistente especializado em analisar notas fiscais, recibos e comprovantes de gastos.
 Analise a imagem e extraia as seguintes informações em formato JSON:
 {
-    "description": "descrição do gasto",
+    "description": "descrição do gasto (o que foi comprado)",
     "amount": valor numérico em reais (apenas o número, sem R$),
-    "category": "uma das categorias: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros",
-    "confidence": "alta, média ou baixa",
-    "notes": "local ou observações adicionais sobre o documento"
+    "notes": "nome do estabelecimento ou local onde foi gasto"
 }
-
-Categorias possíveis:
-- contador: serviços contábeis
-- fornecedor: fornecedores de alimentos, ingredientes
-- mercado: compras de supermercado
-- suplementos: whey, creatina, etc
-- VT: vale transporte
-- Vivo: telefone/internet
-- sistema: software, sistemas
-- salário: pagamento de funcionários
-- outros: outros gastos
 
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
         
-        # Create user message with image using the correct format
-        user_message = UserMessage(text="Analise este comprovante/nota fiscal e extraia as informações de gasto.")
-        user_message.add_image(image_base64=analysis.image_base64)
+        # Create FileContent for the image
+        image_content = FileContent(
+            content_type="image/jpeg",
+            file_content_base64=analysis.image_base64
+        )
+        
+        # Create user message with image
+        user_message = UserMessage(
+            text="Analise este comprovante/nota fiscal e extraia: o valor total, o que foi comprado e onde foi comprado.",
+            file_contents=[image_content]
+        )
         
         response = await chat.send_message(user_message)
         
@@ -1418,25 +1413,29 @@ Para CADA imagem, extraia as informações e retorne um JSON com uma lista:
     "expenses": [
         {{
             "id": 1,
-            "description": "descrição do gasto",
-            "amount": valor numérico em reais (apenas o número, sem R$),
-            "notes": "local ou observações",
-            "suggested_category": "categoria sugerida"
-        }},
-        ...
+            "description": "o que foi comprado",
+            "amount": valor numérico em reais (apenas o número),
+            "notes": "nome do estabelecimento/local"
+        }}
     ]
 }}
-
-Categorias possíveis: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros
 
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
         
-        # Create user message with multiple images
-        user_message = UserMessage(text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste todas as informações de cada gasto.")
-        
+        # Create FileContent for each image
+        file_contents = []
         for img_base64 in data.images:
-            user_message.add_image(image_base64=img_base64)
+            file_contents.append(FileContent(
+                content_type="image/jpeg",
+                file_content_base64=img_base64
+            ))
+        
+        # Create user message with all images
+        user_message = UserMessage(
+            text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste: valor, o que foi comprado e onde foi comprado para cada uma.",
+            file_contents=file_contents
+        )
         
         response = await chat.send_message(user_message)
         
