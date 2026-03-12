@@ -483,15 +483,12 @@ Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo 
   const handleChatSubmit = async () => {
     if (!chatInput.trim() || !awaitingCategory) return;
     
-    const userMessage = chatInput.trim().toLowerCase();
-    setChatMessages(prev => [...prev, { role: 'user', content: chatInput }]);
+    const userMessage = chatInput.trim();
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setChatInput('');
     
-    // Check if it's a valid category
-    const validCategory = EXPENSE_CATEGORIES.find(cat => 
-      cat.toLowerCase() === userMessage || 
-      userMessage.includes(cat.toLowerCase())
-    );
+    // Use smart category matching
+    const validCategory = matchCategory(userMessage);
     
     if (validCategory && pendingExpenseData) {
       // Save the expense
@@ -512,31 +509,33 @@ Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo 
         
         setChatMessages(prev => [...prev, { 
           role: 'assistant', 
-          content: `✅ **Gasto salvo com sucesso!**
+          content: `✅ **Salvo!**
 
 📋 ${pendingExpenseData.description}
 💰 R$ ${pendingExpenseData.amount?.toFixed(2)}
-🏷️ Categoria: **${validCategory}**
-
-Você pode fechar esta janela.` 
+🏷️ Categoria: **${validCategory}**` 
         }]);
         
         setAwaitingCategory(false);
         fetchExpenses();
         toast.success('Gasto salvo!');
+        
+        // Auto close after 2 seconds
+        setTimeout(() => {
+          closeExpenseChat();
+        }, 2000);
       } catch (error) {
         setChatMessages(prev => [...prev, { 
           role: 'assistant', 
-          content: '❌ Erro ao salvar o gasto. Tente novamente.' 
+          content: '❌ Erro ao salvar. Tente novamente.' 
         }]);
       }
     } else {
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `❓ Categoria "${chatInput}" não reconhecida.
+        content: `🤔 Não entendi "${userMessage}".
 
-Por favor, escolha uma das categorias:
-• contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros` 
+Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário ou outros` 
       }]);
     }
   };
