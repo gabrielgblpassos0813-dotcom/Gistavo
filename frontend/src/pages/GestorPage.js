@@ -801,6 +801,185 @@ export const GestorPage = () => {
             </Card>
           </TabsContent>
 
+          {/* GASTOS TAB */}
+          <TabsContent value="gastos">
+            <div className="space-y-4">
+              {/* Header with Add Button */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-red-600" />
+                  Gestão de Gastos
+                </h2>
+                <Button 
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={() => {
+                    setShowExpenseDialog(true);
+                    setAnalyzedExpense(null);
+                    setExpenseImage(null);
+                    setExpenseImagePreview(null);
+                    setNewExpense({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Novo Gasto
+                </Button>
+              </div>
+
+              {/* Summary Cards */}
+              {expensesChartData && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card className="bg-green-50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Receita do Mês</p>
+                      <p className="text-xl font-bold text-green-600">{formatPrice(expensesChartData.total_revenue)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-red-50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Gastos do Mês</p>
+                      <p className="text-xl font-bold text-red-600">{formatPrice(expensesChartData.total_expenses)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={expensesChartData.total_profit >= 0 ? "bg-brand-50" : "bg-red-100"}>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Lucro do Mês</p>
+                      <p className={`text-xl font-bold ${expensesChartData.total_profit >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
+                        {formatPrice(expensesChartData.total_profit)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-blue-50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Pedidos</p>
+                      <p className="text-xl font-bold text-blue-600">{expensesChartData.total_orders}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Category Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  variant={selectedCategory === 'all' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setSelectedCategory('all')}
+                  className={selectedCategory === 'all' ? 'bg-brand-600' : ''}
+                >
+                  Todos
+                </Button>
+                {EXPENSE_CATEGORIES.map(cat => (
+                  <Button 
+                    key={cat}
+                    variant={selectedCategory === cat ? 'default' : 'outline'} 
+                    size="sm"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={selectedCategory === cat ? 'bg-brand-600' : ''}
+                  >
+                    {cat} {expensesChartData?.expenses_by_category?.[cat] ? `(${formatPrice(expensesChartData.expenses_by_category[cat])})` : ''}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Chart with Revenue vs Expenses */}
+              {expensesChartData && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Receita vs Gastos - {expensesChartData.month}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48 flex items-end justify-between gap-1 border-b border-l p-2">
+                      {expensesChartData.data.map((day, idx) => {
+                        const maxValue = Math.max(...expensesChartData.data.map(d => Math.max(d.revenue, d.expenses)), 1);
+                        const revenueHeight = (day.revenue / maxValue) * 100;
+                        const expenseHeight = (day.expenses / maxValue) * 100;
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex-1 flex flex-col items-center justify-end group relative"
+                          >
+                            <div className="flex gap-[1px] w-full items-end justify-center">
+                              <div 
+                                className="w-1/2 bg-green-500 rounded-t min-h-[2px]"
+                                style={{ height: `${Math.max(revenueHeight, 2)}%` }}
+                                title={`Receita: ${formatPrice(day.revenue)}`}
+                              />
+                              <div 
+                                className="w-1/2 bg-red-500 rounded-t min-h-[2px]"
+                                style={{ height: `${Math.max(expenseHeight, 2)}%` }}
+                                title={`Gastos: ${formatPrice(day.expenses)}`}
+                              />
+                            </div>
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                              Dia {day.day}<br/>
+                              Receita: {formatPrice(day.revenue)}<br/>
+                              Gastos: {formatPrice(day.expenses)}<br/>
+                              Lucro: {formatPrice(day.profit)}
+                            </div>
+                            <span className="text-[8px] text-muted-foreground mt-1">{day.day}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-center gap-4 mt-3 text-xs">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-green-500 rounded" />
+                        <span>Receita</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-red-500 rounded" />
+                        <span>Gastos</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Expenses List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Lista de Gastos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {expenses.length > 0 ? (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {expenses
+                        .filter(e => selectedCategory === 'all' || e.category === selectedCategory)
+                        .map((expense) => (
+                        <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{expense.description}</span>
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{expense.category}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(expense.created_at).toLocaleDateString('pt-BR')} • {expense.notes || 'Sem observações'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-red-600">{formatPrice(expense.amount)}</span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="text-red-600"
+                              onClick={() => handleDeleteExpense(expense.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Receipt className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p>Nenhum gasto registrado</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* PRAZO TAB */}
           <TabsContent value="prazo">
             <div className="grid md:grid-cols-2 gap-4">
