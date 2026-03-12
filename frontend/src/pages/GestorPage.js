@@ -906,21 +906,24 @@ export const GestorPage = () => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Main Navigation Tabs */}
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" /> Dashboard
+          <TabsList className="grid w-full grid-cols-6 mb-4">
+            <TabsTrigger value="dashboard" className="flex items-center gap-1 text-xs">
+              <BarChart3 className="h-3 w-3" /> Dashboard
             </TabsTrigger>
-            <TabsTrigger value="chart" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Gráfico
+            <TabsTrigger value="chart" className="flex items-center gap-1 text-xs">
+              <TrendingUp className="h-3 w-3" /> Gráfico
             </TabsTrigger>
-            <TabsTrigger value="gastos" className="flex items-center gap-2">
-              <Receipt className="h-4 w-4" /> Gastos
+            <TabsTrigger value="gastos" className="flex items-center gap-1 text-xs">
+              <Receipt className="h-3 w-3" /> Gastos
             </TabsTrigger>
-            <TabsTrigger value="prazo" className="flex items-center gap-2">
-              <CalendarClock className="h-4 w-4" /> Prazo
+            <TabsTrigger value="prazo" className="flex items-center gap-1 text-xs">
+              <CalendarClock className="h-3 w-3" /> Prazo
             </TabsTrigger>
-            <TabsTrigger value="menu" className="flex items-center gap-2">
-              <UtensilsCrossed className="h-4 w-4" /> Cardápio
+            <TabsTrigger value="menu" className="flex items-center gap-1 text-xs">
+              <UtensilsCrossed className="h-3 w-3" /> Cardápio
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="flex items-center gap-1 text-xs">
+              <MessageCircle className="h-3 w-3" /> WhatsApp
             </TabsTrigger>
           </TabsList>
 
