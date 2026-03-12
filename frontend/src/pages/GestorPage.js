@@ -634,63 +634,15 @@ export const GestorPage = () => {
       }]);
     }
   };
-    
-    if (validCategory && pendingExpenseData) {
-      // Save the expense
-      const auth = localStorage.getItem('gestor_auth');
-      if (!auth) return;
-      
-      const [user, pass] = atob(auth).split(':');
-      
-      try {
-        await axios.post(`${API}/expenses`, {
-          description: pendingExpenseData.description,
-          amount: pendingExpenseData.amount,
-          category: validCategory,
-          store: 'all',
-          notes: pendingExpenseData.notes,
-          image_url: expenseImagePreview || ''
-        }, { auth: { username: user, password: pass } });
-        
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: `✅ **Salvo!**
-
-📋 ${pendingExpenseData.description}
-💰 R$ ${pendingExpenseData.amount?.toFixed(2)}
-🏷️ Categoria: **${validCategory}**` 
-        }]);
-        
-        setAwaitingCategory(false);
-        fetchExpenses();
-        toast.success('Gasto salvo!');
-        
-        // Auto close after 2 seconds
-        setTimeout(() => {
-          closeExpenseChat();
-        }, 2000);
-      } catch (error) {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: '❌ Erro ao salvar. Tente novamente.' 
-        }]);
-      }
-    } else {
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `🤔 Não entendi "${userMessage}".
-
-Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário ou outros` 
-      }]);
-    }
-  };
 
   const closeExpenseChat = () => {
     setShowExpenseChat(false);
     setChatMessages([]);
     setPendingExpenseData(null);
+    setPendingExpensesList([]);
     setAwaitingCategory(false);
     setExpenseImage(null);
+    setExpenseImages([]);
     setExpenseImagePreview(null);
   };
 
