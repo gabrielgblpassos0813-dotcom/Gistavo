@@ -199,6 +199,9 @@ export const GestorPage = () => {
         auth: { username: user, password: pass }
       });
       setMenuItems(response.data.menu);
+      // Also fetch categories
+      const catResponse = await axios.get(`${API}/categories`);
+      setMenuCategories(catResponse.data.categories || []);
     } catch (error) {
       console.log('Error fetching menu');
     }
@@ -225,11 +228,11 @@ export const GestorPage = () => {
           ...newItem,
           price: parseFloat(newItem.price)
         }, { auth: { username: user, password: pass } });
-        toast.success('Item adicionado!');
+        toast.success('Item adicionado ao cardápio!');
       }
       setShowMenuDialog(false);
       setEditingItem(null);
-      setNewItem({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
+      setNewItem({ name: '', description: '', price: '', category: menuCategories[0] || '', store: 'runner', image_url: '' });
       fetchMenuItems(newItem.store);
     } catch (error) {
       toast.error('Erro ao salvar item');
