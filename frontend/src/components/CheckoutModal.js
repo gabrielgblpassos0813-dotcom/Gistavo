@@ -18,13 +18,6 @@ const PAYMENT_METHODS = [
   { id: 'debit', label: 'Cartão de Débito', icon: CreditCard },
   { id: 'credit', label: 'Cartão de Crédito', icon: CreditCard },
   { id: 'cash', label: 'Dinheiro', icon: Banknote },
-];
-
-const PAYMENT_METHODS_RUNNER = [
-  { id: 'pix', label: 'PIX', icon: Smartphone },
-  { id: 'debit', label: 'Cartão de Débito', icon: CreditCard },
-  { id: 'credit', label: 'Cartão de Crédito', icon: CreditCard },
-  { id: 'cash', label: 'Dinheiro', icon: Banknote },
   { id: 'prazo', label: 'Prazo (Fiado)', icon: CalendarClock },
 ];
 
