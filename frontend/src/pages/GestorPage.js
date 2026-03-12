@@ -1864,19 +1864,29 @@ export const GestorPage = () => {
           </DialogHeader>
           
           {/* Image Upload or Preview */}
-          {expenseImagePreview ? (
-            <div className="w-full h-24 rounded-lg overflow-hidden border relative">
-              <img 
-                src={expenseImagePreview} 
-                alt="Comprovante" 
-                className="w-full h-full object-cover"
-              />
+          {expenseImages.length > 0 || expenseImagePreview ? (
+            <div className="flex gap-2 overflow-x-auto py-1">
+              {expenseImages.length > 0 ? (
+                expenseImages.map((img, idx) => (
+                  <div key={idx} className="w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0">
+                    <img src={img} alt={`Nota ${idx + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))
+              ) : (
+                <div className="w-full h-20 rounded-lg overflow-hidden border">
+                  <img src={expenseImagePreview} alt="Comprovante" className="w-full h-full object-cover" />
+                </div>
+              )}
+              {expenseImages.length > 0 && (
+                <span className="text-xs text-muted-foreground self-center px-2">{expenseImages.length} foto(s)</span>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleExpenseImageChange}
                 className="hidden"
                 id="chat-expense-image-input"
@@ -1888,7 +1898,8 @@ export const GestorPage = () => {
                 onClick={() => document.getElementById('chat-expense-image-input').click()}
               >
                 <Camera className="h-6 w-6 text-muted-foreground" />
-                <span className="text-sm">📷 Tirar foto da nota</span>
+                <span className="text-sm">📷 Selecionar foto(s) das notas</span>
+                <span className="text-xs text-muted-foreground">Pode selecionar várias</span>
               </Button>
             </div>
           )}
