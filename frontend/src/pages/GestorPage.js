@@ -359,22 +359,68 @@ export const GestorPage = () => {
         const compressedImage = await compressImage(file);
         setExpenseImage(compressedImage);
         setExpenseImagePreview(compressedImage);
-        toast.success('Imagem carregada!', { id: 'compress' });
+        toast.dismiss('compress');
+        
+        // Auto-start AI analysis when image is loaded
+        startExpenseChatWithImage(compressedImage);
       } catch (error) {
         toast.error('Erro ao processar imagem', { id: 'compress' });
       }
     }
   };
 
-  // AI Chat functions for expense analysis
-  const startExpenseChat = async () => {
-    if (!expenseImage) {
-      toast.error('Selecione uma imagem primeiro');
-      return;
+  // Smart category matching - understands variations
+  const matchCategory = (input) => {
+    const normalized = input.toLowerCase().trim();
+    
+    // Direct match
+    const directMatch = EXPENSE_CATEGORIES.find(cat => 
+      cat.toLowerCase() === normalized
+    );
+    if (directMatch) return directMatch;
+    
+    // Category aliases and variations
+    const categoryAliases = {
+      'contador': ['contador', 'contabilidade', 'contábil', 'conta'],
+      'fornecedor': ['fornecedor', 'fornecedores', 'distribuidora', 'distribuidor', 'atacado'],
+      'mercado': ['mercado', 'supermercado', 'compras', 'feira', 'hortifruti', 'mercearia', 'compra mercado', 'compras mercado', 'super'],
+      'suplementos': ['suplementos', 'suplemento', 'whey', 'creatina', 'proteina', 'vitamina', 'nutricao'],
+      'VT': ['vt', 'vale transporte', 'transporte', 'passagem', 'bilhete', 'vale-transporte'],
+      'Vivo': ['vivo', 'telefone', 'celular', 'internet', 'plano', 'operadora', 'tim', 'claro', 'oi'],
+      'sistema': ['sistema', 'software', 'programa', 'app', 'aplicativo', 'assinatura', 'mensalidade', 'licença'],
+      'salário': ['salario', 'salário', 'funcionario', 'funcionário', 'pagamento', 'folha', 'empregado', 'colaborador'],
+      'outros': ['outros', 'outro', 'diversos', 'geral', 'variados']
+    };
+    
+    // Check aliases
+    for (const [category, aliases] of Object.entries(categoryAliases)) {
+      for (const alias of aliases) {
+        if (normalized.includes(alias) || alias.includes(normalized)) {
+          return category;
+        }
+      }
     }
     
+    // Fuzzy match - check if any word matches
+    const words = normalized.split(/\s+/);
+    for (const word of words) {
+      if (word.length < 3) continue;
+      for (const [category, aliases] of Object.entries(categoryAliases)) {
+        for (const alias of aliases) {
+          if (alias.includes(word) || word.includes(alias.substring(0, 4))) {
+            return category;
+          }
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // AI Chat functions for expense analysis
+  const startExpenseChatWithImage = async (imageData) => {
     setShowExpenseChat(true);
-    setChatMessages([{ role: 'system', content: 'Analisando imagem...' }]);
+    setChatMessages([{ role: 'system', content: '🔍 Analisando imagem com IA...' }]);
     setIsAnalyzing(true);
     
     const auth = localStorage.getItem('gestor_auth');
@@ -383,7 +429,7 @@ export const GestorPage = () => {
     const [user, pass] = atob(auth).split(':');
     
     try {
-      const base64Data = expenseImage.split(',')[1] || expenseImage;
+      const base64Data = imageData.split(',')[1] || imageData;
       
       const response = await axios.post(`${API}/expenses/analyze-image`, {
         image_base64: base64Data
@@ -397,26 +443,16 @@ export const GestorPage = () => {
           notes: analysis.notes || ''
         });
         
-        const aiMessage = `📋 **Análise da Nota:**
+        const aiMessage = `📋 **Encontrei na nota:**
 
 💰 **Valor:** R$ ${analysis.amount?.toFixed(2) || '0.00'}
-📝 **Descrição:** ${analysis.description || 'Não identificado'}
-📍 **Local/Observação:** ${analysis.notes || 'Não identificado'}
+📝 **O que é:** ${analysis.description || 'Não identificado'}
+📍 **Local:** ${analysis.notes || 'Não identificado'}
 
-Em qual categoria você quer salvar este gasto?
+**Em qual categoria salvar?**
+Pode escrever de qualquer forma (ex: "mercado", "compras do super", "supermercado")
 
-**Categorias disponíveis:**
-• contador
-• fornecedor
-• mercado
-• suplementos
-• VT
-• Vivo
-• sistema
-• salário
-• outros
-
-Digite o nome da categoria:`;
+Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo • sistema • salário • outros`;
         
         setChatMessages([
           { role: 'assistant', content: aiMessage }
@@ -424,7 +460,7 @@ Digite o nome da categoria:`;
         setAwaitingCategory(true);
       } else {
         setChatMessages([
-          { role: 'assistant', content: '❌ Não consegui analisar a imagem. Tente novamente com uma foto mais clara.' }
+          { role: 'assistant', content: '❌ Não consegui ler a imagem. Tente uma foto mais clara ou digite os dados manualmente.' }
         ]);
       }
     } catch (error) {
@@ -434,6 +470,14 @@ Digite o nome da categoria:`;
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const startExpenseChat = async () => {
+    if (!expenseImage) {
+      toast.error('Selecione uma imagem primeiro');
+      return;
+    }
+    startExpenseChatWithImage(expenseImage);
   };
 
   const handleChatSubmit = async () => {
