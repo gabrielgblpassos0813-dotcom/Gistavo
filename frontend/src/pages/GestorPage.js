@@ -1981,7 +1981,7 @@ export const GestorPage = () => {
           )}
           
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 py-2 max-h-64 min-h-24">
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 max-h-52 min-h-16">
             {chatMessages.map((msg, idx) => (
               <div 
                 key={idx} 
@@ -2008,29 +2008,33 @@ export const GestorPage = () => {
             )}
           </div>
           
-          {/* Chat Input */}
-          {awaitingCategory && (
-            <div className="flex gap-2 mt-2">
-              <Input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ex: mercado, supermercado, compras..."
-                onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
-                disabled={isAnalyzing}
-                autoFocus
-              />
-              <Button 
-                onClick={handleChatSubmit}
-                disabled={!chatInput.trim() || isAnalyzing}
-                className="bg-brand-600 hover:bg-brand-700"
-              >
-                Salvar
-              </Button>
+          {/* Chat Input - ALWAYS show when images are loaded */}
+          {(expenseImages.length > 0 || expenseImagePreview) && (
+            <div className="space-y-2 mt-2">
+              <div className="flex gap-2">
+                <Input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={isAnalyzing ? "Pode digitar enquanto a IA analisa..." : "Ex: 35 fornecedor, 22 mercado, 6 suplemento"}
+                  onKeyDown={(e) => e.key === 'Enter' && !isAnalyzing && pendingExpensesList.length > 0 && handleChatSubmit()}
+                  autoFocus
+                />
+                <Button 
+                  onClick={handleChatSubmit}
+                  disabled={!chatInput.trim() || isAnalyzing || pendingExpensesList.length === 0}
+                  className="bg-brand-600 hover:bg-brand-700"
+                >
+                  Salvar
+                </Button>
+              </div>
+              {isAnalyzing && chatInput.trim() && (
+                <p className="text-xs text-green-600">✓ Guardado! Será processado quando a IA terminar.</p>
+              )}
             </div>
           )}
           
           {/* Quick category buttons */}
-          {awaitingCategory && (
+          {(awaitingCategory || (expenseImages.length > 0 && !isAnalyzing)) && pendingExpensesList.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {EXPENSE_CATEGORIES.map(cat => (
                 <Button
@@ -2038,7 +2042,7 @@ export const GestorPage = () => {
                   variant="outline"
                   size="sm"
                   className="text-xs h-7"
-                  onClick={() => { setChatInput(cat); }}
+                  onClick={() => { setChatInput(prev => prev ? `${prev}, ${cat}` : cat); }}
                 >
                   {cat}
                 </Button>
