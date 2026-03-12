@@ -103,8 +103,14 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
 // PIX Pending Card Component
 const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
   const createdAt = new Date(order.created_at);
+  const proofUploadedAt = order.pix_proof_at ? new Date(order.pix_proof_at) : null;
   const now = new Date();
   const minutesAgo = Math.floor((now - createdAt) / 60000);
+  
+  // Calculate time since proof upload for verification status
+  const secondsSinceProofUpload = proofUploadedAt ? Math.floor((now - proofUploadedAt) / 1000) : 0;
+  const isVerifying = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload < 60;
+  const verificationTimedOut = order.pix_proof && !order.pix_analysis && secondsSinceProofUpload >= 60;
 
   return (
     <div className="bg-white rounded-lg border-l-4 border-l-blue-500 shadow-sm">
@@ -132,18 +138,27 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
           )}
         </div>
         
-        {/* AI Status indicator */}
-        {order.pix_proof && !order.pix_analysis && (
+        {/* AI Status indicator - Verifying */}
+        {isVerifying && (
           <div className="w-full h-8 text-xs bg-purple-100 text-purple-700 rounded flex items-center justify-center gap-2 mb-2">
             <Loader2 className="h-3 w-3 animate-spin" />
-            IA verificando automaticamente...
+            IA verificando... ({60 - secondsSinceProofUpload}s)
           </div>
         )}
         
+        {/* AI Status indicator - Timed out (needs manual check) */}
+        {verificationTimedOut && (
+          <div className="w-full text-xs bg-amber-100 text-amber-700 rounded p-2 mb-2">
+            ⏳ Verificação automática demorou. Verifique manualmente.
+          </div>
+        )}
+        
+        {/* AI Analysis result */}
         {order.pix_analysis && (
           <div className={`w-full text-xs rounded p-2 mb-2 ${order.pix_analysis.is_valid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
             {order.pix_analysis.is_valid ? '✅ IA aprovou!' : `⚠️ ${order.pix_analysis.reason}`}
             {order.pix_payer_name && <div className="text-[10px] mt-1">Pagador: {order.pix_payer_name}</div>}
+            {order.pix_transaction_time && <div className="text-[10px]">Horário: {order.pix_transaction_time}</div>}
           </div>
         )}
         
