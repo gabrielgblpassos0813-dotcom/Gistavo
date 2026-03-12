@@ -515,6 +515,33 @@ export const KitchenPage = () => {
     }
   };
 
+  // Auto-verify PIX payment with AI
+  const handleAutoVerifyPix = async (orderId) => {
+    try {
+      toast.loading('🤖 IA analisando comprovante...', { id: `verify-${orderId}` });
+      
+      const response = await axios.post(`${API}/orders/${store}/${orderId}/auto-verify-pix`);
+      
+      if (response.data.auto_approved) {
+        toast.success(`✅ PIX aprovado automaticamente!\nPagador: ${response.data.payer_name}\nValor: R$ ${response.data.extracted_amount?.toFixed(2)}`, { 
+          id: `verify-${orderId}`,
+          duration: 5000 
+        });
+      } else {
+        toast.error(`⚠️ Verificação manual necessária: ${response.data.message}`, { 
+          id: `verify-${orderId}`,
+          duration: 5000 
+        });
+      }
+      
+      fetchData();
+      return response.data;
+    } catch (error) {
+      toast.error('Erro na verificação automática', { id: `verify-${orderId}` });
+      return null;
+    }
+  };
+
   const handlePayPrazo = async () => {
     if (!selectedPrazoCustomer || !prazoPassword) return;
     
