@@ -6,7 +6,9 @@ const path = require('path');
 const http = require('http');
 
 // Configuration
-const NOTIFICATION_NUMBER = '5511970731504@s.whatsapp.net';
+// Para enviar para grupo, use o formato: 'XXXXXXXXX@g.us'
+// Para enviar para número, use: '5511XXXXXXXXX@s.whatsapp.net'
+const NOTIFICATION_TARGET = process.env.WHATSAPP_TARGET || '5511970731504@s.whatsapp.net';
 const AUTH_FOLDER = path.join(__dirname, 'auth_info');
 const PORT = 8002;
 
@@ -14,6 +16,7 @@ let sock = null;
 let qrCodeData = null;
 let isConnected = false;
 let connectionStatus = 'disconnected';
+let availableGroups = [];
 
 // Create HTTP server to expose QR code and status
 const server = http.createServer((req, res) => {
