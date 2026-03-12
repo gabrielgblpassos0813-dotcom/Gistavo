@@ -66,14 +66,7 @@ export const StoreSelectorPage = () => {
               <span className="text-xs">Cozinha GYM</span>
             </Button>
           </div>
-          <Button
-            variant="outline"
-            className="w-full mt-3 h-auto py-3 flex items-center justify-center gap-2"
-            onClick={() => navigate('/auth')}
-          >
-            <BarChart3 className="h-5 w-5 text-brand-600" />
-            <span>Painel do Gestor</span>
-          </Button>
+          {/* Painel do Gestor escondido - acesse diretamente via /auth */}
         </div>
       </div>
     </div>
