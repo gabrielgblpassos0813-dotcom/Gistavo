@@ -2077,28 +2077,41 @@ Obrigado! ☕"""
 
 # ==================== UPDATED CHART DATA WITH EXPENSES ====================
 @api_router.get("/gestor/chart/monthly-with-expenses")
-async def get_monthly_chart_with_expenses(username: str = Depends(verify_gestor)):
-    """Get daily sales AND expenses data for the current month for chart visualization"""
+async def get_monthly_chart_with_expenses(month: int = None, year: int = None, username: str = Depends(verify_gestor)):
+    """Get daily sales AND expenses data for a specific month"""
     now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    target_month = month if month else now.month
+    target_year = year if year else now.year
+    
+    month_start = datetime(target_year, target_month, 1, tzinfo=timezone.utc)
+    
+    if target_month == 12:
+        month_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        month_end = datetime(target_year, target_month + 1, 1, tzinfo=timezone.utc)
+    
+    import calendar
+    days_in_month = calendar.monthrange(target_year, target_month)[1]
     
     # Get all completed orders this month
     orders = await db.orders.find({
-        "status": {"$in": ["ready", "delivered"]},
-        "created_at": {"$gte": month_start.isoformat()}
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
     }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
     
     # Get all expenses this month
     expenses = await db.expenses.find({
-        "created_at": {"$gte": month_start.isoformat()}
+        "created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
     # Group by day
     daily_data = {}
-    for i in range(now.day):
-        day = (month_start + timedelta(days=i)).strftime("%Y-%m-%d")
-        daily_data[day] = {
-            "date": day, 
+    for i in range(days_in_month):
+        day_date = month_start + timedelta(days=i)
+        day_str = day_date.strftime("%Y-%m-%d")
+        daily_data[day_str] = {
+            "date": day_str, 
             "day": i + 1, 
             "revenue": 0, 
             "expenses": 0,
@@ -2136,8 +2149,12 @@ async def get_monthly_chart_with_expenses(username: str = Depends(verify_gestor)
     total_revenue = sum(d["revenue"] for d in chart_data)
     total_expenses = sum(d["expenses"] for d in chart_data)
     
+    month_names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    
     return {
-        "month": now.strftime("%B %Y"),
+        "month": f"{month_names[target_month]} {target_year}",
+        "period": "month",
         "data": chart_data,
         "total_revenue": total_revenue,
         "total_expenses": total_expenses,
@@ -2145,6 +2162,138 @@ async def get_monthly_chart_with_expenses(username: str = Depends(verify_gestor)
         "total_orders": sum(d["order_count"] for d in chart_data),
         "expenses_by_category": expenses_by_category,
         "categories": EXPENSE_CATEGORIES
+    }
+
+@api_router.get("/gestor/chart/daily-with-expenses")
+async def get_daily_chart_with_expenses(date: str = None, username: str = Depends(verify_gestor)):
+    """Get hourly sales AND expenses data for a specific day"""
+    now = datetime.now(timezone.utc)
+    
+    if date:
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    else:
+        target_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+    
+    # Get orders and expenses for this day
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1}).to_list(10000)
+    
+    expenses = await db.expenses.find({
+        "created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Group by hour
+    hourly_data = {}
+    for hour in range(24):
+        hourly_data[hour] = {
+            "hour": f"{hour:02d}:00",
+            "revenue": 0,
+            "expenses": 0,
+            "profit": 0,
+            "order_count": 0
+        }
+    
+    for order in orders:
+        try:
+            order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            brazil_hour = (order_time.hour - 3) % 24
+            hourly_data[brazil_hour]["revenue"] += order.get("total", 0)
+            hourly_data[brazil_hour]["order_count"] += 1
+        except:
+            pass
+    
+    for exp in expenses:
+        try:
+            exp_time = datetime.fromisoformat(exp.get("created_at", "").replace("Z", "+00:00"))
+            brazil_hour = (exp_time.hour - 3) % 24
+            hourly_data[brazil_hour]["expenses"] += exp.get("amount", 0)
+        except:
+            pass
+    
+    for h in hourly_data.values():
+        h["profit"] = h["revenue"] - h["expenses"]
+    
+    chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
+    
+    total_revenue = sum(d["revenue"] for d in chart_data)
+    total_expenses = sum(d["expenses"] for d in chart_data)
+    
+    return {
+        "date": target_date.strftime("%d/%m/%Y"),
+        "period": "day",
+        "data": chart_data,
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_profit": total_revenue - total_expenses,
+        "total_orders": sum(d["order_count"] for d in chart_data)
+    }
+
+@api_router.get("/gestor/chart/yearly-with-expenses")
+async def get_yearly_chart_with_expenses(year: int = None, username: str = Depends(verify_gestor)):
+    """Get monthly sales AND expenses data for a specific year"""
+    now = datetime.now(timezone.utc)
+    target_year = year if year else now.year
+    
+    year_start = datetime(target_year, 1, 1, tzinfo=timezone.utc)
+    year_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+    
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": year_start.isoformat(), "$lt": year_end.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1}).to_list(100000)
+    
+    expenses = await db.expenses.find({
+        "created_at": {"$gte": year_start.isoformat(), "$lt": year_end.isoformat()}
+    }, {"_id": 0}).to_list(10000)
+    
+    month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+    monthly_data = {}
+    for m in range(1, 13):
+        monthly_data[m] = {
+            "month": m,
+            "month_name": month_names[m-1],
+            "revenue": 0,
+            "expenses": 0,
+            "profit": 0,
+            "order_count": 0
+        }
+    
+    for order in orders:
+        try:
+            order_date = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            monthly_data[order_date.month]["revenue"] += order.get("total", 0)
+            monthly_data[order_date.month]["order_count"] += 1
+        except:
+            pass
+    
+    for exp in expenses:
+        try:
+            exp_date = datetime.fromisoformat(exp.get("created_at", "").replace("Z", "+00:00"))
+            monthly_data[exp_date.month]["expenses"] += exp.get("amount", 0)
+        except:
+            pass
+    
+    for m in monthly_data.values():
+        m["profit"] = m["revenue"] - m["expenses"]
+    
+    chart_data = sorted(monthly_data.values(), key=lambda x: x["month"])
+    
+    total_revenue = sum(d["revenue"] for d in chart_data)
+    total_expenses = sum(d["expenses"] for d in chart_data)
+    
+    return {
+        "year": target_year,
+        "period": "year",
+        "data": chart_data,
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_profit": total_revenue - total_expenses,
+        "total_orders": sum(d["order_count"] for d in chart_data)
     }
 
 # ==================== ADMIN CLEAR DATA ROUTE ====================
