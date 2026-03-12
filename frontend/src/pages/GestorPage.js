@@ -469,7 +469,7 @@ export const GestorPage = () => {
 
   const startExpenseChatWithMultipleImages = async (imagesData) => {
     setShowExpenseChat(true);
-    setChatMessages([{ role: 'system', content: `🔍 Analisando ${imagesData.length} imagem(ns) com IA...` }]);
+    setChatMessages([{ role: 'system', content: `🔍 Analisando ${imagesData.length} imagem(ns)... Você pode ir digitando as categorias enquanto isso!` }]);
     setIsAnalyzing(true);
     setPendingExpensesList([]);
     
@@ -477,6 +477,9 @@ export const GestorPage = () => {
     if (!auth) return;
     
     const [user, pass] = atob(auth).split(':');
+    
+    // Save current input to process after analysis
+    const preTypedInput = chatInput;
     
     try {
       const base64Images = imagesData.map(img => img.split(',')[1] || img);
@@ -497,16 +500,21 @@ export const GestorPage = () => {
           listMessage += '\n';
         });
         
-        listMessage += `\n**Como categorizar?**\nVocê pode:\n`;
-        listMessage += `• Digitar a categoria para todos: "mercado"\n`;
-        listMessage += `• Ou especificar: "o de 6 reais é mercado"\n\n`;
-        listMessage += `Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo • sistema • salário • outros`;
+        listMessage += `**Categorize:** Ex: "35 fornecedor, 22 mercado, 6 suplemento"`;
         
         setChatMessages([{ role: 'assistant', content: listMessage }]);
         setAwaitingCategory(true);
+        
+        // If user pre-typed something, process it automatically
+        if (preTypedInput && preTypedInput.trim()) {
+          // Small delay to update state first
+          setTimeout(() => {
+            processPreTypedInput(preTypedInput, expenses, user, pass);
+          }, 100);
+        }
       } else {
         setChatMessages([
-          { role: 'assistant', content: '❌ Não consegui ler as imagens. Tente fotos mais claras ou digite os dados manualmente.' }
+          { role: 'assistant', content: '❌ Não consegui ler as imagens. Tente fotos mais claras.' }
         ]);
       }
     } catch (error) {
@@ -515,6 +523,80 @@ export const GestorPage = () => {
       ]);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Process pre-typed input after analysis completes
+  const processPreTypedInput = async (input, expenses, user, pass) => {
+    if (!input.trim() || expenses.length === 0) return;
+    
+    setChatMessages(prev => [...prev, { role: 'user', content: input }]);
+    setChatInput('');
+    
+    // Parse all commands
+    const parseMultipleCommands = (text) => {
+      const commands = [];
+      const parts = text.split(/[.,;]|\se\s+o\s+de\s/i).filter(p => p.trim());
+      for (const part of parts) {
+        const cmd = parseExpenseCommand(part);
+        if (cmd) commands.push(cmd);
+      }
+      return commands;
+    };
+    
+    const allCommands = parseMultipleCommands(input);
+    
+    if (allCommands.length > 0) {
+      const savedExpenses = [];
+      let remainingExpenses = [...expenses];
+      
+      for (const cmd of allCommands) {
+        const matchingExpense = remainingExpenses.find(exp => 
+          Math.abs(exp.amount - cmd.amount) < 1
+        );
+        
+        if (matchingExpense) {
+          try {
+            await axios.post(`${API}/expenses`, {
+              description: matchingExpense.description,
+              amount: matchingExpense.amount,
+              category: cmd.category,
+              store: 'all',
+              notes: matchingExpense.notes || '',
+              image_url: ''
+            }, { auth: { username: user, password: pass } });
+            
+            savedExpenses.push({ ...matchingExpense, category: cmd.category });
+            remainingExpenses = remainingExpenses.filter(e => e !== matchingExpense);
+          } catch (error) {
+            console.error('Error saving expense:', error);
+          }
+        }
+      }
+      
+      if (savedExpenses.length > 0) {
+        setPendingExpensesList(remainingExpenses);
+        
+        let response = `✅ **${savedExpenses.length} gasto(s) salvo(s):**\n`;
+        savedExpenses.forEach(exp => {
+          response += `• R$ ${exp.amount?.toFixed(2)} → **${exp.category}**\n`;
+        });
+        
+        if (remainingExpenses.length > 0) {
+          response += `\n📋 Faltam ${remainingExpenses.length}:\n`;
+          remainingExpenses.forEach((exp, idx) => {
+            response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
+          });
+        } else {
+          response += '\n✅ Todos salvos!';
+          setAwaitingCategory(false);
+          fetchExpenses();
+          setTimeout(() => closeExpenseChat(), 2000);
+        }
+        
+        setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
+        toast.success(`${savedExpenses.length} gastos salvos!`);
+      }
     }
   };
 
