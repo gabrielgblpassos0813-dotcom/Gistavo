@@ -1748,23 +1748,42 @@ Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário o
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-brand-600" />
-              Chat com IA - Análise de Gasto
+              Adicionar Gasto com IA
             </DialogTitle>
           </DialogHeader>
           
-          {/* Image Preview */}
-          {expenseImagePreview && (
-            <div className="w-full h-24 rounded-lg overflow-hidden border">
+          {/* Image Upload or Preview */}
+          {expenseImagePreview ? (
+            <div className="w-full h-24 rounded-lg overflow-hidden border relative">
               <img 
                 src={expenseImagePreview} 
                 alt="Comprovante" 
                 className="w-full h-full object-cover"
               />
             </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleExpenseImageChange}
+                className="hidden"
+                id="chat-expense-image-input"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-20 border-dashed flex flex-col gap-1"
+                onClick={() => document.getElementById('chat-expense-image-input').click()}
+              >
+                <Camera className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm">📷 Tirar foto da nota</span>
+              </Button>
+            </div>
           )}
           
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto space-y-3 py-2 max-h-64 min-h-32">
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 max-h-64 min-h-24">
             {chatMessages.map((msg, idx) => (
               <div 
                 key={idx} 
@@ -1786,7 +1805,7 @@ Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário o
             {isAnalyzing && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm justify-center py-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Analisando imagem...
+                🔍 Lendo nota com IA...
               </div>
             )}
           </div>
@@ -1797,16 +1816,17 @@ Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário o
               <Input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Digite a categoria..."
+                placeholder="Ex: mercado, supermercado, compras..."
                 onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
                 disabled={isAnalyzing}
+                autoFocus
               />
               <Button 
                 onClick={handleChatSubmit}
                 disabled={!chatInput.trim() || isAnalyzing}
                 className="bg-brand-600 hover:bg-brand-700"
               >
-                Enviar
+                Salvar
               </Button>
             </div>
           )}
@@ -1830,7 +1850,7 @@ Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário o
           
           <DialogFooter className="mt-2">
             <Button variant="outline" className="w-full" onClick={closeExpenseChat}>
-              Fechar
+              {awaitingCategory ? 'Cancelar' : 'Fechar'}
             </Button>
           </DialogFooter>
         </DialogContent>
