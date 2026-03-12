@@ -708,7 +708,7 @@ is_valid = TRUE se valor >= {expected_amount:.2f} e destinatário correto."""
         import json
         import re
         
-        response_text = response.content
+        response_text = response  # send_message returns string directly
         # Extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
