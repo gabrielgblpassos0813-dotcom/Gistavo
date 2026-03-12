@@ -950,6 +950,72 @@ async def get_monthly_chart_data(username: str = Depends(verify_gestor)):
         "total_orders": sum(d["count"] for d in chart_data)
     }
 
+# ==================== SALES BY CATEGORY ====================
+
+@api_router.get("/gestor/sales-by-category")
+async def get_sales_by_category(username: str = Depends(verify_gestor)):
+    """Get sales data grouped by product category for the current month"""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all completed orders this month
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered"]},
+        "created_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0, "items": 1, "total": 1, "store": 1}).to_list(10000)
+    
+    # Group by category
+    category_sales = {}
+    
+    # Build a map of item IDs to categories from MENU_DATA
+    item_category_map = {item["id"]: item["category"] for item in MENU_DATA}
+    
+    for order in orders:
+        for item in order.get("items", []):
+            # Get category from item or lookup
+            item_id = item.get("menu_item_id", "").split("-")[0]  # Remove adicional suffix
+            category = item.get("category") or item_category_map.get(item_id, "Outros")
+            
+            if category not in category_sales:
+                category_sales[category] = {
+                    "category": category,
+                    "count": 0,
+                    "revenue": 0,
+                    "items": {}
+                }
+            
+            qty = item.get("quantity", 1)
+            item_total = item.get("price", 0) * qty
+            
+            category_sales[category]["count"] += qty
+            category_sales[category]["revenue"] += item_total
+            
+            # Track individual items
+            item_name = item.get("name", "Desconhecido")
+            if item_name not in category_sales[category]["items"]:
+                category_sales[category]["items"][item_name] = {"count": 0, "revenue": 0}
+            category_sales[category]["items"][item_name]["count"] += qty
+            category_sales[category]["items"][item_name]["revenue"] += item_total
+    
+    # Convert to sorted list
+    categories_list = sorted(category_sales.values(), key=lambda x: x["count"], reverse=True)
+    
+    # Convert items dict to sorted list for each category
+    for cat in categories_list:
+        cat["top_items"] = sorted(
+            [{"name": k, **v} for k, v in cat["items"].items()],
+            key=lambda x: x["count"],
+            reverse=True
+        )[:10]  # Top 10 items per category
+        del cat["items"]  # Remove the dict version
+    
+    return {
+        "month": now.strftime("%B %Y"),
+        "categories": categories_list,
+        "total_items_sold": sum(c["count"] for c in categories_list),
+        "total_revenue": sum(c["revenue"] for c in categories_list)
+    }
+
 # ==================== MENU MANAGEMENT ====================
 
 class MenuItemCreate(BaseModel):
