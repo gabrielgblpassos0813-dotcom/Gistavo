@@ -1337,34 +1337,38 @@ export const GestorPage = () => {
                       </span>
                     </div>
                     {/* Bar Chart */}
-                    <div className="h-64 flex items-end justify-between gap-0.5 border-b border-l p-2 overflow-x-auto">
-                      {chartData.data.map((item, idx) => {
-                        const values = chartData.data.map(d => d.total);
-                        const maxValue = Math.max(...values, 1);
-                        const height = item.total > 0 ? Math.max((item.total / maxValue) * 100, 8) : 2;
-                        return (
-                          <div 
-                            key={idx} 
-                            className="flex-1 min-w-[12px] max-w-[30px] flex flex-col items-center justify-end group relative"
-                          >
+                    <div className="h-64 border-b border-l p-2 overflow-x-auto">
+                      <div className="h-full flex items-end justify-between gap-0.5">
+                        {chartData.data.map((item, idx) => {
+                          const values = chartData.data.map(d => d.total);
+                          const maxValue = Math.max(...values, 1);
+                          const heightPercent = item.total > 0 ? Math.max((item.total / maxValue) * 100, 5) : 2;
+                          return (
                             <div 
-                              className={`w-full rounded-t transition-colors cursor-pointer ${item.total > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-200'}`}
-                              style={{ height: `${height}%` }}
-                            />
-                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                              {chartPeriod === 'day' ? item.hour : 
-                               chartPeriod === 'month' ? `Dia ${item.day}` : 
-                               item.month_name}: {formatPrice(item.total)}
-                              <br/>{item.count} pedidos
+                              key={idx} 
+                              className="flex-1 min-w-[12px] max-w-[30px] flex flex-col items-center group relative h-full"
+                            >
+                              <div className="flex-1 w-full flex items-end">
+                                <div 
+                                  className={`w-full rounded-t transition-colors cursor-pointer ${item.total > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-200'}`}
+                                  style={{ height: `${heightPercent}%`, minHeight: item.total > 0 ? '8px' : '2px' }}
+                                />
+                              </div>
+                              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                                {chartPeriod === 'day' ? item.hour : 
+                                 chartPeriod === 'month' ? `Dia ${item.day}` : 
+                                 item.month_name}: {formatPrice(item.total)}
+                                <br/>{item.count} pedidos
+                              </div>
+                              <span className="text-[8px] text-muted-foreground mt-1 shrink-0">
+                                {chartPeriod === 'day' ? item.hour?.slice(0,2) : 
+                                 chartPeriod === 'month' ? item.day : 
+                                 item.month_name?.slice(0,3)}
+                              </span>
                             </div>
-                            <span className="text-[8px] text-muted-foreground mt-1">
-                              {chartPeriod === 'day' ? item.hour?.slice(0,2) : 
-                               chartPeriod === 'month' ? item.day : 
-                               item.month_name?.slice(0,3)}
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-4 text-center">
                       <div className="bg-brand-50 rounded-lg p-3">
@@ -1595,42 +1599,44 @@ export const GestorPage = () => {
                       </span>
                     </div>
                     
-                    <div className="h-48 flex items-end justify-between gap-0.5 border-b border-l p-2 overflow-x-auto">
-                      {expensesChartData.data.map((item, idx) => {
-                        const maxValue = Math.max(...expensesChartData.data.map(d => Math.max(d.revenue, d.expenses)), 1);
-                        const revenueHeight = item.revenue > 0 ? Math.max((item.revenue / maxValue) * 100, 8) : 2;
-                        const expenseHeight = item.expenses > 0 ? Math.max((item.expenses / maxValue) * 100, 8) : 2;
-                        return (
-                          <div 
-                            key={idx} 
-                            className="flex-1 min-w-[10px] max-w-[25px] flex flex-col items-center justify-end group relative"
-                          >
-                            <div className="flex gap-[1px] w-full items-end justify-center">
-                              <div 
-                                className={`w-1/2 rounded-t ${item.revenue > 0 ? 'bg-green-500' : 'bg-gray-200'}`}
-                                style={{ height: `${revenueHeight}%` }}
-                              />
-                              <div 
-                                className={`w-1/2 rounded-t ${item.expenses > 0 ? 'bg-red-500' : 'bg-gray-200'}`}
-                                style={{ height: `${expenseHeight}%` }}
-                              />
+                    <div className="h-48 border-b border-l p-2 overflow-x-auto">
+                      <div className="h-full flex items-end justify-between gap-0.5">
+                        {expensesChartData.data.map((item, idx) => {
+                          const maxValue = Math.max(...expensesChartData.data.map(d => Math.max(d.revenue, d.expenses)), 1);
+                          const revenueHeight = item.revenue > 0 ? Math.max((item.revenue / maxValue) * 100, 5) : 2;
+                          const expenseHeight = item.expenses > 0 ? Math.max((item.expenses / maxValue) * 100, 5) : 2;
+                          return (
+                            <div 
+                              key={idx} 
+                              className="flex-1 min-w-[10px] max-w-[25px] flex flex-col items-center group relative h-full"
+                            >
+                              <div className="flex-1 w-full flex items-end justify-center gap-[1px]">
+                                <div 
+                                  className={`w-1/2 rounded-t ${item.revenue > 0 ? 'bg-green-500' : 'bg-gray-200'}`}
+                                  style={{ height: `${revenueHeight}%`, minHeight: item.revenue > 0 ? '6px' : '2px' }}
+                                />
+                                <div 
+                                  className={`w-1/2 rounded-t ${item.expenses > 0 ? 'bg-red-500' : 'bg-gray-200'}`}
+                                  style={{ height: `${expenseHeight}%`, minHeight: item.expenses > 0 ? '6px' : '2px' }}
+                                />
+                              </div>
+                              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                                {expensesPeriod === 'day' ? item.hour : 
+                                 expensesPeriod === 'month' ? `Dia ${item.day}` : 
+                                 item.month_name}<br/>
+                                Receita: {formatPrice(item.revenue)}<br/>
+                                Gastos: {formatPrice(item.expenses)}<br/>
+                                Lucro: {formatPrice(item.profit)}
+                              </div>
+                              <span className="text-[8px] text-muted-foreground mt-1 shrink-0">
+                                {expensesPeriod === 'day' ? item.hour?.slice(0,2) : 
+                                 expensesPeriod === 'month' ? item.day : 
+                                 item.month_name}
+                              </span>
                             </div>
-                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                              {expensesPeriod === 'day' ? item.hour : 
-                               expensesPeriod === 'month' ? `Dia ${item.day}` : 
-                               item.month_name}<br/>
-                              Receita: {formatPrice(item.revenue)}<br/>
-                              Gastos: {formatPrice(item.expenses)}<br/>
-                              Lucro: {formatPrice(item.profit)}
-                            </div>
-                            <span className="text-[8px] text-muted-foreground mt-1">
-                              {expensesPeriod === 'day' ? item.hour?.slice(0,2) : 
-                               expensesPeriod === 'month' ? item.day : 
-                               item.month_name}
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="flex justify-center gap-4 mt-3 text-xs">
                       <div className="flex items-center gap-1">
