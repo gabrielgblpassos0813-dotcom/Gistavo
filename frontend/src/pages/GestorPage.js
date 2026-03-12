@@ -873,13 +873,33 @@ Por favor, escolha uma das categorias:
           <TabsContent value="chart">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-brand-600" />
-                  Vendas do Mês
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-brand-600" />
+                    {chartViewMode === 'month' ? 'Vendas do Mês' : 'Vendas por Grupo'}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={chartViewMode === 'month' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setChartViewMode('month')}
+                      className={chartViewMode === 'month' ? 'bg-brand-600' : ''}
+                    >
+                      Vendas por Mês
+                    </Button>
+                    <Button 
+                      variant={chartViewMode === 'group' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setChartViewMode('group'); fetchSalesByCategory(); }}
+                      className={chartViewMode === 'group' ? 'bg-brand-600' : ''}
+                    >
+                      Vendas por Grupo
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {chartData ? (
+                {chartViewMode === 'month' && chartData ? (
                   <>
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-sm text-muted-foreground">{chartData.month}</span>
@@ -918,6 +938,75 @@ Por favor, escolha uma das categorias:
                       <div className="bg-blue-50 rounded-lg p-3">
                         <p className="text-xs text-muted-foreground">Total de Pedidos</p>
                         <p className="text-xl font-bold text-blue-600">{chartData.total_orders}</p>
+                      </div>
+                    </div>
+                  </>
+                ) : chartViewMode === 'group' && salesByCategory ? (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-sm text-muted-foreground">{salesByCategory.month}</span>
+                      <span className="text-lg font-bold text-brand-600">{salesByCategory.total_items_sold} itens vendidos</span>
+                    </div>
+                    {/* Category Bar Chart */}
+                    <div className="h-64 flex items-end justify-around gap-2 border-b border-l p-2">
+                      {salesByCategory.categories.slice(0, 8).map((cat, idx) => {
+                        const maxValue = Math.max(...salesByCategory.categories.map(c => c.count), 1);
+                        const height = (cat.count / maxValue) * 100;
+                        const colors = ['bg-blue-500', 'bg-green-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500', 'bg-red-500', 'bg-indigo-500'];
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex-1 flex flex-col items-center justify-end group relative max-w-20"
+                          >
+                            <div 
+                              className={`w-full ${colors[idx % colors.length]} rounded-t hover:opacity-80 transition-opacity cursor-pointer min-h-[4px]`}
+                              style={{ height: `${Math.max(height, 4)}%` }}
+                            />
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                              <strong>{cat.category}</strong><br/>
+                              {cat.count} unidades<br/>
+                              {formatPrice(cat.revenue)}
+                            </div>
+                            <span className="text-[9px] text-muted-foreground mt-1 text-center leading-tight truncate w-full px-0.5">{cat.category}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Category Details */}
+                    <div className="mt-4 space-y-3 max-h-64 overflow-y-auto">
+                      {salesByCategory.categories.map((cat, idx) => (
+                        <div key={idx} className="bg-secondary/30 rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">{cat.category}</span>
+                            <div className="flex gap-4 text-sm">
+                              <span className="text-brand-600 font-bold">{cat.count}x</span>
+                              <span className="text-muted-foreground">{formatPrice(cat.revenue)}</span>
+                            </div>
+                          </div>
+                          {/* Top items in category */}
+                          <div className="space-y-1">
+                            {cat.top_items.slice(0, 3).map((item, iidx) => (
+                              <div key={iidx} className="flex justify-between text-xs text-muted-foreground">
+                                <span className="truncate max-w-[200px]">{item.name}</span>
+                                <span>{item.count}x</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                    <p>Carregando dados...</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
                       </div>
                     </div>
                   </>
