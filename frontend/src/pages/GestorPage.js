@@ -337,8 +337,29 @@ export const GestorPage = () => {
       const response = await axios.get(`${API}/whatsapp/status`, { timeout: 3000 });
       setWhatsappStatus(response.data.status);
       setWhatsappQR(response.data.qrCode);
+      
+      // Fetch groups if connected
+      if (response.data.status === 'connected') {
+        try {
+          const groupsResponse = await axios.get(`${API}/whatsapp/groups`, { timeout: 3000 });
+          setWhatsappGroups(groupsResponse.data.groups || []);
+          setWhatsappTarget(groupsResponse.data.currentTarget || '');
+        } catch (e) {
+          console.log('Could not fetch groups');
+        }
+      }
     } catch (error) {
       setWhatsappStatus('offline');
+    }
+  };
+
+  const saveWhatsAppTarget = async () => {
+    try {
+      await axios.post(`${API}/whatsapp/set-target`, { target: whatsappTargetInput });
+      setWhatsappTarget(whatsappTargetInput);
+      toast.success('Destino das notificações atualizado!');
+    } catch (error) {
+      toast.error('Erro ao salvar destino');
     }
   };
 
