@@ -1007,17 +1007,6 @@ Por favor, escolha uma das categorias:
               </CardContent>
             </Card>
           </TabsContent>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Carregando dados do gráfico...
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* GASTOS TAB */}
           <TabsContent value="gastos">
