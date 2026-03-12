@@ -11,6 +11,7 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - **Painel do Gestor**: gestor / ganoh2024
 - **Quitar débito Prazo (cozinha)**: 1234
 - **Limpar histórico de dados**: 152637
+- **Desbloquear Prazo no checkout**: Alternar o botão "Agendar horário" 5 vezes
 
 ---
 
@@ -40,11 +41,14 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - Rastreamento de débitos pendentes
 - Quitação de débitos na cozinha (senha: 1234)
 - **Botão de WhatsApp para cobrança** (link direto wa.me)
-- Disponível para Runner E GYM Londres
+- **ESCONDIDO**: Opção Prazo só aparece após alternar o botão de agendamento 5 vezes seguidas
 
-### ✅ Sistema de Gastos com IA
+### ✅ Sistema de Gastos com IA (NOVO!)
 - Upload de foto de notas fiscais/recibos
-- **Análise automática por IA (GPT-4o)** para extrair informações
+- **Chat interativo com IA (GPT-4o)** que:
+  - Analisa a foto e extrai valor, descrição e local
+  - Pergunta em qual categoria salvar
+  - Salva automaticamente quando você responde
 - Categorias: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros
 - **Botões interativos para filtrar por categoria**
 - Gráfico de Receita vs Gastos (verde x vermelho)
@@ -53,7 +57,9 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 ### ✅ Painel do Gestor (GestorPage)
 - **5 abas**: Dashboard, Gráfico, Gastos, Prazo, Cardápio
 - Dashboard com métricas do dia e mês (receita em R$)
-- Gráfico de vendas mensais
+- **Gráfico com 2 modos**:
+  - "Vendas por Mês": vendas diárias
+  - "Vendas por Grupo": vendas por categoria de produto (ex: 300 vendas de Bebidas Quentes)
 - Gestão de clientes Prazo
 - Adição de itens ao cardápio
 
@@ -77,9 +83,9 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 ### Backend (FastAPI)
 ```
 /app/backend/
-├── server.py        # API principal (~1500 linhas)
+├── server.py        # API principal (~1600 linhas)
 ├── requirements.txt # Dependências Python
-└── .env             # Variáveis de ambiente
+└── .env             # Variáveis de ambiente + EMERGENT_LLM_KEY
 ```
 
 ### Frontend (React)
@@ -87,12 +93,12 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 /app/frontend/
 ├── src/
 │   ├── pages/
-│   │   ├── GestorPage.js    # Painel do gestor (~1400 linhas)
+│   │   ├── GestorPage.js    # Painel do gestor (~1800 linhas)
 │   │   ├── KitchenPage.js   # Painel da cozinha (~1080 linhas)
 │   │   ├── MenuPage.js      # Menu do cliente
 │   │   └── OrderTrackingPage.js
 │   └── components/
-│       └── CheckoutModal.js  # Modal de checkout
+│       └── CheckoutModal.js  # Modal de checkout com Prazo escondido
 └── .env             # REACT_APP_BACKEND_URL
 ```
 
@@ -126,8 +132,11 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 ### Gastos
 - `GET /api/expenses` - Lista gastos
 - `POST /api/expenses` - Cria gasto
-- `POST /api/expenses/analyze-image` - Análise IA de foto
+- `POST /api/expenses/analyze-image` - Análise IA de foto (GPT-4o)
 - `GET /api/gestor/chart/monthly-with-expenses` - Gráfico receita vs gastos
+
+### Vendas por Categoria
+- `GET /api/gestor/sales-by-category` - Vendas agrupadas por categoria de produto
 
 ### Estoque
 - `GET /api/stock/{store}` - Lista estoque
@@ -139,7 +148,8 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 
 ### OpenAI GPT-4o (via Emergent LLM Key)
 - Análise de imagens de notas fiscais/recibos
-- Extração automática de descrição, valor e categoria
+- Extração automática de descrição, valor e local
+- Chat interativo para confirmar categoria
 
 ### WhatsApp (Link Direto)
 - Geração de links wa.me com mensagem pré-formatada
