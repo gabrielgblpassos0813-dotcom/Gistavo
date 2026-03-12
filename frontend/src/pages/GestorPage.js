@@ -117,6 +117,7 @@ export const GestorPage = () => {
         fetchChartData();
         fetchMenuItems();
         fetchPrazoData();
+        fetchExpenses();
       }, 500);
     } catch (error) {
       toast.error('Credenciais inválidas');
