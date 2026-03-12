@@ -1743,22 +1743,22 @@ export const GestorPage = () => {
                         <Users className="h-4 w-4" /> Destino das Notificações
                       </Label>
                       <p className="text-xs text-muted-foreground mb-3">
-                        Cole o link do grupo WhatsApp ou o número com código do país (ex: 5511999999999)
+                        Cole o link do grupo WhatsApp para entrar e receber notificações
                       </p>
                       <div className="flex gap-2">
                         <Input 
                           value={whatsappTargetInput}
                           onChange={(e) => setWhatsappTargetInput(e.target.value)}
-                          placeholder="Ex: https://chat.whatsapp.com/xxx ou 5511999999999"
+                          placeholder="https://chat.whatsapp.com/xxx"
                           className="flex-1"
                         />
-                        <Button onClick={saveWhatsAppTarget} className="bg-green-600 hover:bg-green-700">
-                          Salvar
+                        <Button onClick={joinWhatsAppGroup} className="bg-green-600 hover:bg-green-700">
+                          Entrar no Grupo
                         </Button>
                       </div>
                       {whatsappTarget && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          Destino atual: <code className="bg-secondary px-1 rounded">{whatsappTarget}</code>
+                          ✅ Destino atual: <code className="bg-secondary px-1 rounded">{whatsappTarget}</code>
                         </p>
                       )}
                     </div>
