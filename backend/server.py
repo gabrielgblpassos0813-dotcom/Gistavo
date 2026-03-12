@@ -1639,6 +1639,29 @@ async def clear_store_data(store: StoreLocation, password: str):
     
     return {"success": True, "message": f"Pedidos e gastos da loja {store.value} apagados", "deleted_count": result.deleted_count}
 
+# ==================== WHATSAPP BOT PROXY ====================
+WHATSAPP_BOT_URL = "http://localhost:8002"
+
+@app.get("/whatsapp/status")
+async def get_whatsapp_status():
+    """Proxy to get WhatsApp bot status"""
+    try:
+        async with httpx.AsyncClient() as client_http:
+            response = await client_http.get(f"{WHATSAPP_BOT_URL}/status", timeout=3.0)
+            return response.json()
+    except Exception as e:
+        return {"status": "offline", "connected": False, "qrCode": None}
+
+@app.get("/whatsapp/qr")
+async def get_whatsapp_qr():
+    """Proxy to get WhatsApp QR code"""
+    try:
+        async with httpx.AsyncClient() as client_http:
+            response = await client_http.get(f"{WHATSAPP_BOT_URL}/qr", timeout=3.0)
+            return response.json()
+    except Exception as e:
+        return {"qrCode": None, "connected": False}
+
 # Include router
 app.include_router(api_router)
 
