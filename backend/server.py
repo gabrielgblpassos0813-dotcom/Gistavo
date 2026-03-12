@@ -321,6 +321,82 @@ STORES = {
 async def root():
     return {"message": "GANOH Café Bistrô API"}
 
+# ==================== TENANT AUTH ROUTES ====================
+
+@api_router.post("/auth/register")
+async def register_tenant(tenant: TenantCreate):
+    """Register a new tenant account (max 2 accounts)"""
+    import hashlib
+    
+    # Check max accounts
+    count = await db.tenants.count_documents({})
+    if count >= MAX_ACCOUNTS:
+        raise HTTPException(status_code=400, detail=f"Limite máximo de {MAX_ACCOUNTS} contas atingido")
+    
+    # Check if username exists
+    existing = await db.tenants.find_one({"username": tenant.username.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Nome de usuário já existe")
+    
+    # Create tenant
+    password_hash = hashlib.sha256(tenant.password.encode()).hexdigest()
+    tenant_id = f"tenant_{str(uuid.uuid4())[:8]}"
+    
+    await db.tenants.insert_one({
+        "id": tenant_id,
+        "username": tenant.username.lower(),
+        "password_hash": password_hash,
+        "display_name": tenant.display_name or tenant.username,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_default": False
+    })
+    
+    return {
+        "success": True,
+        "tenant_id": tenant_id,
+        "username": tenant.username.lower(),
+        "message": "Conta criada com sucesso!"
+    }
+
+@api_router.post("/auth/login")
+async def login_tenant(credentials: TenantLogin):
+    """Login with tenant credentials"""
+    tenant = await get_tenant_by_credentials(credentials.username.lower(), credentials.password)
+    if not tenant:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    
+    return {
+        "success": True,
+        "tenant_id": tenant["id"],
+        "username": tenant["username"],
+        "display_name": tenant.get("display_name", tenant["username"]),
+        "message": "Login realizado com sucesso!"
+    }
+
+@api_router.get("/auth/accounts")
+async def list_accounts():
+    """List all tenant accounts (for display purposes)"""
+    tenants = await db.tenants.find({}, {"_id": 0, "password_hash": 0}).to_list(10)
+    count = len(tenants)
+    return {
+        "accounts": tenants,
+        "count": count,
+        "max_accounts": MAX_ACCOUNTS,
+        "can_create": count < MAX_ACCOUNTS
+    }
+
+@api_router.get("/auth/check/{tenant_id}")
+async def check_tenant(tenant_id: str):
+    """Check if tenant exists"""
+    tenant = await get_tenant_by_id(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Conta não encontrada")
+    return {
+        "exists": True,
+        "username": tenant["username"],
+        "display_name": tenant.get("display_name", tenant["username"])
+    }
+
 @api_router.get("/stores")
 async def get_stores():
     return {"stores": STORES}
