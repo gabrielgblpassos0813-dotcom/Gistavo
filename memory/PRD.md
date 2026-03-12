@@ -7,6 +7,20 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - **Runner**: Loja principal
 - **GYM Londres**: Segunda loja
 
+## Sistema Multi-Tenant (NOVO!)
+Sistema de múltiplas contas para isolar dados entre usuários.
+
+### Contas Disponíveis
+- **Conta 1 (Principal)**: `gestor` / `ganoh2024` - GANOH Café Bistrô
+- **Conta 2 (Teste)**: Disponível para criação
+
+### Endpoints de Autenticação
+- `POST /api/auth/register` - Criar nova conta (máx. 2)
+- `POST /api/auth/login` - Fazer login
+- `GET /api/auth/accounts` - Listar contas existentes
+
+---
+
 ## Credenciais de Acesso
 - **Painel do Gestor**: gestor / ganoh2024
 - **Quitar débito Prazo (cozinha)**: 1234
@@ -31,10 +45,22 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - Acompanhamento de pedidos em tempo real
 - Notificação sonora para novos pedidos na cozinha
 
-### ✅ Sistema PIX
+### ✅ Sistema PIX com IA
 - CNPJ configurado: 49289019000199
 - Upload de comprovante com compressão de imagem
 - Aprovação/Rejeição de pagamento pela cozinha
+- **Auto-verificação com IA (GPT-4o)**:
+  - Extrai nome do pagador do comprovante
+  - Extrai valor pago
+  - Verifica destino (saudavelmente/GANOH)
+  - Auto-aprova se dados estiverem corretos
+
+### ✅ WhatsApp Bot (Baileys)
+- Bot conectado via QR Code no painel do gestor
+- Notificações automáticas quando PIX é aprovado
+- **Envia foto do comprovante junto com a mensagem**
+- Número de notificação: 5511970731504
+- Porta: 8002 (gerenciado pelo supervisor)
 
 ### ✅ Sistema Prazo (Crédito/Fiado) - AMBAS AS LOJAS
 - Cadastro de clientes de crédito pelo gestor
@@ -55,13 +81,14 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - Cálculo de lucro (receita - gastos)
 
 ### ✅ Painel do Gestor (GestorPage)
-- **5 abas**: Dashboard, Gráfico, Gastos, Prazo, Cardápio
+- **6 abas**: Dashboard, Gráfico, Gastos, Prazo, Cardápio, WhatsApp
 - Dashboard com métricas do dia e mês (receita em R$)
 - **Gráfico com 2 modos**:
   - "Vendas por Mês": vendas diárias
-  - "Vendas por Grupo": vendas por categoria de produto (ex: 300 vendas de Bebidas Quentes)
+  - "Vendas por Grupo": vendas por categoria de produto
 - Gestão de clientes Prazo
 - Adição de itens ao cardápio
+- **Conexão WhatsApp Bot com QR Code**
 
 ### ✅ Painel da Cozinha (KitchenPage)
 - **6 abas**: PIX, Pedidos, Vendas, Prazo, Estoque, Histórico
@@ -71,10 +98,11 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - Histórico de pedidos das últimas 24h com detalhes expandíveis
 - Botão de WhatsApp para cobrança de Prazo
 
-### ✅ Funcionalidades Extras
-- Modo offline com sincronização
-- Limpar dados de teste (senha: 152637)
-- Reset automático de vendas à meia-noite
+### ✅ Sistema de Autenticação Multi-Tenant (NOVO!)
+- Página de login/registro separada (/auth)
+- Máximo de 2 contas
+- Dados isolados por conta
+- Conta padrão: gestor/ganoh2024
 
 ---
 
@@ -83,7 +111,7 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 ### Backend (FastAPI)
 ```
 /app/backend/
-├── server.py        # API principal (~1600 linhas)
+├── server.py        # API principal (~1900 linhas)
 ├── requirements.txt # Dependências Python
 └── .env             # Variáveis de ambiente + EMERGENT_LLM_KEY
 ```
@@ -93,16 +121,25 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 /app/frontend/
 ├── src/
 │   ├── pages/
-│   │   ├── GestorPage.js    # Painel do gestor (~1800 linhas)
-│   │   ├── KitchenPage.js   # Painel da cozinha (~1080 linhas)
-│   │   ├── MenuPage.js      # Menu do cliente
+│   │   ├── AuthPage.js       # Página de login/registro (NOVO!)
+│   │   ├── GestorPage.js     # Painel do gestor
+│   │   ├── KitchenPage.js    # Painel da cozinha
+│   │   ├── MenuPage.js       # Menu do cliente
 │   │   └── OrderTrackingPage.js
 │   └── components/
 │       └── CheckoutModal.js  # Modal de checkout com Prazo escondido
 └── .env             # REACT_APP_BACKEND_URL
 ```
 
+### WhatsApp Bot (Node.js)
+```
+/app/whatsapp-bot/
+├── bot.js           # Bot Baileys com envio de imagem
+└── package.json     # Dependências Node.js
+```
+
 ### Banco de Dados (MongoDB)
+- **tenants**: Contas de usuários (NOVO!)
 - **orders**: Pedidos
 - **menu**: Itens do cardápio adicionados pelo gestor
 - **stock**: Controle de estoque
@@ -114,6 +151,11 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 
 ## Endpoints Principais
 
+### Autenticação (NOVO!)
+- `POST /api/auth/register` - Criar conta
+- `POST /api/auth/login` - Fazer login
+- `GET /api/auth/accounts` - Listar contas
+
 ### Menu
 - `GET /api/menu/{store}` - Lista cardápio (default + custom)
 - `POST /api/gestor/menu` - Adiciona item ao cardápio
@@ -123,24 +165,14 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 - `GET /api/orders/{store}` - Lista pedidos
 - `PATCH /api/orders/{store}/{id}/status` - Atualiza status
 
-### Prazo
-- `GET /api/prazo/customers` - Lista clientes
-- `POST /api/prazo/customers` - Cadastra cliente
-- `GET /api/prazo/debts` - Lista débitos
-- `GET /api/prazo/whatsapp-link/{name}` - Link WhatsApp para cobrança
+### PIX
+- `POST /api/orders/{store}/{id}/pix-proof` - Upload comprovante
+- `POST /api/orders/{store}/{id}/auto-verify-pix` - Auto-verificação com IA (NOVO!)
+- `POST /api/orders/{store}/{id}/approve-payment` - Aprovar/Rejeitar
 
-### Gastos
-- `GET /api/expenses` - Lista gastos
-- `POST /api/expenses` - Cria gasto
-- `POST /api/expenses/analyze-image` - Análise IA de foto (GPT-4o)
-- `GET /api/gestor/chart/monthly-with-expenses` - Gráfico receita vs gastos
-
-### Vendas por Categoria
-- `GET /api/gestor/sales-by-category` - Vendas agrupadas por categoria de produto
-
-### Estoque
-- `GET /api/stock/{store}` - Lista estoque
-- `PUT /api/stock/{store}/{id}` - Atualiza quantidade
+### WhatsApp
+- `GET /api/whatsapp/status` - Status do bot
+- `GET /api/whatsapp/qr` - QR Code para conexão
 
 ---
 
@@ -149,19 +181,20 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 ### OpenAI GPT-4o (via Emergent LLM Key)
 - Análise de imagens de notas fiscais/recibos
 - Extração automática de descrição, valor e local
-- Chat interativo para confirmar categoria
+- **Análise de comprovantes PIX para auto-aprovação**
 
-### WhatsApp (Link Direto)
-- Geração de links wa.me com mensagem pré-formatada
-- Usado para cobrança de clientes Prazo
+### WhatsApp (Baileys)
+- Bot Node.js na porta 8002
+- Envio de mensagens com imagem
+- Notificações de pagamentos PIX aprovados
 
 ---
 
 ## Próximas Tarefas (Backlog)
 
 ### P1 - Prioridade Alta
-- [ ] Implementar metas de vendas para o gestor
-- [ ] Notificações de resumo diário (WhatsApp/Email)
+- [ ] Implementar isolamento completo de dados por tenant
+- [ ] Adicionar metas de vendas para o gestor
 
 ### P2 - Melhorias
 - [ ] Refatorar server.py em routers separados
@@ -170,4 +203,4 @@ Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas loja
 
 ---
 
-## Atualizado em: Dezembro 2025
+## Atualizado em: 12 de Março de 2026
