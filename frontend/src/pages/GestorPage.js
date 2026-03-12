@@ -170,6 +170,21 @@ export const GestorPage = () => {
     }
   };
 
+  const fetchSalesByCategory = async () => {
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    
+    try {
+      const [user, pass] = atob(auth).split(':');
+      const response = await axios.get(`${API}/gestor/sales-by-category`, {
+        auth: { username: user, password: pass }
+      });
+      setSalesByCategory(response.data);
+    } catch (error) {
+      console.log('Error fetching sales by category');
+    }
+  };
+
   const fetchMenuItems = async (store = 'runner') => {
     const auth = localStorage.getItem('gestor_auth');
     if (!auth) return;
