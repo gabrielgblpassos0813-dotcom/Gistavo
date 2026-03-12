@@ -365,20 +365,23 @@ export const GestorPage = () => {
     }
   };
 
-  const handleAnalyzeExpense = async () => {
+  // AI Chat functions for expense analysis
+  const startExpenseChat = async () => {
     if (!expenseImage) {
       toast.error('Selecione uma imagem primeiro');
       return;
     }
     
+    setShowExpenseChat(true);
+    setChatMessages([{ role: 'system', content: 'Analisando imagem...' }]);
+    setIsAnalyzing(true);
+    
     const auth = localStorage.getItem('gestor_auth');
     if (!auth) return;
     
     const [user, pass] = atob(auth).split(':');
-    setIsAnalyzing(true);
     
     try {
-      // Remove the data:image/jpeg;base64, prefix
       const base64Data = expenseImage.split(',')[1] || expenseImage;
       
       const response = await axios.post(`${API}/expenses/analyze-image`, {
@@ -387,23 +390,124 @@ export const GestorPage = () => {
       
       if (response.data.success && response.data.analysis) {
         const analysis = response.data.analysis;
-        setAnalyzedExpense(analysis);
-        setNewExpense({
-          description: analysis.description || '',
-          amount: analysis.amount?.toString() || '',
-          category: EXPENSE_CATEGORIES.includes(analysis.category) ? analysis.category : 'outros',
-          store: 'all',
+        setPendingExpenseData({
+          description: analysis.description || 'Gasto não identificado',
+          amount: analysis.amount || 0,
           notes: analysis.notes || ''
         });
-        toast.success(`Análise concluída! Confiança: ${analysis.confidence || 'média'}`);
+        
+        const aiMessage = `📋 **Análise da Nota:**
+
+💰 **Valor:** R$ ${analysis.amount?.toFixed(2) || '0.00'}
+📝 **Descrição:** ${analysis.description || 'Não identificado'}
+📍 **Local/Observação:** ${analysis.notes || 'Não identificado'}
+
+Em qual categoria você quer salvar este gasto?
+
+**Categorias disponíveis:**
+• contador
+• fornecedor
+• mercado
+• suplementos
+• VT
+• Vivo
+• sistema
+• salário
+• outros
+
+Digite o nome da categoria:`;
+        
+        setChatMessages([
+          { role: 'assistant', content: aiMessage }
+        ]);
+        setAwaitingCategory(true);
       } else {
-        toast.error('Não foi possível analisar a imagem');
+        setChatMessages([
+          { role: 'assistant', content: '❌ Não consegui analisar a imagem. Tente novamente com uma foto mais clara.' }
+        ]);
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao analisar imagem');
+      setChatMessages([
+        { role: 'assistant', content: `❌ Erro ao analisar: ${error.response?.data?.detail || 'Tente novamente'}` }
+      ]);
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim() || !awaitingCategory) return;
+    
+    const userMessage = chatInput.trim().toLowerCase();
+    setChatMessages(prev => [...prev, { role: 'user', content: chatInput }]);
+    setChatInput('');
+    
+    // Check if it's a valid category
+    const validCategory = EXPENSE_CATEGORIES.find(cat => 
+      cat.toLowerCase() === userMessage || 
+      userMessage.includes(cat.toLowerCase())
+    );
+    
+    if (validCategory && pendingExpenseData) {
+      // Save the expense
+      const auth = localStorage.getItem('gestor_auth');
+      if (!auth) return;
+      
+      const [user, pass] = atob(auth).split(':');
+      
+      try {
+        await axios.post(`${API}/expenses`, {
+          description: pendingExpenseData.description,
+          amount: pendingExpenseData.amount,
+          category: validCategory,
+          store: 'all',
+          notes: pendingExpenseData.notes,
+          image_url: expenseImagePreview || ''
+        }, { auth: { username: user, password: pass } });
+        
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `✅ **Gasto salvo com sucesso!**
+
+📋 ${pendingExpenseData.description}
+💰 R$ ${pendingExpenseData.amount?.toFixed(2)}
+🏷️ Categoria: **${validCategory}**
+
+Você pode fechar esta janela.` 
+        }]);
+        
+        setAwaitingCategory(false);
+        fetchExpenses();
+        toast.success('Gasto salvo!');
+      } catch (error) {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: '❌ Erro ao salvar o gasto. Tente novamente.' 
+        }]);
+      }
+    } else {
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❓ Categoria "${chatInput}" não reconhecida.
+
+Por favor, escolha uma das categorias:
+• contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros` 
+      }]);
+    }
+  };
+
+  const closeExpenseChat = () => {
+    setShowExpenseChat(false);
+    setChatMessages([]);
+    setPendingExpenseData(null);
+    setAwaitingCategory(false);
+    setExpenseImage(null);
+    setExpenseImagePreview(null);
+  };
+
+  const handleAnalyzeExpense = async () => {
+    // Legacy function - now redirects to chat
+    startExpenseChat();
   };
 
   const handleSaveExpense = async () => {
