@@ -363,6 +363,26 @@ export const GestorPage = () => {
     }
   };
 
+  const joinWhatsAppGroup = async () => {
+    if (!whatsappTargetInput.includes('chat.whatsapp.com')) {
+      toast.error('Cole um link de grupo válido (chat.whatsapp.com/...)');
+      return;
+    }
+    try {
+      toast.loading('Entrando no grupo...', { id: 'join-group' });
+      const response = await axios.post(`${API}/whatsapp/join-group`, { inviteLink: whatsappTargetInput });
+      if (response.data.success) {
+        toast.success('Entrou no grupo com sucesso!', { id: 'join-group' });
+        setWhatsappTarget(response.data.groupId);
+        fetchWhatsAppStatus();
+      } else {
+        toast.error(response.data.error || 'Erro ao entrar no grupo', { id: 'join-group' });
+      }
+    } catch (error) {
+      toast.error('Erro ao entrar no grupo', { id: 'join-group' });
+    }
+  };
+
   // Poll WhatsApp status every 5 seconds when on WhatsApp tab
   useEffect(() => {
     if (activeMainTab === 'whatsapp' && isAuthenticated) {
