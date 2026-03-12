@@ -541,13 +541,90 @@ export const GestorPage = () => {
     if (!auth) return;
     const [user, pass] = atob(auth).split(':');
     
-    // Check if user specified a specific expense by amount
-    const expenseCommand = parseExpenseCommand(userMessage);
+    // Parse ALL expense commands from the message (handles multiple like "6 é mercado. 22 é sistema. 35 é vt")
+    const parseMultipleCommands = (input) => {
+      const commands = [];
+      // Split by . , ; or "e o de" or "o de"
+      const parts = input.split(/[.,;]|\se\s+o\s+de\s/i).filter(p => p.trim());
+      
+      for (const part of parts) {
+        const cmd = parseExpenseCommand(part);
+        if (cmd) {
+          commands.push(cmd);
+        }
+      }
+      return commands;
+    };
     
-    if (expenseCommand && pendingExpensesList.length > 0) {
-      // Find expense by amount
+    const allCommands = parseMultipleCommands(userMessage);
+    
+    // If we have multiple commands, process them all at once
+    if (allCommands.length > 0 && pendingExpensesList.length > 0) {
+      const savedExpenses = [];
+      let remainingExpenses = [...pendingExpensesList];
+      
+      for (const cmd of allCommands) {
+        // Find expense by amount (with tolerance)
+        const matchingExpense = remainingExpenses.find(exp => 
+          Math.abs(exp.amount - cmd.amount) < 1
+        );
+        
+        if (matchingExpense) {
+          try {
+            await axios.post(`${API}/expenses`, {
+              description: matchingExpense.description,
+              amount: matchingExpense.amount,
+              category: cmd.category,
+              store: 'all',
+              notes: matchingExpense.notes || '',
+              image_url: ''
+            }, { auth: { username: user, password: pass } });
+            
+            savedExpenses.push({
+              ...matchingExpense,
+              category: cmd.category
+            });
+            
+            // Remove from remaining
+            remainingExpenses = remainingExpenses.filter(e => e !== matchingExpense);
+          } catch (error) {
+            console.error('Error saving expense:', error);
+          }
+        }
+      }
+      
+      if (savedExpenses.length > 0) {
+        setPendingExpensesList(remainingExpenses);
+        
+        let response = `✅ **${savedExpenses.length} gasto(s) salvo(s):**\n`;
+        savedExpenses.forEach(exp => {
+          response += `• R$ ${exp.amount?.toFixed(2)} → **${exp.category}**\n`;
+        });
+        
+        if (remainingExpenses.length > 0) {
+          response += `\n📋 Ainda faltam ${remainingExpenses.length}:\n`;
+          remainingExpenses.forEach((exp, idx) => {
+            response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
+          });
+        } else {
+          response += '\n✅ Todos os gastos foram salvos!';
+          setAwaitingCategory(false);
+          fetchExpenses();
+          setTimeout(() => closeExpenseChat(), 2000);
+        }
+        
+        setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
+        toast.success(`${savedExpenses.length} gastos salvos!`);
+        return;
+      }
+    }
+    
+    // If single command, try to match one expense
+    const singleCommand = parseExpenseCommand(userMessage);
+    
+    if (singleCommand && pendingExpensesList.length > 0) {
       const matchingExpense = pendingExpensesList.find(exp => 
-        Math.abs(exp.amount - expenseCommand.amount) < 0.5
+        Math.abs(exp.amount - singleCommand.amount) < 1
       );
       
       if (matchingExpense) {
@@ -555,20 +632,19 @@ export const GestorPage = () => {
           await axios.post(`${API}/expenses`, {
             description: matchingExpense.description,
             amount: matchingExpense.amount,
-            category: expenseCommand.category,
+            category: singleCommand.category,
             store: 'all',
             notes: matchingExpense.notes || '',
             image_url: ''
           }, { auth: { username: user, password: pass } });
           
-          // Remove from pending list
           const remaining = pendingExpensesList.filter(e => e !== matchingExpense);
           setPendingExpensesList(remaining);
           
-          let response = `✅ Salvo: R$ ${matchingExpense.amount?.toFixed(2)} → **${expenseCommand.category}**`;
+          let response = `✅ Salvo: R$ ${matchingExpense.amount?.toFixed(2)} → **${singleCommand.category}**`;
           
           if (remaining.length > 0) {
-            response += `\n\n📋 Ainda faltam ${remaining.length} gasto(s):\n`;
+            response += `\n\n📋 Ainda faltam ${remaining.length}:\n`;
             remaining.forEach((exp, idx) => {
               response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
             });
@@ -627,10 +703,10 @@ export const GestorPage = () => {
           content: '❌ Erro ao salvar. Tente novamente.' 
         }]);
       }
-    } else if (!validCategory) {
+    } else if (!validCategory && allCommands.length === 0) {
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `🤔 Não entendi "${userMessage}".\n\nTente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário ou outros\n\nOu especifique: "o de X reais é categoria"` 
+        content: `🤔 Não entendi "${userMessage}".\n\nExemplos:\n• "mercado" (aplica a todos)\n• "6 é mercado, 22 sistema, 35 vt" (vários de uma vez)\n• "o de 6 reais é mercado"` 
       }]);
     }
   };
