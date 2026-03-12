@@ -754,6 +754,7 @@ export const KitchenPage = () => {
                     onApprove={handleApprovePayment}
                     onReject={handleRejectPayment}
                     onViewProof={setProofDialogOrder}
+                    onAutoVerify={handleAutoVerifyPix}
                   />
                 ))}
               </div>
