@@ -650,7 +650,7 @@ async def upload_pix_proof(store: StoreLocation, order_id: str, proof: PixProofU
 @api_router.post("/orders/{store}/{order_id}/auto-verify-pix")
 async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
     """Use AI to analyze PIX proof and auto-approve if valid"""
-    from emergentintegrations.llms.openai import OpenAILLM, ImageContent
+    from emergentintegrations.llm.openai import LlmChat, ImageContent
     
     order = await db.orders.find_one({"id": order_id, "store": store.value})
     if not order:
@@ -667,7 +667,7 @@ async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
     
     # Analyze the PIX proof with AI
     try:
-        llm = OpenAILLM(api_key=os.environ.get("EMERGENT_LLM_KEY"))
+        llm = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY"))
         
         prompt = f"""Analise este comprovante de pagamento PIX e extraia as seguintes informações:
 1. Nome do pagador (quem fez o PIX)
@@ -690,10 +690,9 @@ IMPORTANTE: is_valid deve ser TRUE se:
 - O valor pago é igual ou maior que o esperado ({expected_amount:.2f})
 - O destinatário contém "saudavelmente" ou "ganoh" ou o CNPJ"""
 
-        response = await llm.chat_with_images(
+        response = await llm.chat(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            images=[ImageContent(image=pix_proof, detail="high")]
+            messages=[{"role": "user", "content": [prompt, ImageContent(image=pix_proof, detail="high")]}]
         )
         
         # Parse AI response
