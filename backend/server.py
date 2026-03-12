@@ -551,6 +551,25 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
                 }
             }
         )
+        
+        # Send WhatsApp notification
+        try:
+            async with httpx.AsyncClient() as client_http:
+                await client_http.post(
+                    "http://localhost:8002/send-notification",
+                    json={
+                        "customerName": order.get("customer_name", "Cliente"),
+                        "amount": order.get("total", 0),
+                        "store": store.value,
+                        "time": datetime.now().strftime("%H:%M"),
+                        "orderNumber": order.get("order_number", order_id[:8]),
+                        "items": order.get("items", [])
+                    },
+                    timeout=5.0
+                )
+        except Exception as e:
+            logger.warning(f"Could not send WhatsApp notification: {e}")
+        
         return {"success": True, "message": "Pagamento aprovado", "new_status": "received"}
     else:
         await db.orders.update_one(
