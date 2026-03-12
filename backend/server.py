@@ -1106,6 +1106,320 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
     
     return {"success": True, "message": f"{result.modified_count} pedidos pagos", "count": result.modified_count}
 
+# ==================== EXPENSES (GASTOS) MANAGEMENT ====================
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+import asyncio
+
+EXPENSE_CATEGORIES = [
+    "contador",
+    "fornecedor", 
+    "mercado",
+    "suplementos",
+    "VT",
+    "Vivo",
+    "sistema",
+    "salário",
+    "outros"
+]
+
+class ExpenseCreate(BaseModel):
+    description: str
+    amount: float
+    category: str
+    store: str = "all"  # "runner", "gym-londres", or "all"
+    image_url: str = ""
+    notes: str = ""
+
+class ExpenseAnalysis(BaseModel):
+    image_base64: str
+
+@api_router.get("/expenses")
+async def get_expenses(store: Optional[str] = None, category: Optional[str] = None, username: str = Depends(verify_gestor)):
+    """Get all expenses with optional filters"""
+    query = {}
+    if store and store != "all":
+        query["$or"] = [{"store": store}, {"store": "all"}]
+    if category:
+        query["category"] = category
+    
+    expenses = await db.expenses.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Calculate totals by category
+    totals_by_category = {}
+    for exp in expenses:
+        cat = exp.get("category", "outros")
+        totals_by_category[cat] = totals_by_category.get(cat, 0) + exp.get("amount", 0)
+    
+    total = sum(e.get("amount", 0) for e in expenses)
+    
+    return {
+        "expenses": expenses,
+        "total": total,
+        "by_category": totals_by_category,
+        "categories": EXPENSE_CATEGORIES
+    }
+
+@api_router.get("/expenses/monthly")
+async def get_monthly_expenses(username: str = Depends(verify_gestor)):
+    """Get expenses for current month with daily breakdown"""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    expenses = await db.expenses.find({
+        "created_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Group by day
+    daily_data = {}
+    for i in range(now.day):
+        day = (month_start + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_data[day] = {"date": day, "day": i + 1, "total": 0, "by_category": {}}
+    
+    for exp in expenses:
+        date = exp.get("created_at", "")[:10]
+        if date in daily_data:
+            daily_data[date]["total"] += exp.get("amount", 0)
+            cat = exp.get("category", "outros")
+            daily_data[date]["by_category"][cat] = daily_data[date]["by_category"].get(cat, 0) + exp.get("amount", 0)
+    
+    # Totals by category for the month
+    totals_by_category = {}
+    for exp in expenses:
+        cat = exp.get("category", "outros")
+        totals_by_category[cat] = totals_by_category.get(cat, 0) + exp.get("amount", 0)
+    
+    chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
+    
+    return {
+        "month": now.strftime("%B %Y"),
+        "data": chart_data,
+        "total_expenses": sum(d["total"] for d in chart_data),
+        "by_category": totals_by_category,
+        "categories": EXPENSE_CATEGORIES
+    }
+
+@api_router.post("/expenses")
+async def create_expense(expense: ExpenseCreate, username: str = Depends(verify_gestor)):
+    """Create a new expense"""
+    new_expense = {
+        "id": str(uuid.uuid4()),
+        "description": expense.description,
+        "amount": expense.amount,
+        "category": expense.category,
+        "store": expense.store,
+        "image_url": expense.image_url,
+        "notes": expense.notes,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": username
+    }
+    await db.expenses.insert_one(new_expense)
+    return {**new_expense, "_id": None}
+
+@api_router.delete("/expenses/{expense_id}")
+async def delete_expense(expense_id: str, username: str = Depends(verify_gestor)):
+    """Delete an expense"""
+    result = await db.expenses.delete_one({"id": expense_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Gasto não encontrado")
+    return {"success": True, "message": "Gasto removido"}
+
+@api_router.post("/expenses/analyze-image")
+async def analyze_expense_image(analysis: ExpenseAnalysis, username: str = Depends(verify_gestor)):
+    """Use AI to analyze expense receipt/invoice image"""
+    try:
+        llm_key = os.environ.get("EMERGENT_LLM_KEY")
+        if not llm_key:
+            raise HTTPException(status_code=500, detail="LLM key not configured")
+        
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"expense-analysis-{uuid.uuid4()}",
+            system_message="""Você é um assistente especializado em analisar notas fiscais, recibos e comprovantes de gastos.
+Analise a imagem e extraia as seguintes informações em formato JSON:
+{
+    "description": "descrição do gasto",
+    "amount": valor numérico em reais (apenas o número, sem R$),
+    "category": "uma das categorias: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros",
+    "confidence": "alta, média ou baixa",
+    "notes": "observações adicionais sobre o documento"
+}
+
+Categorias possíveis:
+- contador: serviços contábeis
+- fornecedor: fornecedores de alimentos, ingredientes
+- mercado: compras de supermercado
+- suplementos: whey, creatina, etc
+- VT: vale transporte
+- Vivo: telefone/internet
+- sistema: software, sistemas
+- salário: pagamento de funcionários
+- outros: outros gastos
+
+Responda APENAS com o JSON, sem texto adicional."""
+        ).with_model("openai", "gpt-4o")
+        
+        # Create image content from base64
+        image_content = ImageContent(image_base64=analysis.image_base64)
+        
+        user_message = UserMessage(
+            text="Analise este comprovante/nota fiscal e extraia as informações de gasto.",
+            image_contents=[image_content]
+        )
+        
+        response = await chat.send_message(user_message)
+        
+        # Parse JSON from response
+        import json
+        try:
+            # Clean response - remove markdown code blocks if present
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1]
+                if clean_response.startswith("json"):
+                    clean_response = clean_response[4:]
+            clean_response = clean_response.strip()
+            
+            result = json.loads(clean_response)
+            return {
+                "success": True,
+                "analysis": result
+            }
+        except json.JSONDecodeError:
+            return {
+                "success": False,
+                "error": "Não foi possível extrair informações da imagem",
+                "raw_response": response
+            }
+            
+    except Exception as e:
+        logger.error(f"Error analyzing expense image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao analisar imagem: {str(e)}")
+
+# ==================== PRAZO WHATSAPP LINK ====================
+@api_router.get("/prazo/whatsapp-link/{customer_name}")
+async def get_prazo_whatsapp_link(customer_name: str):
+    """Generate WhatsApp link for prazo collection"""
+    # Get customer info
+    customer = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer_name}$", "$options": "i"}})
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    phone = customer.get("phone", "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Cliente não tem telefone cadastrado")
+    
+    # Get total debt
+    prazo_orders = await db.orders.find({
+        "customer_name": {"$regex": f"^{customer_name}$", "$options": "i"},
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).to_list(1000)
+    
+    total_debt = sum(o.get("total", 0) for o in prazo_orders)
+    
+    # Format phone (remove non-digits and add country code if needed)
+    clean_phone = ''.join(filter(str.isdigit, phone))
+    if not clean_phone.startswith('55'):
+        clean_phone = '55' + clean_phone
+    
+    # Create message
+    message = f"""Olá {customer_name}! 👋
+
+Este é um lembrete de cobrança do GANOH Café Bistrô.
+
+💰 *Valor pendente:* R$ {total_debt:.2f}
+📅 *Pedidos:* {len(prazo_orders)} pedido(s)
+
+Por favor, entre em contato para regularizar sua situação.
+
+Obrigado! ☕"""
+    
+    # URL encode the message
+    from urllib.parse import quote
+    encoded_message = quote(message)
+    
+    whatsapp_url = f"https://wa.me/{clean_phone}?text={encoded_message}"
+    
+    return {
+        "url": whatsapp_url,
+        "phone": clean_phone,
+        "total_debt": total_debt,
+        "order_count": len(prazo_orders)
+    }
+
+# ==================== UPDATED CHART DATA WITH EXPENSES ====================
+@api_router.get("/gestor/chart/monthly-with-expenses")
+async def get_monthly_chart_with_expenses(username: str = Depends(verify_gestor)):
+    """Get daily sales AND expenses data for the current month for chart visualization"""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all completed orders this month
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered"]},
+        "created_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
+    
+    # Get all expenses this month
+    expenses = await db.expenses.find({
+        "created_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Group by day
+    daily_data = {}
+    for i in range(now.day):
+        day = (month_start + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_data[day] = {
+            "date": day, 
+            "day": i + 1, 
+            "revenue": 0, 
+            "expenses": 0,
+            "profit": 0,
+            "order_count": 0,
+            "expenses_by_category": {}
+        }
+    
+    for order in orders:
+        date = order.get("created_at", "")[:10]
+        if date in daily_data:
+            daily_data[date]["revenue"] += order.get("total", 0)
+            daily_data[date]["order_count"] += 1
+    
+    for exp in expenses:
+        date = exp.get("created_at", "")[:10]
+        if date in daily_data:
+            daily_data[date]["expenses"] += exp.get("amount", 0)
+            cat = exp.get("category", "outros")
+            daily_data[date]["expenses_by_category"][cat] = daily_data[date]["expenses_by_category"].get(cat, 0) + exp.get("amount", 0)
+    
+    # Calculate profit
+    for day in daily_data.values():
+        day["profit"] = day["revenue"] - day["expenses"]
+    
+    # Total expenses by category for the month
+    expenses_by_category = {}
+    for exp in expenses:
+        cat = exp.get("category", "outros")
+        expenses_by_category[cat] = expenses_by_category.get(cat, 0) + exp.get("amount", 0)
+    
+    # Convert to sorted list
+    chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
+    
+    total_revenue = sum(d["revenue"] for d in chart_data)
+    total_expenses = sum(d["expenses"] for d in chart_data)
+    
+    return {
+        "month": now.strftime("%B %Y"),
+        "data": chart_data,
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_profit": total_revenue - total_expenses,
+        "total_orders": sum(d["order_count"] for d in chart_data),
+        "expenses_by_category": expenses_by_category,
+        "categories": EXPENSE_CATEGORIES
+    }
+
 # ==================== ADMIN CLEAR DATA ROUTE ====================
 CLEAR_DATA_PASSWORD = "152637"
 
