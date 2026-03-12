@@ -1352,22 +1352,38 @@ async def update_gestor_stock(store: StoreLocation, menu_item_id: str, stock_upd
 # ==================== MONTHLY CHART DATA ====================
 
 @api_router.get("/gestor/chart/monthly")
-async def get_monthly_chart_data(username: str = Depends(verify_gestor)):
-    """Get daily sales data for the current month for chart visualization"""
+async def get_monthly_chart_data(month: int = None, year: int = None, username: str = Depends(verify_gestor)):
+    """Get daily sales data for a specific month for chart visualization"""
     now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Use provided month/year or current
+    target_month = month if month else now.month
+    target_year = year if year else now.year
+    
+    month_start = datetime(target_year, target_month, 1, tzinfo=timezone.utc)
+    
+    # Calculate month end
+    if target_month == 12:
+        month_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        month_end = datetime(target_year, target_month + 1, 1, tzinfo=timezone.utc)
     
     # Get all completed orders this month
     orders = await db.orders.find({
-        "status": {"$in": ["ready", "delivered"]},
-        "created_at": {"$gte": month_start.isoformat()}
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
     }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
+    
+    # Get number of days in month
+    import calendar
+    days_in_month = calendar.monthrange(target_year, target_month)[1]
     
     # Group by day
     daily_data = {}
-    for i in range(now.day):
-        day = (month_start + timedelta(days=i)).strftime("%Y-%m-%d")
-        daily_data[day] = {"date": day, "day": i + 1, "total": 0, "count": 0}
+    for i in range(days_in_month):
+        day_date = month_start + timedelta(days=i)
+        day_str = day_date.strftime("%Y-%m-%d")
+        daily_data[day_str] = {"date": day_str, "day": i + 1, "total": 0, "count": 0}
     
     for order in orders:
         date = order.get("created_at", "")[:10]
@@ -1378,10 +1394,102 @@ async def get_monthly_chart_data(username: str = Depends(verify_gestor)):
     # Convert to sorted list
     chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
     
+    month_names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    
     return {
-        "month": now.strftime("%B %Y"),
+        "month": f"{month_names[target_month]} {target_year}",
+        "month_num": target_month,
+        "year": target_year,
         "data": chart_data,
         "total_month": sum(d["total"] for d in chart_data),
+        "total_orders": sum(d["count"] for d in chart_data)
+    }
+
+@api_router.get("/gestor/chart/daily")
+async def get_daily_chart_data(date: str = None, username: str = Depends(verify_gestor)):
+    """Get hourly sales data for a specific day"""
+    now = datetime.now(timezone.utc)
+    
+    # Parse date or use today
+    if date:
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    else:
+        target_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+    
+    # Get all completed orders this day
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1}).to_list(10000)
+    
+    # Group by hour
+    hourly_data = {}
+    for hour in range(24):
+        hour_str = f"{hour:02d}:00"
+        hourly_data[hour] = {"hour": hour_str, "total": 0, "count": 0}
+    
+    for order in orders:
+        try:
+            order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            hour = order_time.hour
+            hourly_data[hour]["total"] += order.get("total", 0)
+            hourly_data[hour]["count"] += 1
+        except:
+            pass
+    
+    # Convert to sorted list
+    chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
+    
+    return {
+        "date": target_date.strftime("%d/%m/%Y"),
+        "date_iso": target_date.strftime("%Y-%m-%d"),
+        "data": chart_data,
+        "total_day": sum(d["total"] for d in chart_data),
+        "total_orders": sum(d["count"] for d in chart_data),
+        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "items": len(o.get("items", []))} for o in orders]
+    }
+
+@api_router.get("/gestor/chart/yearly")
+async def get_yearly_chart_data(year: int = None, username: str = Depends(verify_gestor)):
+    """Get monthly sales data for a specific year"""
+    now = datetime.now(timezone.utc)
+    target_year = year if year else now.year
+    
+    year_start = datetime(target_year, 1, 1, tzinfo=timezone.utc)
+    year_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+    
+    # Get all completed orders this year
+    orders = await db.orders.find({
+        "status": {"$in": ["ready", "delivered", "received"]},
+        "created_at": {"$gte": year_start.isoformat(), "$lt": year_end.isoformat()}
+    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(100000)
+    
+    # Group by month
+    month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+    monthly_data = {}
+    for month in range(1, 13):
+        monthly_data[month] = {"month": month, "month_name": month_names[month-1], "total": 0, "count": 0}
+    
+    for order in orders:
+        try:
+            order_date = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            month = order_date.month
+            monthly_data[month]["total"] += order.get("total", 0)
+            monthly_data[month]["count"] += 1
+        except:
+            pass
+    
+    # Convert to sorted list
+    chart_data = sorted(monthly_data.values(), key=lambda x: x["month"])
+    
+    return {
+        "year": target_year,
+        "data": chart_data,
+        "total_year": sum(d["total"] for d in chart_data),
         "total_orders": sum(d["count"] for d in chart_data)
     }
 
