@@ -275,6 +275,11 @@ async def root():
 async def get_stores():
     return {"stores": STORES}
 
+@api_router.get("/categories")
+async def get_categories():
+    """Return all menu categories"""
+    return {"categories": CATEGORIES}
+
 @api_router.get("/menu/{store}")
 async def get_menu(store: StoreLocation):
     # Get stock for bebidas only (other items don't need stock control)
