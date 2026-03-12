@@ -93,6 +93,10 @@ export const GestorPage = () => {
   
   // Chart view mode
   const [chartViewMode, setChartViewMode] = useState('month'); // 'month' or 'group'
+  const [chartPeriod, setChartPeriod] = useState('day'); // 'day', 'month', 'year'
+  const [chartSelectedDate, setChartSelectedDate] = useState(new Date());
+  const [chartSelectedMonth, setChartSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [chartSelectedYear, setChartSelectedYear] = useState(new Date().getFullYear());
   const [salesByCategory, setSalesByCategory] = useState(null);
   
   // Expenses (Gastos) state
