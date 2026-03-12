@@ -89,7 +89,18 @@ export const GestorPage = () => {
   const [prazoDebts, setPrazoDebts] = useState({ debts: [], total_prazo: 0 });
   const [showPrazoDialog, setShowPrazoDialog] = useState(false);
   const [newPrazoCustomer, setNewPrazoCustomer] = useState({ name: '', phone: '', notes: '' });
-
+  
+  // Expenses (Gastos) state
+  const [expenses, setExpenses] = useState([]);
+  const [expensesChartData, setExpensesChartData] = useState(null);
+  const [showExpenseDialog, setShowExpenseDialog] = useState(false);
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
+  const [expenseImage, setExpenseImage] = useState(null);
+  const [expenseImagePreview, setExpenseImagePreview] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzedExpense, setAnalyzedExpense] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const EXPENSE_CATEGORIES = ['contador', 'fornecedor', 'mercado', 'suplementos', 'VT', 'Vivo', 'sistema', 'salário', 'outros'];
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
