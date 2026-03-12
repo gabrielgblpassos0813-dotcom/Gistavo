@@ -2073,6 +2073,33 @@ async def get_whatsapp_qr():
     except Exception as e:
         return {"qrCode": None, "connected": False}
 
+@api_router.get("/whatsapp/groups")
+async def get_whatsapp_groups():
+    """Proxy to get WhatsApp groups"""
+    try:
+        async with httpx.AsyncClient() as client_http:
+            response = await client_http.get(f"{WHATSAPP_BOT_URL}/groups", timeout=5.0)
+            return response.json()
+    except Exception as e:
+        return {"success": False, "groups": [], "error": str(e)}
+
+class WhatsAppTargetUpdate(BaseModel):
+    target: str
+
+@api_router.post("/whatsapp/set-target")
+async def set_whatsapp_target(data: WhatsAppTargetUpdate):
+    """Proxy to set WhatsApp notification target"""
+    try:
+        async with httpx.AsyncClient() as client_http:
+            response = await client_http.post(
+                f"{WHATSAPP_BOT_URL}/set-target",
+                json={"target": data.target},
+                timeout=5.0
+            )
+            return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # Include router
 app.include_router(api_router)
 
