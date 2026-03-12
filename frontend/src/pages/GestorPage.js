@@ -111,7 +111,9 @@ export const GestorPage = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [pendingExpenseData, setPendingExpenseData] = useState(null);
+  const [pendingExpensesList, setPendingExpensesList] = useState([]);
   const [awaitingCategory, setAwaitingCategory] = useState(false);
+  const [expenseImages, setExpenseImages] = useState([]);
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
