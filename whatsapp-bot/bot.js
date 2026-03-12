@@ -66,6 +66,34 @@ const server = http.createServer((req, res) => {
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
+    } else if (req.url === '/groups') {
+        // List available groups
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            success: true, 
+            groups: availableGroups,
+            currentTarget: NOTIFICATION_TARGET
+        }));
+    } else if (req.url.startsWith('/set-target') && req.method === 'POST') {
+        // Set notification target (group or number)
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                if (data.target) {
+                    process.env.WHATSAPP_TARGET = data.target;
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, target: data.target }));
+                } else {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Target not provided' }));
+                }
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: error.message }));
+            }
+        });
     } else {
         res.writeHead(404);
         res.end('Not found');
