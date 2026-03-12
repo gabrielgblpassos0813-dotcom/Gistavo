@@ -1595,24 +1595,24 @@ export const GestorPage = () => {
                       </span>
                     </div>
                     
-                    <div className="h-48 flex items-end justify-between gap-1 border-b border-l p-2 overflow-x-auto">
+                    <div className="h-48 flex items-end justify-between gap-0.5 border-b border-l p-2 overflow-x-auto">
                       {expensesChartData.data.map((item, idx) => {
                         const maxValue = Math.max(...expensesChartData.data.map(d => Math.max(d.revenue, d.expenses)), 1);
-                        const revenueHeight = (item.revenue / maxValue) * 100;
-                        const expenseHeight = (item.expenses / maxValue) * 100;
+                        const revenueHeight = item.revenue > 0 ? Math.max((item.revenue / maxValue) * 100, 8) : 2;
+                        const expenseHeight = item.expenses > 0 ? Math.max((item.expenses / maxValue) * 100, 8) : 2;
                         return (
                           <div 
                             key={idx} 
-                            className="flex-1 min-w-[16px] flex flex-col items-center justify-end group relative"
+                            className="flex-1 min-w-[10px] max-w-[25px] flex flex-col items-center justify-end group relative"
                           >
                             <div className="flex gap-[1px] w-full items-end justify-center">
                               <div 
-                                className="w-1/2 bg-green-500 rounded-t min-h-[2px]"
-                                style={{ height: `${Math.max(revenueHeight, 2)}%` }}
+                                className={`w-1/2 rounded-t ${item.revenue > 0 ? 'bg-green-500' : 'bg-gray-200'}`}
+                                style={{ height: `${revenueHeight}%` }}
                               />
                               <div 
-                                className="w-1/2 bg-red-500 rounded-t min-h-[2px]"
-                                style={{ height: `${Math.max(expenseHeight, 2)}%` }}
+                                className={`w-1/2 rounded-t ${item.expenses > 0 ? 'bg-red-500' : 'bg-gray-200'}`}
+                                style={{ height: `${expenseHeight}%` }}
                               />
                             </div>
                             <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
