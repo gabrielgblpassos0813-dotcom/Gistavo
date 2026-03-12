@@ -1436,9 +1436,10 @@ async def get_daily_chart_data(date: str = None, username: str = Depends(verify_
     for order in orders:
         try:
             order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
-            hour = order_time.hour
-            hourly_data[hour]["total"] += order.get("total", 0)
-            hourly_data[hour]["count"] += 1
+            # Convert UTC to Brazil timezone (UTC-3)
+            brazil_hour = (order_time.hour - 3) % 24
+            hourly_data[brazil_hour]["total"] += order.get("total", 0)
+            hourly_data[brazil_hour]["count"] += 1
         except:
             pass
     
