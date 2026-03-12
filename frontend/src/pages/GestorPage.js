@@ -464,9 +464,14 @@ export const GestorPage = () => {
 
   // AI Chat functions for expense analysis
   const startExpenseChatWithImage = async (imageData) => {
+    startExpenseChatWithMultipleImages([imageData]);
+  };
+
+  const startExpenseChatWithMultipleImages = async (imagesData) => {
     setShowExpenseChat(true);
-    setChatMessages([{ role: 'system', content: '🔍 Analisando imagem com IA...' }]);
+    setChatMessages([{ role: 'system', content: `🔍 Analisando ${imagesData.length} imagem(ns) com IA...` }]);
     setIsAnalyzing(true);
+    setPendingExpensesList([]);
     
     const auth = localStorage.getItem('gestor_auth');
     if (!auth) return;
@@ -474,38 +479,34 @@ export const GestorPage = () => {
     const [user, pass] = atob(auth).split(':');
     
     try {
-      const base64Data = imageData.split(',')[1] || imageData;
+      const base64Images = imagesData.map(img => img.split(',')[1] || img);
       
-      const response = await axios.post(`${API}/expenses/analyze-image`, {
-        image_base64: base64Data
+      const response = await axios.post(`${API}/expenses/analyze-multiple`, {
+        images: base64Images
       }, { auth: { username: user, password: pass } });
       
-      if (response.data.success && response.data.analysis) {
-        const analysis = response.data.analysis;
-        setPendingExpenseData({
-          description: analysis.description || 'Gasto não identificado',
-          amount: analysis.amount || 0,
-          notes: analysis.notes || ''
+      if (response.data.success && response.data.expenses?.length > 0) {
+        const expenses = response.data.expenses;
+        setPendingExpensesList(expenses);
+        
+        // Create list message
+        let listMessage = `📋 **Encontrei ${expenses.length} gasto(s):**\n\n`;
+        expenses.forEach((exp, idx) => {
+          listMessage += `**${idx + 1}.** R$ ${exp.amount?.toFixed(2) || '0.00'} - ${exp.description || 'Sem descrição'}\n`;
+          if (exp.notes) listMessage += `   📍 ${exp.notes}\n`;
+          listMessage += '\n';
         });
         
-        const aiMessage = `📋 **Encontrei na nota:**
-
-💰 **Valor:** R$ ${analysis.amount?.toFixed(2) || '0.00'}
-📝 **O que é:** ${analysis.description || 'Não identificado'}
-📍 **Local:** ${analysis.notes || 'Não identificado'}
-
-**Em qual categoria salvar?**
-Pode escrever de qualquer forma (ex: "mercado", "compras do super", "supermercado")
-
-Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo • sistema • salário • outros`;
+        listMessage += `\n**Como categorizar?**\nVocê pode:\n`;
+        listMessage += `• Digitar a categoria para todos: "mercado"\n`;
+        listMessage += `• Ou especificar: "o de 6 reais é mercado"\n\n`;
+        listMessage += `Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo • sistema • salário • outros`;
         
-        setChatMessages([
-          { role: 'assistant', content: aiMessage }
-        ]);
+        setChatMessages([{ role: 'assistant', content: listMessage }]);
         setAwaitingCategory(true);
       } else {
         setChatMessages([
-          { role: 'assistant', content: '❌ Não consegui ler a imagem. Tente uma foto mais clara ou digite os dados manualmente.' }
+          { role: 'assistant', content: '❌ Não consegui ler as imagens. Tente fotos mais claras ou digite os dados manualmente.' }
         ]);
       }
     } catch (error) {
@@ -518,11 +519,15 @@ Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo 
   };
 
   const startExpenseChat = async () => {
-    if (!expenseImage) {
+    if (expenseImages.length === 0 && !expenseImage) {
       toast.error('Selecione uma imagem primeiro');
       return;
     }
-    startExpenseChatWithImage(expenseImage);
+    if (expenseImages.length > 0) {
+      startExpenseChatWithMultipleImages(expenseImages);
+    } else {
+      startExpenseChatWithImage(expenseImage);
+    }
   };
 
   const handleChatSubmit = async () => {
@@ -532,8 +537,103 @@ Categorias: contador • fornecedor • mercado • suplementos • VT • Vivo 
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setChatInput('');
     
-    // Use smart category matching
+    const auth = localStorage.getItem('gestor_auth');
+    if (!auth) return;
+    const [user, pass] = atob(auth).split(':');
+    
+    // Check if user specified a specific expense by amount
+    const expenseCommand = parseExpenseCommand(userMessage);
+    
+    if (expenseCommand && pendingExpensesList.length > 0) {
+      // Find expense by amount
+      const matchingExpense = pendingExpensesList.find(exp => 
+        Math.abs(exp.amount - expenseCommand.amount) < 0.5
+      );
+      
+      if (matchingExpense) {
+        try {
+          await axios.post(`${API}/expenses`, {
+            description: matchingExpense.description,
+            amount: matchingExpense.amount,
+            category: expenseCommand.category,
+            store: 'all',
+            notes: matchingExpense.notes || '',
+            image_url: ''
+          }, { auth: { username: user, password: pass } });
+          
+          // Remove from pending list
+          const remaining = pendingExpensesList.filter(e => e !== matchingExpense);
+          setPendingExpensesList(remaining);
+          
+          let response = `✅ Salvo: R$ ${matchingExpense.amount?.toFixed(2)} → **${expenseCommand.category}**`;
+          
+          if (remaining.length > 0) {
+            response += `\n\n📋 Ainda faltam ${remaining.length} gasto(s):\n`;
+            remaining.forEach((exp, idx) => {
+              response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
+            });
+          } else {
+            response += '\n\n✅ Todos os gastos foram salvos!';
+            setAwaitingCategory(false);
+            fetchExpenses();
+            setTimeout(() => closeExpenseChat(), 2000);
+          }
+          
+          setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
+          toast.success('Gasto salvo!');
+        } catch (error) {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: '❌ Erro ao salvar. Tente novamente.' 
+          }]);
+        }
+        return;
+      }
+    }
+    
+    // If no specific expense command, apply category to all pending
     const validCategory = matchCategory(userMessage);
+    
+    if (validCategory && pendingExpensesList.length > 0) {
+      try {
+        // Save all pending expenses with this category
+        for (const exp of pendingExpensesList) {
+          await axios.post(`${API}/expenses`, {
+            description: exp.description,
+            amount: exp.amount,
+            category: validCategory,
+            store: 'all',
+            notes: exp.notes || '',
+            image_url: ''
+          }, { auth: { username: user, password: pass } });
+        }
+        
+        const total = pendingExpensesList.reduce((sum, e) => sum + (e.amount || 0), 0);
+        
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `✅ **${pendingExpensesList.length} gasto(s) salvos!**\n\n💰 Total: R$ ${total.toFixed(2)}\n🏷️ Categoria: **${validCategory}**` 
+        }]);
+        
+        setPendingExpensesList([]);
+        setAwaitingCategory(false);
+        fetchExpenses();
+        toast.success(`${pendingExpensesList.length} gastos salvos!`);
+        
+        setTimeout(() => closeExpenseChat(), 2000);
+      } catch (error) {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: '❌ Erro ao salvar. Tente novamente.' 
+        }]);
+      }
+    } else if (!validCategory) {
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `🤔 Não entendi "${userMessage}".\n\nTente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário ou outros\n\nOu especifique: "o de X reais é categoria"` 
+      }]);
+    }
+  };
     
     if (validCategory && pendingExpenseData) {
       // Save the expense
