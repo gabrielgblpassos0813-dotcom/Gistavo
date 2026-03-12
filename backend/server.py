@@ -782,7 +782,7 @@ Responda APENAS em formato JSON:
             try:
                 async with httpx.AsyncClient() as client_http:
                     await client_http.post(
-                        "http://localhost:8002/send-notification",
+                        f"{WHATSAPP_BOT_URL}/send-notification",
                         json={
                             "customerName": order.get("customer_name", "Cliente"),
                             "payerName": payer_name,
@@ -921,7 +921,7 @@ Responda APENAS em formato JSON:
             try:
                 async with httpx.AsyncClient() as client_http:
                     await client_http.post(
-                        "http://localhost:8002/send-notification",
+                        f"{WHATSAPP_BOT_URL}/send-notification",
                         json={
                             "customerName": order.get("customer_name", "Cliente"),
                             "payerName": payer_name,
