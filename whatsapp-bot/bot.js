@@ -168,7 +168,8 @@ async function sendPixNotification(data) {
 👤 *Nome do Pagador:* ${data.payerName || data.customerName || 'Não informado'}
 💰 *Valor:* R$ ${data.amount?.toFixed(2) || '0.00'}
 📍 *Local:* ${data.store === 'gym-londres' ? 'GYM Londres' : 'Runner'}
-🕐 *Horário:* ${data.time || new Date().toLocaleTimeString('pt-BR')}
+📅 *Data:* ${data.date || new Date().toLocaleDateString('pt-BR')}
+🕐 *Horário:* ${data.time || new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
 📋 *Pedido:* ${data.orderNumber || 'N/A'}
 ${data.autoApproved ? '✅ *Auto-aprovado pela IA*' : ''}
 
