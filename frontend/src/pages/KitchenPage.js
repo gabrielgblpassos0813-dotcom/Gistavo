@@ -143,14 +143,22 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof, onRetryVerify
         {isVerifying && (
           <div className="w-full h-8 text-xs bg-purple-100 text-purple-700 rounded flex items-center justify-center gap-2 mb-2">
             <Loader2 className="h-3 w-3 animate-spin" />
-            IA verificando... ({60 - secondsSinceProofUpload}s)
+            IA verificando... ({Math.max(0, 30 - secondsSinceProofUpload)}s)
           </div>
         )}
         
-        {/* AI Status indicator - Timed out (needs manual check) */}
+        {/* AI Status indicator - Timed out (needs manual check or retry) */}
         {verificationTimedOut && (
-          <div className="w-full text-xs bg-amber-100 text-amber-700 rounded p-2 mb-2">
-            ⏳ Verificação automática demorou. Verifique manualmente.
+          <div className="w-full text-xs bg-amber-100 text-amber-700 rounded p-2 mb-2 flex items-center justify-between">
+            <span>⏳ Verificar manualmente ou</span>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-6 px-2 text-xs ml-2"
+              onClick={() => onRetryVerify && onRetryVerify(order.id)}
+            >
+              🔄 Tentar IA
+            </Button>
           </div>
         )}
         
