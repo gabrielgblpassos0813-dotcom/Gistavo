@@ -101,17 +101,10 @@ const OrderCard = ({ order, onStatusChange, onDelete }) => {
 };
 
 // PIX Pending Card Component
-const PixPendingCard = ({ order, onApprove, onReject, onViewProof, onAutoVerify }) => {
+const PixPendingCard = ({ order, onApprove, onReject, onViewProof }) => {
   const createdAt = new Date(order.created_at);
   const now = new Date();
   const minutesAgo = Math.floor((now - createdAt) / 60000);
-  const [isVerifying, setIsVerifying] = useState(false);
-
-  const handleAutoVerify = async () => {
-    setIsVerifying(true);
-    await onAutoVerify(order.id);
-    setIsVerifying(false);
-  };
 
   return (
     <div className="bg-white rounded-lg border-l-4 border-l-blue-500 shadow-sm">
@@ -139,25 +132,19 @@ const PixPendingCard = ({ order, onApprove, onReject, onViewProof, onAutoVerify 
           )}
         </div>
         
-        {/* AI Auto-verify button */}
-        {order.pix_proof && (
-          <Button 
-            size="sm" 
-            className="w-full h-8 text-xs bg-purple-600 hover:bg-purple-700 mb-2" 
-            onClick={handleAutoVerify}
-            disabled={isVerifying}
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                IA Analisando...
-              </>
-            ) : (
-              <>
-                🤖 Auto-Verificar com IA
-              </>
-            )}
-          </Button>
+        {/* AI Status indicator */}
+        {order.pix_proof && !order.pix_analysis && (
+          <div className="w-full h-8 text-xs bg-purple-100 text-purple-700 rounded flex items-center justify-center gap-2 mb-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            IA verificando automaticamente...
+          </div>
+        )}
+        
+        {order.pix_analysis && (
+          <div className={`w-full text-xs rounded p-2 mb-2 ${order.pix_analysis.is_valid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            {order.pix_analysis.is_valid ? '✅ IA aprovou!' : `⚠️ ${order.pix_analysis.reason}`}
+            {order.pix_payer_name && <div className="text-[10px] mt-1">Pagador: {order.pix_payer_name}</div>}
+          </div>
         )}
         
         <div className="flex gap-1">
