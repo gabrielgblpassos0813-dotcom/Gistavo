@@ -378,40 +378,36 @@ export const GestorPage = () => {
     }
   };
 
-  // Parse commands like "o gasto de 6 reais é compras" or "6 reais mercado"
-  const parseExpenseCommand = (input) => {
-    const normalized = input.toLowerCase().trim();
+  // Parse ALL expense commands from input like "O de 6 é mercado o de 22 é suplemento o de 35 é sistema"
+  const parseAllExpenseCommands = (input) => {
+    const commands = [];
+    const normalized = input.toLowerCase();
     
-    // Pattern: "o gasto de X reais é CATEGORIA" or "X reais é CATEGORIA"
-    const patterns = [
-      /(?:o\s+)?gasto\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(?:é|e|=|:)?\s*(\w+)/i,
-      /(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(?:é|e|=|:)?\s*(\w+)/i,
-      /(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s+(\w+)/i,
-      /(\w+)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)/i
-    ];
+    // Global regex to find all patterns like "o de X é categoria" or "X é categoria" or "X categoria"
+    // Matches: "o de 6 é mercado", "6 é mercado", "6 mercado", "35 fornecedor"
+    const globalPattern = /(?:o\s+de\s+)?(\d+(?:[.,]\d+)?)\s*(?:reais?|r\$)?\s*(?:é|e|=|:)?\s*(\w+)/gi;
     
-    for (const pattern of patterns) {
-      const match = normalized.match(pattern);
-      if (match) {
-        let amount, categoryWord;
-        
-        // Check which group is the number
-        if (!isNaN(parseFloat(match[1].replace(',', '.')))) {
-          amount = parseFloat(match[1].replace(',', '.'));
-          categoryWord = match[2];
-        } else {
-          amount = parseFloat(match[2].replace(',', '.'));
-          categoryWord = match[1];
-        }
-        
-        const category = matchCategory(categoryWord);
-        if (category && amount) {
-          return { amount, category };
+    let match;
+    while ((match = globalPattern.exec(normalized)) !== null) {
+      const amount = parseFloat(match[1].replace(',', '.'));
+      const categoryWord = match[2];
+      const category = matchCategory(categoryWord);
+      
+      if (category && amount && !isNaN(amount)) {
+        // Avoid duplicates
+        if (!commands.find(c => c.amount === amount && c.category === category)) {
+          commands.push({ amount, category });
         }
       }
     }
     
-    return null;
+    return commands;
+  };
+
+  // Parse single expense command (legacy support)
+  const parseExpenseCommand = (input) => {
+    const commands = parseAllExpenseCommands(input);
+    return commands.length > 0 ? commands[0] : null;
   };
 
   // Smart category matching - understands variations
