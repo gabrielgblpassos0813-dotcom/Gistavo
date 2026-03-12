@@ -282,7 +282,7 @@ async def get_menu(store: StoreLocation):
     stock_map = {s["menu_item_id"]: s["quantity"] for s in stock_docs}
     
     # Get custom menu items added by gestor for this store
-    custom_items = await db.menu_items.find({
+    custom_items = await db.menu.find({
         "$or": [
             {"store": store.value},
             {"store": "all"},
