@@ -331,7 +331,7 @@ export const GestorPage = () => {
 
   const fetchWhatsAppStatus = async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL.replace('/api', '')}/whatsapp/status`, { timeout: 3000 });
+      const response = await axios.get(`${BACKEND_URL}/whatsapp/status`, { timeout: 3000 });
       setWhatsappStatus(response.data.status);
       setWhatsappQR(response.data.qrCode);
     } catch (error) {
