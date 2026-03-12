@@ -1487,39 +1487,147 @@ export const GestorPage = () => {
               {expensesChartData && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Receita vs Gastos - {expensesChartData.month}</CardTitle>
+                    <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-base">Receita vs Gastos</span>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant={expensesPeriod === 'day' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => { setExpensesPeriod('day'); fetchExpenses('day'); }}
+                          className={expensesPeriod === 'day' ? 'bg-brand-600' : ''}
+                        >
+                          Dia
+                        </Button>
+                        <Button 
+                          variant={expensesPeriod === 'month' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => { setExpensesPeriod('month'); fetchExpenses('month'); }}
+                          className={expensesPeriod === 'month' ? 'bg-brand-600' : ''}
+                        >
+                          Mês
+                        </Button>
+                        <Button 
+                          variant={expensesPeriod === 'year' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => { setExpensesPeriod('year'); fetchExpenses('year'); }}
+                          className={expensesPeriod === 'year' ? 'bg-brand-600' : ''}
+                        >
+                          Ano
+                        </Button>
+                      </div>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-48 flex items-end justify-between gap-1 border-b border-l p-2">
-                      {expensesChartData.data.map((day, idx) => {
+                    {/* Period selectors */}
+                    <div className="flex gap-2 mb-4 flex-wrap items-center">
+                      {expensesPeriod === 'day' && (
+                        <Input 
+                          type="date" 
+                          value={expensesSelectedDate}
+                          onChange={(e) => {
+                            setExpensesSelectedDate(e.target.value);
+                            fetchExpenses('day', e.target.value);
+                          }}
+                          className="w-auto"
+                        />
+                      )}
+                      {expensesPeriod === 'month' && (
+                        <>
+                          <Select 
+                            value={expensesSelectedMonth.toString()} 
+                            onValueChange={(v) => {
+                              const m = parseInt(v);
+                              setExpensesSelectedMonth(m);
+                              fetchExpenses('month', null, m, expensesSelectedYear);
+                            }}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
+                                <SelectItem key={i+1} value={(i+1).toString()}>{m}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={expensesSelectedYear.toString()} 
+                            onValueChange={(v) => {
+                              const y = parseInt(v);
+                              setExpensesSelectedYear(y);
+                              fetchExpenses('month', null, expensesSelectedMonth, y);
+                            }}
+                          >
+                            <SelectTrigger className="w-24">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[2024, 2025, 2026].map(y => (
+                                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
+                      {expensesPeriod === 'year' && (
+                        <Select 
+                          value={expensesSelectedYear.toString()} 
+                          onValueChange={(v) => {
+                            const y = parseInt(v);
+                            setExpensesSelectedYear(y);
+                            fetchExpenses('year', null, null, y);
+                          }}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2024, 2025, 2026].map(y => (
+                              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <span className="text-sm text-muted-foreground ml-auto">
+                        {expensesPeriod === 'day' ? expensesChartData.date : 
+                         expensesPeriod === 'month' ? expensesChartData.month : 
+                         `Ano ${expensesChartData.year}`}
+                      </span>
+                    </div>
+                    
+                    <div className="h-48 flex items-end justify-between gap-1 border-b border-l p-2 overflow-x-auto">
+                      {expensesChartData.data.map((item, idx) => {
                         const maxValue = Math.max(...expensesChartData.data.map(d => Math.max(d.revenue, d.expenses)), 1);
-                        const revenueHeight = (day.revenue / maxValue) * 100;
-                        const expenseHeight = (day.expenses / maxValue) * 100;
+                        const revenueHeight = (item.revenue / maxValue) * 100;
+                        const expenseHeight = (item.expenses / maxValue) * 100;
                         return (
                           <div 
                             key={idx} 
-                            className="flex-1 flex flex-col items-center justify-end group relative"
+                            className="flex-1 min-w-[16px] flex flex-col items-center justify-end group relative"
                           >
                             <div className="flex gap-[1px] w-full items-end justify-center">
                               <div 
                                 className="w-1/2 bg-green-500 rounded-t min-h-[2px]"
                                 style={{ height: `${Math.max(revenueHeight, 2)}%` }}
-                                title={`Receita: ${formatPrice(day.revenue)}`}
                               />
                               <div 
                                 className="w-1/2 bg-red-500 rounded-t min-h-[2px]"
                                 style={{ height: `${Math.max(expenseHeight, 2)}%` }}
-                                title={`Gastos: ${formatPrice(day.expenses)}`}
                               />
                             </div>
-                            {/* Tooltip */}
                             <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                              Dia {day.day}<br/>
-                              Receita: {formatPrice(day.revenue)}<br/>
-                              Gastos: {formatPrice(day.expenses)}<br/>
-                              Lucro: {formatPrice(day.profit)}
+                              {expensesPeriod === 'day' ? item.hour : 
+                               expensesPeriod === 'month' ? `Dia ${item.day}` : 
+                               item.month_name}<br/>
+                              Receita: {formatPrice(item.revenue)}<br/>
+                              Gastos: {formatPrice(item.expenses)}<br/>
+                              Lucro: {formatPrice(item.profit)}
                             </div>
-                            <span className="text-[8px] text-muted-foreground mt-1">{day.day}</span>
+                            <span className="text-[8px] text-muted-foreground mt-1">
+                              {expensesPeriod === 'day' ? item.hour?.slice(0,2) : 
+                               expensesPeriod === 'month' ? item.day : 
+                               item.month_name}
+                            </span>
                           </div>
                         );
                       })}
