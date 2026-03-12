@@ -1,121 +1,163 @@
-# GANOH Café Bistrô - Sistema de Cardápio Digital
+# GANOH Café Bistrô - Sistema de Menu Digital
 
 ## Problema Original
-Cardápio digital estilo iFood para 2 lojas GANOH Café Bistrô (Runner e GYM Londres). Sem entregas, apenas clientes presenciais.
+Sistema de menu digital para o café bistrô GANOH com suporte a múltiplas lojas (Runner e GYM Londres), pedidos online, controle de estoque e gestão financeira.
 
-## Requisitos Implementados
+## Lojas
+- **Runner**: Loja principal
+- **GYM Londres**: Segunda loja
 
-### Multi-Loja
-- **Runner**: Cardápio e painel admin próprios
-- **GYM Londres**: Cardápio e painel admin próprios
-- Mesmo cardápio para ambas, estoque separado
+## Credenciais de Acesso
+- **Painel do Gestor**: gestor / ganoh2024
+- **Quitar débito Prazo (cozinha)**: 1234
+- **Limpar histórico de dados**: 152637
 
-### Formas de Pagamento
-- PIX, Cartão de Débito, Cartão de Crédito, Dinheiro
-- Salvo por pedido para fechamento de caixa
-- Relatório separado por forma de pagamento
+---
 
-### Painel do Gestor (com login)
-- **Credenciais**: gestor / ganoh2024
-- Visão das duas lojas em abas
-- Vendas do dia e mês (total e por loja)
-- Vendas por forma de pagamento
-- **Produtos mais vendidos / menos vendidos com modal de detalhes** ✅
-- Alertas de estoque baixo
+## Funcionalidades Implementadas
 
-### Painel da Cozinha
-- Kanban de pedidos (Aguardando, Preparando, Prontos)
-- **Vendas separadas por turno (Manhã 06:00-14:00 e Tarde/Noite 14:00-22:00)** ✅
-- **Layout mobile-friendly responsivo** ✅
-- Gestão de estoque integrada
+### ✅ Sistema de Cardápio Digital
+- Menu com categorias: Combos, Café, Salgados, Doces, Bebidas, Zero Açúcar
+- Itens com preços, descrição e imagem
+- **Cardápio dinâmico**: Itens adicionados pelo gestor aparecem automaticamente para os clientes
+- Suporte a adicionais (queijo, bacon, etc.)
+- Controle de estoque para bebidas
 
-### Estoque Automático
-- Por unidade
-- Quando estoque = 0, produto fica indisponível
-- Alertas de estoque baixo (≤ 5 unidades)
-- Gerenciamento por loja
+### ✅ Sistema de Pedidos
+- Carrinho de compras
+- Formulário de checkout com nome e horário de retirada
+- Múltiplas formas de pagamento: PIX, Débito, Crédito, Dinheiro, **Prazo (Fiado)**
+- Acompanhamento de pedidos em tempo real
+- Notificação sonora para novos pedidos na cozinha
 
-### Horário de Retirada
-- Só mostra horários futuros (a partir do momento atual + 15 min)
-- Intervalos de 15 minutos
+### ✅ Sistema PIX
+- CNPJ configurado: 49289019000199
+- Upload de comprovante com compressão de imagem
+- Aprovação/Rejeição de pagamento pela cozinha
 
-### Modo Offline ✅ (NOVO)
-- Service Worker para cache de assets e cardápio
-- Pedidos salvos localmente quando offline
-- Sincronização automática quando conexão retorna
-- Banner indicando status offline
-- Botão de sincronização manual
+### ✅ Sistema Prazo (Crédito/Fiado) - AMBAS AS LOJAS
+- Cadastro de clientes de crédito pelo gestor
+- Rastreamento de débitos pendentes
+- Quitação de débitos na cozinha (senha: 1234)
+- **Botão de WhatsApp para cobrança** (link direto wa.me)
+- Disponível para Runner E GYM Londres
 
-## URLs do Sistema
-- `/` - Seleção de loja
-- `/runner` - Cardápio Runner
-- `/gym-londres` - Cardápio GYM Londres
-- `/runner/cozinha` - Painel da cozinha Runner
-- `/gym-londres/cozinha` - Painel da cozinha GYM Londres
-- `/gestor` - Painel do gestor (protegido)
-- `/{store}/pedido/{id}` - Acompanhamento de pedido
-- `/{store}/pedido/offline` - Página para pedido offline
+### ✅ Sistema de Gastos com IA
+- Upload de foto de notas fiscais/recibos
+- **Análise automática por IA (GPT-4o)** para extrair informações
+- Categorias: contador, fornecedor, mercado, suplementos, VT, Vivo, sistema, salário, outros
+- **Botões interativos para filtrar por categoria**
+- Gráfico de Receita vs Gastos (verde x vermelho)
+- Cálculo de lucro (receita - gastos)
 
-## Categorias do Cardápio
-1. Omeletes, Tapiocas e Crepiocas
-2. Brunchs
-3. Toasts
-4. Shakes Proteicos
-5. Açaí
-6. Sucos e Vitaminas
-7. Saladas
-8. Bebidas Quentes
-9. Bebidas Geladas
-10. Suplementos
+### ✅ Painel do Gestor (GestorPage)
+- **5 abas**: Dashboard, Gráfico, Gastos, Prazo, Cardápio
+- Dashboard com métricas do dia e mês (receita em R$)
+- Gráfico de vendas mensais
+- Gestão de clientes Prazo
+- Adição de itens ao cardápio
 
-## Adicionais (não aparecem em bebidas)
-Ovos, Atum, Queijo Branco, Mussarela, Frango, Mel, Granola, Nutella
+### ✅ Painel da Cozinha (KitchenPage)
+- **6 abas**: PIX, Pedidos, Vendas, Prazo, Estoque, Histórico
+- Kanban de pedidos (Recebidos → Preparando → Prontos)
+- Vendas por turno (Manhã/Tarde) e forma de pagamento
+- **Estoque editável**: clique no número para editar diretamente
+- Histórico de pedidos das últimas 24h com detalhes expandíveis
+- Botão de WhatsApp para cobrança de Prazo
 
-## Arquitetura
+### ✅ Funcionalidades Extras
+- Modo offline com sincronização
+- Limpar dados de teste (senha: 152637)
+- Reset automático de vendas à meia-noite
+
+---
+
+## Arquitetura Técnica
+
+### Backend (FastAPI)
 ```
-/app/
-├── backend/
-│   ├── server.py        # FastAPI com todas as rotas
-│   ├── tests/           # Testes pytest
-│   └── .env
-├── frontend/
-│   ├── public/
-│   │   ├── service-worker.js  # PWA offline
-│   │   └── manifest.json
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── MenuPage.js      # Cardápio com offline
-│   │   │   ├── KitchenPage.js   # Cozinha com shifts
-│   │   │   ├── GestorPage.js    # Gestor com modal
-│   │   │   └── OrderTrackingPage.js
-│   │   ├── components/
-│   │   └── utils/
-│   │       └── offline.js       # Utilitários offline
-│   └── .env
-└── memory/
-    └── PRD.md
+/app/backend/
+├── server.py        # API principal (~1500 linhas)
+├── requirements.txt # Dependências Python
+└── .env             # Variáveis de ambiente
 ```
 
-## Backlog
+### Frontend (React)
+```
+/app/frontend/
+├── src/
+│   ├── pages/
+│   │   ├── GestorPage.js    # Painel do gestor (~1400 linhas)
+│   │   ├── KitchenPage.js   # Painel da cozinha (~1080 linhas)
+│   │   ├── MenuPage.js      # Menu do cliente
+│   │   └── OrderTrackingPage.js
+│   └── components/
+│       └── CheckoutModal.js  # Modal de checkout
+└── .env             # REACT_APP_BACKEND_URL
+```
 
-### P1 - Alta Prioridade
-- [ ] Notificação sonora para pedidos prontos
-- [ ] Impressão de comanda
+### Banco de Dados (MongoDB)
+- **orders**: Pedidos
+- **menu**: Itens do cardápio adicionados pelo gestor
+- **stock**: Controle de estoque
+- **prazo_customers**: Clientes de crédito
+- **expenses**: Gastos registrados
+- **order_history**: Histórico de pedidos entregues
 
-### P2 - Média Prioridade
-- [ ] Histórico de pedidos do dia para impressão
-- [ ] Metas de vendas configuráveis
-- [ ] Relatórios exportáveis (PDF/Excel)
+---
 
-### P3 - Baixa Prioridade
-- [ ] QR Code por mesa
-- [ ] Dashboard de analytics avançado
+## Endpoints Principais
 
-## Changelog
+### Menu
+- `GET /api/menu/{store}` - Lista cardápio (default + custom)
+- `POST /api/gestor/menu` - Adiciona item ao cardápio
 
-### 2025-03-11
-- ✅ Implementado vendas por turno na aba Caixa da cozinha
-- ✅ Melhorado layout mobile da página da cozinha
-- ✅ Adicionado modal de detalhes para produtos no painel do gestor
-- ✅ Implementado modo offline completo com Service Worker
-- ✅ Testes automatizados: 100% de cobertura (19 testes backend passando)
+### Pedidos
+- `POST /api/orders` - Cria pedido
+- `GET /api/orders/{store}` - Lista pedidos
+- `PATCH /api/orders/{store}/{id}/status` - Atualiza status
+
+### Prazo
+- `GET /api/prazo/customers` - Lista clientes
+- `POST /api/prazo/customers` - Cadastra cliente
+- `GET /api/prazo/debts` - Lista débitos
+- `GET /api/prazo/whatsapp-link/{name}` - Link WhatsApp para cobrança
+
+### Gastos
+- `GET /api/expenses` - Lista gastos
+- `POST /api/expenses` - Cria gasto
+- `POST /api/expenses/analyze-image` - Análise IA de foto
+- `GET /api/gestor/chart/monthly-with-expenses` - Gráfico receita vs gastos
+
+### Estoque
+- `GET /api/stock/{store}` - Lista estoque
+- `PUT /api/stock/{store}/{id}` - Atualiza quantidade
+
+---
+
+## Integrações
+
+### OpenAI GPT-4o (via Emergent LLM Key)
+- Análise de imagens de notas fiscais/recibos
+- Extração automática de descrição, valor e categoria
+
+### WhatsApp (Link Direto)
+- Geração de links wa.me com mensagem pré-formatada
+- Usado para cobrança de clientes Prazo
+
+---
+
+## Próximas Tarefas (Backlog)
+
+### P1 - Prioridade Alta
+- [ ] Implementar metas de vendas para o gestor
+- [ ] Notificações de resumo diário (WhatsApp/Email)
+
+### P2 - Melhorias
+- [ ] Refatorar server.py em routers separados
+- [ ] Extrair componentes de GestorPage e KitchenPage
+- [ ] Adicionar testes automatizados
+
+---
+
+## Atualizado em: Dezembro 2025
