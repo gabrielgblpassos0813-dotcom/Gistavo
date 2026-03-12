@@ -1208,7 +1208,7 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
     return {"success": True, "message": f"{result.modified_count} pedidos pagos", "count": result.modified_count}
 
 # ==================== EXPENSES (GASTOS) MANAGEMENT ====================
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContent
 import asyncio
 
 EXPENSE_CATEGORIES = [
