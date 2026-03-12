@@ -2356,7 +2356,7 @@ async def clear_store_data(store: StoreLocation, password: str):
     return {"success": True, "message": f"Pedidos e gastos da loja {store.value} apagados", "deleted_count": result.deleted_count}
 
 # ==================== WHATSAPP BOT PROXY ====================
-WHATSAPP_BOT_URL = "http://localhost:8002"
+WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:8002")
 
 @api_router.get("/whatsapp/status")
 async def get_whatsapp_status():
