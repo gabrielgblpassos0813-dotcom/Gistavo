@@ -1709,17 +1709,63 @@ export const GestorPage = () => {
                 )}
 
                 {whatsappStatus === 'connected' && (
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <p className="text-green-700 font-medium">🎉 WhatsApp conectado com sucesso!</p>
-                    <p className="text-sm text-green-600 mt-2">
-                      Quando um PIX for aprovado na cozinha, você receberá uma notificação automática no número 5511970731504 com:
-                    </p>
-                    <ul className="text-sm text-green-600 mt-2 list-disc list-inside">
-                      <li>Nome do cliente</li>
-                      <li>Valor do pedido</li>
-                      <li>Local (Runner ou GYM Londres)</li>
-                      <li>Horário</li>
-                    </ul>
+                  <div className="space-y-4">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <p className="text-green-700 font-medium">🎉 WhatsApp conectado com sucesso!</p>
+                      <p className="text-sm text-green-600 mt-2">
+                        Quando um PIX for aprovado, você receberá uma notificação automática com a foto do comprovante.
+                      </p>
+                    </div>
+                    
+                    {/* Configurar destino das notificações */}
+                    <div className="bg-secondary/30 p-4 rounded-lg border">
+                      <Label className="font-medium flex items-center gap-2 mb-2">
+                        <Users className="h-4 w-4" /> Destino das Notificações
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Cole o link do grupo WhatsApp ou o número com código do país (ex: 5511999999999)
+                      </p>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={whatsappTargetInput}
+                          onChange={(e) => setWhatsappTargetInput(e.target.value)}
+                          placeholder="Ex: https://chat.whatsapp.com/xxx ou 5511999999999"
+                          className="flex-1"
+                        />
+                        <Button onClick={saveWhatsAppTarget} className="bg-green-600 hover:bg-green-700">
+                          Salvar
+                        </Button>
+                      </div>
+                      {whatsappTarget && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Destino atual: <code className="bg-secondary px-1 rounded">{whatsappTarget}</code>
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Grupos disponíveis */}
+                    {whatsappGroups.length > 0 && (
+                      <div className="bg-secondary/30 p-4 rounded-lg border">
+                        <Label className="font-medium flex items-center gap-2 mb-2">
+                          <MessageCircle className="h-4 w-4" /> Grupos Disponíveis
+                        </Label>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {whatsappGroups.map((group) => (
+                            <div 
+                              key={group.id} 
+                              className="flex items-center justify-between p-2 bg-white rounded border text-sm hover:bg-secondary/50 cursor-pointer"
+                              onClick={() => {
+                                setWhatsappTargetInput(group.id);
+                                toast.info(`Grupo "${group.name}" selecionado. Clique em Salvar.`);
+                              }}
+                            >
+                              <span>{group.name}</span>
+                              <span className="text-xs text-muted-foreground">{group.participants} membros</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
