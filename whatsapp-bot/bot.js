@@ -106,6 +106,9 @@ async function sendPixNotification(data) {
         return { success: false, error: 'WhatsApp não conectado' };
     }
     
+    // Get current target (can be changed dynamically)
+    const target = process.env.WHATSAPP_TARGET || NOTIFICATION_TARGET;
+    
     const message = `📱 *Novo Pedido PIX Confirmado!*
 
 👤 *Nome do Pagador:* ${data.payerName || data.customerName || 'Não informado'}
@@ -123,18 +126,18 @@ ${data.items ? `*Itens:*\n${data.items.map(i => `• ${i.name} x${i.quantity}`).
             // Convert base64 to buffer
             const imageBuffer = Buffer.from(data.proofImage.replace(/^data:image\/\w+;base64,/, ''), 'base64');
             
-            await sock.sendMessage(NOTIFICATION_NUMBER, {
+            await sock.sendMessage(target, {
                 image: imageBuffer,
                 caption: message
             });
-            console.log('Notification with image sent to:', NOTIFICATION_NUMBER);
+            console.log('Notification with image sent to:', target);
         } else {
             // Send text only
-            await sock.sendMessage(NOTIFICATION_NUMBER, { text: message });
-            console.log('Text notification sent to:', NOTIFICATION_NUMBER);
+            await sock.sendMessage(target, { text: message });
+            console.log('Text notification sent to:', target);
         }
         
-        return { success: true, message: 'Notificação enviada!' };
+        return { success: true, message: 'Notificação enviada!', target: target };
     } catch (error) {
         console.error('Error sending notification:', error);
         return { success: false, error: error.message };
