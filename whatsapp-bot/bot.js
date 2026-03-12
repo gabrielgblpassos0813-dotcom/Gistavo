@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
     }
 });
 
-// Send PIX notification to WhatsApp
+// Send PIX notification to WhatsApp WITH IMAGE
 async function sendPixNotification(data) {
     if (!isConnected || !sock) {
         return { success: false, error: 'WhatsApp não conectado' };
@@ -77,17 +77,32 @@ async function sendPixNotification(data) {
     
     const message = `📱 *Novo Pedido PIX Confirmado!*
 
-👤 *Nome:* ${data.customerName || 'Não informado'}
+👤 *Nome do Pagador:* ${data.payerName || data.customerName || 'Não informado'}
 💰 *Valor:* R$ ${data.amount?.toFixed(2) || '0.00'}
 📍 *Local:* ${data.store === 'gym-londres' ? 'GYM Londres' : 'Runner'}
 🕐 *Horário:* ${data.time || new Date().toLocaleTimeString('pt-BR')}
 📋 *Pedido:* ${data.orderNumber || 'N/A'}
+${data.autoApproved ? '✅ *Auto-aprovado pela IA*' : ''}
 
 ${data.items ? `*Itens:*\n${data.items.map(i => `• ${i.name} x${i.quantity}`).join('\n')}` : ''}`;
 
     try {
-        await sock.sendMessage(NOTIFICATION_NUMBER, { text: message });
-        console.log('Notification sent to:', NOTIFICATION_NUMBER);
+        // If we have a proof image, send it with caption
+        if (data.proofImage) {
+            // Convert base64 to buffer
+            const imageBuffer = Buffer.from(data.proofImage.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+            
+            await sock.sendMessage(NOTIFICATION_NUMBER, {
+                image: imageBuffer,
+                caption: message
+            });
+            console.log('Notification with image sent to:', NOTIFICATION_NUMBER);
+        } else {
+            // Send text only
+            await sock.sendMessage(NOTIFICATION_NUMBER, { text: message });
+            console.log('Text notification sent to:', NOTIFICATION_NUMBER);
+        }
+        
         return { success: true, message: 'Notificação enviada!' };
     } catch (error) {
         console.error('Error sending notification:', error);
