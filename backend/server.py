@@ -667,33 +667,42 @@ async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
     
     # Analyze the PIX proof with AI
     try:
-        llm = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY"))
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
         
-        prompt = f"""Analise este comprovante de pagamento PIX e extraia as seguintes informações:
-1. Nome do pagador (quem fez o PIX)
-2. Valor pago
-3. Nome do destinatário/beneficiário (para quem foi o PIX)
-
+        # Extract base64 from data URL if present
+        image_base64 = pix_proof
+        if pix_proof.startswith("data:"):
+            image_base64 = pix_proof.split(",")[1]
+        
+        system_prompt = f"""Você é um assistente que verifica comprovantes de pagamento PIX.
+Analise a imagem e extraia: nome do pagador, valor pago e destinatário.
 O pagamento esperado é de R$ {expected_amount:.2f}.
 O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "CNPJ 49289019000199".
 
-Responda APENAS em formato JSON com os campos:
+Responda APENAS em formato JSON:
 {{
     "payer_name": "nome do pagador",
     "amount": valor numérico (float),
     "recipient": "nome do destinatário",
     "is_valid": true/false,
-    "reason": "motivo da validação"
+    "reason": "motivo"
 }}
 
-IMPORTANTE: is_valid deve ser TRUE se:
-- O valor pago é igual ou maior que o esperado ({expected_amount:.2f})
-- O destinatário contém "saudavelmente" ou "ganoh" ou o CNPJ"""
-
-        response = await llm.chat(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": [prompt, ImageContent(image=pix_proof, detail="high")]}]
+is_valid = TRUE se valor >= {expected_amount:.2f} e destinatário correto."""
+        
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY"),
+            session_id=f"pix-verify-{order_id}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-4o")
+        
+        image_content = ImageContent(image_base64=image_base64)
+        user_message = UserMessage(
+            text="Analise este comprovante PIX.",
+            file_contents=[image_content]
         )
+        
+        response = await chat.send_message(user_message)
         
         # Parse AI response
         import json
