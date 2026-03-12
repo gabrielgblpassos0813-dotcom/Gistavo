@@ -557,6 +557,34 @@ async def get_pending_pix_orders(store: StoreLocation):
         "status": "pending_payment",
         "pix_proof": {"$exists": True}
     }, {"_id": 0}).sort("created_at", 1).to_list(100)
+    
+    # Auto-trigger verification for orders that have proof but no analysis (30+ seconds old)
+    for order in orders:
+        if order.get("pix_proof") and not order.get("pix_analysis"):
+            proof_at = order.get("pix_proof_at")
+            if proof_at:
+                from datetime import datetime, timezone
+                proof_time = datetime.fromisoformat(proof_at.replace('Z', '+00:00'))
+                seconds_since = (datetime.now(timezone.utc) - proof_time).total_seconds()
+                # If more than 30 seconds old and no analysis, trigger background verification
+                if seconds_since > 30:
+                    import asyncio
+                    asyncio.create_task(auto_verify_pix_background(
+                        store, 
+                        order.get("id"), 
+                        order.get("pix_proof"), 
+                        order.get("total", 0)
+                    ))
+            else:
+                # Legacy order without pix_proof_at - trigger verification
+                import asyncio
+                asyncio.create_task(auto_verify_pix_background(
+                    store, 
+                    order.get("id"), 
+                    order.get("pix_proof"), 
+                    order.get("total", 0)
+                ))
+    
     return {"orders": orders}
 
 @api_router.get("/orders/{store}/history")
