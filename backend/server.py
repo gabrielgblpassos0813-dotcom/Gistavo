@@ -1588,14 +1588,18 @@ CLEAR_DATA_PASSWORD = "152637"
 
 @api_router.post("/admin/clear-data")
 async def clear_all_data(password: str):
-    """Clear all orders and history. Protected with password."""
+    """Clear all orders, expenses, and history. Protected with password."""
     if password != CLEAR_DATA_PASSWORD:
         raise HTTPException(status_code=403, detail="Senha incorreta")
     
     # Delete all orders
     await db.orders.delete_many({})
+    # Delete all expenses
+    await db.expenses.delete_many({})
+    # Delete order history
+    await db.order_history.delete_many({})
     
-    return {"success": True, "message": "Todos os pedidos e histórico foram apagados"}
+    return {"success": True, "message": "Todos os pedidos, gastos e histórico foram apagados"}
 
 @api_router.post("/admin/clear-store/{store}")
 async def clear_store_data(store: StoreLocation, password: str):
@@ -1605,8 +1609,10 @@ async def clear_store_data(store: StoreLocation, password: str):
     
     # Delete orders for this store
     result = await db.orders.delete_many({"store": store.value})
+    # Delete expenses for this store
+    await db.expenses.delete_many({"$or": [{"store": store.value}, {"store": "all"}]})
     
-    return {"success": True, "message": f"Pedidos da loja {store.value} apagados", "deleted_count": result.deleted_count}
+    return {"success": True, "message": f"Pedidos e gastos da loja {store.value} apagados", "deleted_count": result.deleted_count}
 
 # Include router
 app.include_router(api_router)
