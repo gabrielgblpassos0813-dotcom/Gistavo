@@ -457,8 +457,8 @@ export const KitchenPage = () => {
       setPendingPixOrders(pixRes.data.orders);
       setHistoryOrders(historyRes.data.orders);
       
-      // Set prazo debts for runner
-      if (store === 'runner' && results[6]) {
+      // Set prazo debts for all stores
+      if (results[6]) {
         setPrazoDebts(results[6].data);
       }
       
