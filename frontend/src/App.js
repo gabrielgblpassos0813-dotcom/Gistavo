@@ -6,6 +6,7 @@ import { OrderTrackingPage } from "./pages/OrderTrackingPage";
 import { KitchenPage } from "./pages/KitchenPage";
 import { GestorPage } from "./pages/GestorPage";
 import { StoreSelectorPage } from "./pages/StoreSelectorPage";
+import { AuthPage } from "./pages/AuthPage";
 
 function App() {
   return (
@@ -19,6 +20,9 @@ function App() {
           <Route path="/:store" element={<MenuPage />} />
           <Route path="/:store/pedido/:orderId" element={<OrderTrackingPage />} />
           <Route path="/:store/cozinha" element={<KitchenPage />} />
+          
+          {/* Auth page - login/register */}
+          <Route path="/auth" element={<AuthPage />} />
           
           {/* Gestor (manager) panel */}
           <Route path="/gestor/dashboard" element={<GestorPage />} />
