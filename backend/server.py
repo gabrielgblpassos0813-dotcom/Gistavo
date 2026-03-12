@@ -1801,6 +1801,12 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_db_client():
+    """Initialize database and default tenant"""
+    await ensure_default_tenant()
+    logger.info("Database initialized, default tenant ensured")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
