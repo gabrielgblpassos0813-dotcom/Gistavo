@@ -650,8 +650,6 @@ async def upload_pix_proof(store: StoreLocation, order_id: str, proof: PixProofU
 @api_router.post("/orders/{store}/{order_id}/auto-verify-pix")
 async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
     """Use AI to analyze PIX proof and auto-approve if valid"""
-    from emergentintegrations.llm.openai import LlmChat, ImageContent
-    
     order = await db.orders.find_one({"id": order_id, "store": store.value})
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
