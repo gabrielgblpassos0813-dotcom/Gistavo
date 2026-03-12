@@ -374,9 +374,13 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                   <p className="text-xs text-muted-foreground mt-1">{customerName}</p>
                 </div>
 
-                {/* QR Code Placeholder */}
-                <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-                  <QrCode className="h-32 w-32 mx-auto text-gray-400 mb-3" />
+                {/* QR Code do PIX */}
+                <div className="bg-white border rounded-xl p-4 text-center">
+                  <img 
+                    src="/images/pix-qrcode.png" 
+                    alt="QR Code PIX" 
+                    className="h-48 w-48 mx-auto mb-3"
+                  />
                   <p className="text-xs text-muted-foreground">
                     Escaneie o QR Code acima ou use o código abaixo
                   </p>
