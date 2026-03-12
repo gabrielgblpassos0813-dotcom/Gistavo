@@ -1634,13 +1634,12 @@ export const GestorPage = () => {
                 <Label>Categoria</Label>
                 <Select value={newItem.category} onValueChange={(v) => setNewItem({...newItem, category: v})}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Lanches">Lanches</SelectItem>
-                    <SelectItem value="Bebidas">Bebidas</SelectItem>
-                    <SelectItem value="Sobremesas">Sobremesas</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
+                    {menuCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
