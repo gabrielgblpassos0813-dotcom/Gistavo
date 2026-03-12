@@ -619,30 +619,16 @@ export const GestorPage = () => {
     if (!auth) return;
     const [user, pass] = atob(auth).split(':');
     
-    // Parse ALL expense commands from the message (handles multiple like "6 é mercado. 22 é sistema. 35 é vt")
-    const parseMultipleCommands = (input) => {
-      const commands = [];
-      // Split by . , ; or "e o de" or "o de"
-      const parts = input.split(/[.,;]|\se\s+o\s+de\s/i).filter(p => p.trim());
-      
-      for (const part of parts) {
-        const cmd = parseExpenseCommand(part);
-        if (cmd) {
-          commands.push(cmd);
-        }
-      }
-      return commands;
-    };
+    // Parse ALL expense commands from the message using global regex
+    const allCommands = parseAllExpenseCommands(userMessage);
     
-    const allCommands = parseMultipleCommands(userMessage);
-    
-    // If we have multiple commands, process them all at once
+    // If we found commands, process them all at once
     if (allCommands.length > 0 && pendingExpensesList.length > 0) {
       const savedExpenses = [];
       let remainingExpenses = [...pendingExpensesList];
       
       for (const cmd of allCommands) {
-        // Find expense by amount (with tolerance)
+        // Find expense by amount (with tolerance of 1 real)
         const matchingExpense = remainingExpenses.find(exp => 
           Math.abs(exp.amount - cmd.amount) < 1
         );
@@ -658,12 +644,7 @@ export const GestorPage = () => {
               image_url: ''
             }, { auth: { username: user, password: pass } });
             
-            savedExpenses.push({
-              ...matchingExpense,
-              category: cmd.category
-            });
-            
-            // Remove from remaining
+            savedExpenses.push({ ...matchingExpense, category: cmd.category });
             remainingExpenses = remainingExpenses.filter(e => e !== matchingExpense);
           } catch (error) {
             console.error('Error saving expense:', error);
@@ -680,12 +661,12 @@ export const GestorPage = () => {
         });
         
         if (remainingExpenses.length > 0) {
-          response += `\n📋 Ainda faltam ${remainingExpenses.length}:\n`;
+          response += `\n📋 Faltam ${remainingExpenses.length}:\n`;
           remainingExpenses.forEach((exp, idx) => {
             response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
           });
         } else {
-          response += '\n✅ Todos os gastos foram salvos!';
+          response += '\n✅ Todos salvos!';
           setAwaitingCategory(false);
           fetchExpenses();
           setTimeout(() => closeExpenseChat(), 2000);
@@ -697,60 +678,11 @@ export const GestorPage = () => {
       }
     }
     
-    // If single command, try to match one expense
-    const singleCommand = parseExpenseCommand(userMessage);
-    
-    if (singleCommand && pendingExpensesList.length > 0) {
-      const matchingExpense = pendingExpensesList.find(exp => 
-        Math.abs(exp.amount - singleCommand.amount) < 1
-      );
-      
-      if (matchingExpense) {
-        try {
-          await axios.post(`${API}/expenses`, {
-            description: matchingExpense.description,
-            amount: matchingExpense.amount,
-            category: singleCommand.category,
-            store: 'all',
-            notes: matchingExpense.notes || '',
-            image_url: ''
-          }, { auth: { username: user, password: pass } });
-          
-          const remaining = pendingExpensesList.filter(e => e !== matchingExpense);
-          setPendingExpensesList(remaining);
-          
-          let response = `✅ Salvo: R$ ${matchingExpense.amount?.toFixed(2)} → **${singleCommand.category}**`;
-          
-          if (remaining.length > 0) {
-            response += `\n\n📋 Ainda faltam ${remaining.length}:\n`;
-            remaining.forEach((exp, idx) => {
-              response += `${idx + 1}. R$ ${exp.amount?.toFixed(2)} - ${exp.description}\n`;
-            });
-          } else {
-            response += '\n\n✅ Todos os gastos foram salvos!';
-            setAwaitingCategory(false);
-            fetchExpenses();
-            setTimeout(() => closeExpenseChat(), 2000);
-          }
-          
-          setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
-          toast.success('Gasto salvo!');
-        } catch (error) {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: '❌ Erro ao salvar. Tente novamente.' 
-          }]);
-        }
-        return;
-      }
-    }
-    
-    // If no specific expense command, apply category to all pending
+    // If no specific commands found, try to apply category to ALL pending
     const validCategory = matchCategory(userMessage);
     
     if (validCategory && pendingExpensesList.length > 0) {
       try {
-        // Save all pending expenses with this category
         for (const exp of pendingExpensesList) {
           await axios.post(`${API}/expenses`, {
             description: exp.description,
@@ -776,15 +708,12 @@ export const GestorPage = () => {
         
         setTimeout(() => closeExpenseChat(), 2000);
       } catch (error) {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: '❌ Erro ao salvar. Tente novamente.' 
-        }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: '❌ Erro ao salvar.' }]);
       }
-    } else if (!validCategory && allCommands.length === 0) {
+    } else {
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `🤔 Não entendi "${userMessage}".\n\nExemplos:\n• "mercado" (aplica a todos)\n• "6 é mercado, 22 sistema, 35 vt" (vários de uma vez)\n• "o de 6 reais é mercado"` 
+        content: `🤔 Não entendi.\n\nExemplos:\n• "6 mercado 22 suplemento 35 sistema"\n• "mercado" (aplica a todos)` 
       }]);
     }
   };
