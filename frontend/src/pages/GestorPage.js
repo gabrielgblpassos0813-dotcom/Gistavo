@@ -171,14 +171,31 @@ export const GestorPage = () => {
     }
   };
 
-  const fetchChartData = async () => {
+  const fetchChartData = async (period = chartPeriod, date = chartSelectedDate, month = chartSelectedMonth, year = chartSelectedYear) => {
     const auth = localStorage.getItem('gestor_auth');
     if (!auth) return;
     
     try {
       const [user, pass] = atob(auth).split(':');
-      const response = await axios.get(`${API}/gestor/chart/monthly`, {
-        auth: { username: user, password: pass }
+      
+      let endpoint = `${API}/gestor/chart/monthly`;
+      let params = {};
+      
+      if (period === 'day') {
+        const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+        params = { date: dateStr };
+        endpoint = `${API}/gestor/chart/daily`;
+      } else if (period === 'month') {
+        params = { month, year };
+        endpoint = `${API}/gestor/chart/monthly`;
+      } else if (period === 'year') {
+        params = { year };
+        endpoint = `${API}/gestor/chart/yearly`;
+      }
+      
+      const response = await axios.get(endpoint, {
+        auth: { username: user, password: pass },
+        params
       });
       setChartData(response.data);
     } catch (error) {
