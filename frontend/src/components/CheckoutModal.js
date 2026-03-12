@@ -40,6 +40,8 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
   const [copied, setCopied] = useState(false);
   const [prazoCustomers, setPrazoCustomers] = useState([]);
   const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState('');
+  const [scheduleToggleCount, setScheduleToggleCount] = useState(0);
+  const [showPrazo, setShowPrazo] = useState(false);
   const fileInputRef = useRef(null);
   const { items, total, itemCount } = useCart();
 
@@ -49,11 +51,28 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
       axios.get(`${API}/prazo/customers`)
         .then(res => setPrazoCustomers(res.data.customers || []))
         .catch(() => {});
+      // Reset toggle count when modal opens
+      setScheduleToggleCount(0);
+      setShowPrazo(false);
     }
   }, [isOpen]);
 
-  // Get available payment methods (same for all stores now)
-  const availablePaymentMethods = PAYMENT_METHODS;
+  // Handle schedule toggle - unlock prazo after 5 toggles
+  const handleScheduleToggle = (checked) => {
+    setWantsSchedule(checked);
+    const newCount = scheduleToggleCount + 1;
+    setScheduleToggleCount(newCount);
+    
+    if (newCount >= 5 && !showPrazo) {
+      setShowPrazo(true);
+      toast.success('🔓 Opção Prazo desbloqueada!', { duration: 2000 });
+    }
+  };
+
+  // Get available payment methods - prazo only shows after 5 toggles
+  const availablePaymentMethods = showPrazo 
+    ? PAYMENT_METHODS 
+    : PAYMENT_METHODS.filter(m => m.id !== 'prazo');
 
   // Generate time slots from now until closing (22:00)
   const timeSlots = useMemo(() => {
