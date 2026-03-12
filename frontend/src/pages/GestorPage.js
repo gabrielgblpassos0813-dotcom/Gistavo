@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { 
   BarChart3, TrendingUp, TrendingDown, ShoppingBag, DollarSign,
   AlertTriangle, RefreshCw, LogOut, Home, Store,
-  ChevronRight, Trash2, Plus, Pencil, UtensilsCrossed, CalendarClock, UserPlus
+  ChevronRight, Trash2, Plus, Pencil, UtensilsCrossed, CalendarClock, UserPlus, Receipt, Camera, Upload, Loader2
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
