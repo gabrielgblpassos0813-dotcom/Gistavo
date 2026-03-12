@@ -273,7 +273,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                 <Switch
                   id="schedule-toggle"
                   checked={wantsSchedule}
-                  onCheckedChange={setWantsSchedule}
+                  onCheckedChange={handleScheduleToggle}
                   data-testid="schedule-toggle"
                 />
               </div>
