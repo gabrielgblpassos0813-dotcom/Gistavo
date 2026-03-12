@@ -1194,7 +1194,7 @@ async def get_today_cash(store: StoreLocation):
         by_payment_value[payment] = by_payment_value.get(payment, 0) + amount  # Value in R$
         total += amount
         
-        # Determine shift based on order time
+        # Determine shift based on order time (convert UTC to Brazil time -3 hours)
         created_at = order.get("created_at", "")
         try:
             if isinstance(created_at, str):
@@ -1202,8 +1202,9 @@ async def get_today_cash(store: StoreLocation):
             else:
                 order_time = created_at
             
-            hour = order_time.hour
-            if 6 <= hour < 14:
+            # Convert UTC to Brazil timezone (UTC-3)
+            brazil_hour = (order_time.hour - 3) % 24
+            if 6 <= brazil_hour < 14:
                 shift_morning["total"] += amount
                 shift_morning["count"] += 1
                 shift_morning["by_payment"][payment] += amount  # Value in R$
