@@ -647,6 +647,155 @@ async def upload_pix_proof(store: StoreLocation, order_id: str, proof: PixProofU
     
     return {"success": True, "message": "Comprovante enviado com sucesso"}
 
+@api_router.post("/orders/{store}/{order_id}/auto-verify-pix")
+async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
+    """Use AI to analyze PIX proof and auto-approve if valid"""
+    from emergentintegrations.llms.openai import OpenAILLM, ImageContent
+    
+    order = await db.orders.find_one({"id": order_id, "store": store.value})
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    if order.get("status") != "pending_payment":
+        raise HTTPException(status_code=400, detail="Pedido não está aguardando aprovação")
+    
+    pix_proof = order.get("pix_proof")
+    if not pix_proof:
+        raise HTTPException(status_code=400, detail="Comprovante PIX não encontrado")
+    
+    expected_amount = order.get("total", 0)
+    
+    # Analyze the PIX proof with AI
+    try:
+        llm = OpenAILLM(api_key=os.environ.get("EMERGENT_LLM_KEY"))
+        
+        prompt = f"""Analise este comprovante de pagamento PIX e extraia as seguintes informações:
+1. Nome do pagador (quem fez o PIX)
+2. Valor pago
+3. Nome do destinatário/beneficiário (para quem foi o PIX)
+
+O pagamento esperado é de R$ {expected_amount:.2f}.
+O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "CNPJ 49289019000199".
+
+Responda APENAS em formato JSON com os campos:
+{{
+    "payer_name": "nome do pagador",
+    "amount": valor numérico (float),
+    "recipient": "nome do destinatário",
+    "is_valid": true/false,
+    "reason": "motivo da validação"
+}}
+
+IMPORTANTE: is_valid deve ser TRUE se:
+- O valor pago é igual ou maior que o esperado ({expected_amount:.2f})
+- O destinatário contém "saudavelmente" ou "ganoh" ou o CNPJ"""
+
+        response = await llm.chat_with_images(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            images=[ImageContent(image=pix_proof, detail="high")]
+        )
+        
+        # Parse AI response
+        import json
+        import re
+        
+        response_text = response.choices[0].message.content
+        # Extract JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            analysis = json.loads(json_match.group())
+        else:
+            analysis = {"is_valid": False, "reason": "Não foi possível analisar o comprovante"}
+        
+        payer_name = analysis.get("payer_name", "Desconhecido")
+        extracted_amount = analysis.get("amount", 0)
+        is_valid = analysis.get("is_valid", False)
+        
+        # Save analysis to order
+        await db.orders.update_one(
+            {"id": order_id, "store": store.value},
+            {
+                "$set": {
+                    "pix_analysis": analysis,
+                    "pix_payer_name": payer_name,
+                    "pix_extracted_amount": extracted_amount,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        if is_valid:
+            # Auto-approve the payment
+            # Update stock
+            for item in order.get("items", []):
+                await db.stock.update_one(
+                    {"menu_item_id": item["menu_item_id"].split("-")[0], "store": store.value},
+                    {"$inc": {"quantity": -item["quantity"]}},
+                    upsert=False
+                )
+            
+            # Update order status
+            await db.orders.update_one(
+                {"id": order_id, "store": store.value},
+                {
+                    "$set": {
+                        "status": "received",
+                        "payment_approved_at": datetime.now(timezone.utc).isoformat(),
+                        "auto_approved": True,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+            
+            # Send WhatsApp notification WITH image
+            try:
+                async with httpx.AsyncClient() as client_http:
+                    await client_http.post(
+                        "http://localhost:8002/send-notification",
+                        json={
+                            "customerName": order.get("customer_name", "Cliente"),
+                            "payerName": payer_name,
+                            "amount": order.get("total", 0),
+                            "store": store.value,
+                            "time": datetime.now().strftime("%H:%M"),
+                            "orderNumber": order.get("order_number", order_id[:8]),
+                            "items": order.get("items", []),
+                            "proofImage": pix_proof,
+                            "autoApproved": True
+                        },
+                        timeout=10.0
+                    )
+            except Exception as e:
+                logger.warning(f"Could not send WhatsApp notification: {e}")
+            
+            return {
+                "success": True,
+                "auto_approved": True,
+                "payer_name": payer_name,
+                "extracted_amount": extracted_amount,
+                "analysis": analysis,
+                "message": "Pagamento verificado e aprovado automaticamente!"
+            }
+        else:
+            return {
+                "success": True,
+                "auto_approved": False,
+                "payer_name": payer_name,
+                "extracted_amount": extracted_amount,
+                "analysis": analysis,
+                "message": f"Verificação falhou: {analysis.get('reason', 'Dados não correspondem')}"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error analyzing PIX proof: {e}")
+        return {
+            "success": False,
+            "auto_approved": False,
+            "error": str(e),
+            "message": "Erro ao analisar comprovante. Aprovação manual necessária."
+        }
+
 @api_router.post("/orders/{store}/{order_id}/approve-payment")
 async def approve_or_reject_payment(store: StoreLocation, order_id: str, approval: PaymentApproval):
     """Approve or reject PIX payment"""
