@@ -81,9 +81,10 @@ export const GestorPage = () => {
   const [isClearing, setIsClearing] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
+  const [menuCategories, setMenuCategories] = useState([]);
   const [showMenuDialog, setShowMenuDialog] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [newItem, setNewItem] = useState({ name: '', description: '', price: '', category: 'Lanches', store: 'runner', image_url: '' });
+  const [newItem, setNewItem] = useState({ name: '', description: '', price: '', category: '', store: 'runner', image_url: '' });
   const [activeMainTab, setActiveMainTab] = useState('dashboard');
   const [prazoCustomers, setPrazoCustomers] = useState([]);
   const [prazoDebts, setPrazoDebts] = useState({ debts: [], total_prazo: 0 });
