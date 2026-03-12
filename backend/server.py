@@ -281,8 +281,20 @@ async def get_menu(store: StoreLocation):
     stock_docs = await db.stock.find({"store": store.value}, {"_id": 0}).to_list(1000)
     stock_map = {s["menu_item_id"]: s["quantity"] for s in stock_docs}
     
+    # Get custom menu items added by gestor for this store
+    custom_items = await db.menu_items.find({
+        "$or": [
+            {"store": store.value},
+            {"store": "all"},
+            {"store": {"$exists": False}}  # Items without store filter apply to all
+        ]
+    }, {"_id": 0}).to_list(1000)
+    
     # Add availability based on stock (only for bebidas)
     items_with_stock = []
+    seen_ids = set()
+    
+    # First add default menu items
     for item in MENU_DATA:
         item_copy = item.copy()
         if item["category"] in STOCK_CATEGORIES:
@@ -294,10 +306,33 @@ async def get_menu(store: StoreLocation):
             item_copy["stock"] = None
             item_copy["available"] = True
         items_with_stock.append(item_copy)
+        seen_ids.add(item["id"])
+    
+    # Then add custom items from gestor (avoid duplicates)
+    for custom_item in custom_items:
+        if custom_item.get("id") not in seen_ids:
+            item_copy = custom_item.copy()
+            # Check if this category needs stock control
+            if custom_item.get("category") in STOCK_CATEGORIES:
+                stock_qty = stock_map.get(custom_item.get("id"), 0)
+                item_copy["stock"] = stock_qty
+                item_copy["available"] = stock_qty > 0
+            else:
+                item_copy["stock"] = None
+                item_copy["available"] = True
+            items_with_stock.append(item_copy)
+            seen_ids.add(custom_item.get("id"))
+    
+    # Get all unique categories (default + custom)
+    all_categories = list(CATEGORIES)
+    for custom_item in custom_items:
+        cat = custom_item.get("category")
+        if cat and cat not in all_categories:
+            all_categories.append(cat)
     
     return {
         "items": items_with_stock, 
-        "categories": CATEGORIES, 
+        "categories": all_categories, 
         "adicionais": ADICIONAIS,
         "store": STORES.get(store.value)
     }
