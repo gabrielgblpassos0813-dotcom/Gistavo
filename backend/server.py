@@ -616,7 +616,7 @@ async def get_stock(store: StoreLocation):
                 **stock,
                 "name": menu_item["name"],
                 "category": menu_item["category"],
-                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 2),
                 "type": "bebida"
             })
         elif ingrediente:
@@ -624,14 +624,14 @@ async def get_stock(store: StoreLocation):
                 **stock,
                 "name": ingrediente["name"],
                 "category": ingrediente["category"],
-                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 2),
                 "type": "ingrediente"
             })
         elif stock.get("name"):
             # Custom item added by user
             result.append({
                 **stock,
-                "low_stock": stock["quantity"] <= stock.get("min_quantity", 5),
+                "low_stock": stock["quantity"] <= stock.get("min_quantity", 2),
                 "type": "custom"
             })
     
