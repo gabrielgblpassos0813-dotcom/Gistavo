@@ -296,7 +296,8 @@ CATEGORIES = [
     "Saladas",
     "Bebidas Quentes",
     "Bebidas Geladas",
-    "Suplementos"
+    "Suplementos",
+    "Doces"
 ]
 
 ADICIONAIS = [
