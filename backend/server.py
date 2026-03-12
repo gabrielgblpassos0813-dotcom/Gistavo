@@ -699,7 +699,7 @@ IMPORTANTE: is_valid deve ser TRUE se:
         import json
         import re
         
-        response_text = response.choices[0].message.content
+        response_text = response.content
         # Extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
