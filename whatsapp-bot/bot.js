@@ -94,6 +94,60 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ success: false, error: error.message }));
             }
         });
+    } else if (req.url.startsWith('/join-group') && req.method === 'POST') {
+        // Join a group via invite link
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                if (!data.inviteLink) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invite link not provided' }));
+                    return;
+                }
+                
+                if (!isConnected || !sock) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'WhatsApp not connected' }));
+                    return;
+                }
+                
+                // Extract invite code from link
+                const inviteCode = data.inviteLink.split('chat.whatsapp.com/')[1]?.split('?')[0];
+                if (!inviteCode) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invalid invite link' }));
+                    return;
+                }
+                
+                // Join the group
+                const groupId = await sock.groupAcceptInvite(inviteCode);
+                console.log('Joined group:', groupId);
+                
+                // Set as target
+                process.env.WHATSAPP_TARGET = groupId;
+                
+                // Refresh groups list
+                const groups = await sock.groupFetchAllParticipating();
+                availableGroups = Object.values(groups).map(g => ({
+                    id: g.id,
+                    name: g.subject,
+                    participants: g.participants?.length || 0
+                }));
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    success: true, 
+                    groupId: groupId,
+                    message: 'Entrou no grupo com sucesso!'
+                }));
+            } catch (error) {
+                console.error('Error joining group:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: error.message }));
+            }
+        });
     } else {
         res.writeHead(404);
         res.end('Not found');
