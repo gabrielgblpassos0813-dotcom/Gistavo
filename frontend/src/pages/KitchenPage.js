@@ -874,12 +874,21 @@ export const KitchenPage = () => {
                         <p className="font-medium">{debt.name}</p>
                         <p className="text-xs text-muted-foreground">{debt.order_count} pedido(s)</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-amber-600">{formatCurrency(debt.total)}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-amber-600 mr-1">{formatCurrency(debt.total)}</span>
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="text-green-600 border-green-600 hover:bg-green-50"
+                          className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
+                          onClick={() => handleSendWhatsApp(debt.name)}
+                          title="Enviar cobrança por WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
                           onClick={() => {
                             setSelectedPrazoCustomer(debt);
                             setShowPrazoPayDialog(true);
