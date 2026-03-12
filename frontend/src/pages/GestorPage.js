@@ -433,6 +433,7 @@ export const GestorPage = () => {
       fetchChartData();
       fetchMenuItems();
       fetchPrazoData();
+      fetchExpenses();
     }
   }, []);
 
