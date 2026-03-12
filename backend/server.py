@@ -29,7 +29,56 @@ api_router = APIRouter(prefix="/api")
 # Security
 security = HTTPBasic()
 
-# Gestor credentials (in production, use env variables)
+# ==================== MULTI-TENANT SYSTEM ====================
+# Maximum 2 accounts allowed
+MAX_ACCOUNTS = 2
+
+class TenantCreate(BaseModel):
+    username: str
+    password: str
+    display_name: str = ""
+
+class TenantLogin(BaseModel):
+    username: str
+    password: str
+
+class TenantResponse(BaseModel):
+    id: str
+    username: str
+    display_name: str
+    created_at: str
+
+async def get_tenant_by_credentials(username: str, password: str):
+    """Get tenant by username and password"""
+    import hashlib
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    tenant = await db.tenants.find_one({
+        "username": username,
+        "password_hash": password_hash
+    })
+    return tenant
+
+async def get_tenant_by_id(tenant_id: str):
+    """Get tenant by ID"""
+    return await db.tenants.find_one({"id": tenant_id})
+
+async def ensure_default_tenant():
+    """Create default Gestor tenant if it doesn't exist"""
+    import hashlib
+    existing = await db.tenants.find_one({"username": "gestor"})
+    if not existing:
+        password_hash = hashlib.sha256("ganoh2024".encode()).hexdigest()
+        await db.tenants.insert_one({
+            "id": "tenant_gestor",
+            "username": "gestor",
+            "password_hash": password_hash,
+            "display_name": "GANOH Café Bistrô",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "is_default": True
+        })
+        logging.info("Default tenant 'gestor' created")
+
+# Legacy support - will be replaced by tenant system
 GESTOR_USERNAME = os.environ.get('GESTOR_USERNAME', 'gestor')
 GESTOR_PASSWORD = os.environ.get('GESTOR_PASSWORD', 'ganoh2024')
 
