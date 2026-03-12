@@ -797,7 +797,16 @@ export const GestorPage = () => {
   };
 
   useEffect(() => {
+    // Check for tenant auth first
+    const tenantId = localStorage.getItem('tenant_id');
     const auth = localStorage.getItem('gestor_auth');
+    
+    if (!tenantId && !auth) {
+      // Redirect to auth page if not logged in
+      navigate('/auth');
+      return;
+    }
+    
     if (auth) {
       setIsAuthenticated(true);
       fetchDashboard();
@@ -806,12 +815,16 @@ export const GestorPage = () => {
       fetchPrazoData();
       fetchExpenses();
     }
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('gestor_auth');
+    localStorage.removeItem('tenant_id');
+    localStorage.removeItem('tenant_username');
+    localStorage.removeItem('tenant_display_name');
     setIsAuthenticated(false);
     setDashboard(null);
+    navigate('/auth');
   };
 
   const openProductsDialog = (title, products, type) => {
