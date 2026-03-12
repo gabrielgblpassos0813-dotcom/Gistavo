@@ -2100,6 +2100,23 @@ async def set_whatsapp_target(data: WhatsAppTargetUpdate):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+class WhatsAppJoinGroup(BaseModel):
+    inviteLink: str
+
+@api_router.post("/whatsapp/join-group")
+async def join_whatsapp_group(data: WhatsAppJoinGroup):
+    """Proxy to join a WhatsApp group via invite link"""
+    try:
+        async with httpx.AsyncClient() as client_http:
+            response = await client_http.post(
+                f"{WHATSAPP_BOT_URL}/join-group",
+                json={"inviteLink": data.inviteLink},
+                timeout=30.0
+            )
+            return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # Include router
 app.include_router(api_router)
 
