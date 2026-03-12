@@ -329,6 +329,25 @@ export const GestorPage = () => {
     }
   };
 
+  const fetchWhatsAppStatus = async () => {
+    try {
+      const response = await axios.get(`${BACKEND_URL.replace('/api', '')}/whatsapp/status`, { timeout: 3000 });
+      setWhatsappStatus(response.data.status);
+      setWhatsappQR(response.data.qrCode);
+    } catch (error) {
+      setWhatsappStatus('offline');
+    }
+  };
+
+  // Poll WhatsApp status every 5 seconds when on WhatsApp tab
+  useEffect(() => {
+    if (activeMainTab === 'whatsapp' && isAuthenticated) {
+      fetchWhatsAppStatus();
+      const interval = setInterval(fetchWhatsAppStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeMainTab, isAuthenticated]);
+
   const compressImage = (file, maxWidth = 800, quality = 0.6) => {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
