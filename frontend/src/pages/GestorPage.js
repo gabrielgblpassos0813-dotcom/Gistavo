@@ -102,6 +102,7 @@ export const GestorPage = () => {
   const [expenseImage, setExpenseImage] = useState(null);
   const [expenseImagePreview, setExpenseImagePreview] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzedExpense, setAnalyzedExpense] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const EXPENSE_CATEGORIES = ['contador', 'fornecedor', 'mercado', 'suplementos', 'VT', 'Vivo', 'sistema', 'salário', 'outros'];
   
