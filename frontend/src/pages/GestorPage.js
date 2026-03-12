@@ -1336,6 +1336,160 @@ export const GestorPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Expense Dialog with AI Analysis */}
+      <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-red-600" />
+              {analyzedExpense ? 'Confirmar Gasto' : 'Adicionar Gasto'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Image Upload Section */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Foto do Comprovante (opcional)
+              </Label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleExpenseImageChange}
+                className="hidden"
+                id="expense-image-input"
+              />
+              {expenseImagePreview ? (
+                <div className="relative">
+                  <img 
+                    src={expenseImagePreview} 
+                    alt="Comprovante" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <div className="absolute bottom-2 right-2 flex gap-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => document.getElementById('expense-image-input').click()}
+                    >
+                      Trocar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-brand-600 hover:bg-brand-700"
+                      onClick={handleAnalyzeExpense}
+                      disabled={isAnalyzing}
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-1" />
+                          Analisar com IA
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-24 border-dashed flex flex-col gap-2"
+                  onClick={() => document.getElementById('expense-image-input').click()}
+                >
+                  <Camera className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm">Tirar foto ou selecionar imagem</span>
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Envie uma foto da nota fiscal ou recibo para análise automática por IA
+              </p>
+            </div>
+
+            {/* AI Analysis Result */}
+            {analyzedExpense && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-green-700 mb-1">✓ Análise da IA concluída</p>
+                <p className="text-xs text-green-600">
+                  Confiança: {analyzedExpense.confidence || 'média'} - Verifique os dados abaixo antes de salvar.
+                </p>
+              </div>
+            )}
+
+            {/* Form Fields */}
+            <div>
+              <Label>Descrição *</Label>
+              <Input 
+                value={newExpense.description} 
+                onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                placeholder="Ex: Compra de ingredientes"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Valor (R$) *</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  value={newExpense.amount} 
+                  onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={newExpense.category} onValueChange={(v) => setNewExpense({...newExpense, category: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Input 
+                value={newExpense.notes} 
+                onChange={(e) => setNewExpense({...newExpense, notes: e.target.value})}
+                placeholder="Ex: Nota fiscal #123"
+              />
+            </div>
+            <DialogFooter className="flex-col sm:flex-col gap-2">
+              <Button 
+                className="w-full bg-red-600 hover:bg-red-700" 
+                onClick={handleSaveExpense}
+                disabled={!newExpense.description || !newExpense.amount}
+              >
+                Salvar Gasto
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => {
+                  setShowExpenseDialog(false);
+                  setNewExpense({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
+                  setExpenseImage(null);
+                  setExpenseImagePreview(null);
+                  setAnalyzedExpense(null);
+                }}
+              >
+                Cancelar
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
