@@ -1587,31 +1587,37 @@ async def get_store_menu(store: StoreLocation, username: str = Depends(verify_ge
 
 @api_router.post("/gestor/menu")
 async def create_menu_item(item: MenuItemCreate, username: str = Depends(verify_gestor)):
-    """Create a new menu item"""
-    menu_item = {
-        "id": str(uuid.uuid4()),
-        "name": item.name,
-        "description": item.description,
-        "price": item.price,
-        "category": item.category,
-        "store": item.store,
-        "image_url": item.image_url,
-        "available": True,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.menu.insert_one(menu_item)
+    """Create a new menu item in BOTH stores"""
+    base_id = str(uuid.uuid4())
+    stores = ["runner", "gym-londres"]
+    created_items = []
     
-    # Also add to stock with default quantity
-    await db.stock.insert_one({
-        "store": item.store,
-        "menu_item_id": menu_item["id"],
-        "name": item.name,
-        "category": item.category,
-        "quantity": 50,
-        "low_stock": False
-    })
+    for store in stores:
+        menu_item = {
+            "id": f"{base_id}-{store}",
+            "name": item.name,
+            "description": item.description,
+            "price": item.price,
+            "category": item.category,
+            "store": store,
+            "image_url": item.image_url,
+            "available": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.menu.insert_one(menu_item)
+        
+        # Also add to stock with default quantity
+        await db.stock.insert_one({
+            "store": store,
+            "menu_item_id": menu_item["id"],
+            "name": item.name,
+            "category": item.category,
+            "quantity": 50,
+            "low_stock": False
+        })
+        created_items.append(menu_item)
     
-    return {**menu_item, "_id": None}
+    return {"success": True, "items": [{**i, "_id": None} for i in created_items], "message": "Item adicionado em ambas as lojas!"}
 
 @api_router.put("/gestor/menu/{item_id}")
 async def update_menu_item(item_id: str, update: MenuItemUpdate, username: str = Depends(verify_gestor)):
