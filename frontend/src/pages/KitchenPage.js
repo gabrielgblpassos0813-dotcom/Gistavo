@@ -429,13 +429,9 @@ export const KitchenPage = () => {
         axios.get(`${API}/cash/${store}/today`),
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
-        axios.get(`${API}/orders/${store}/history`)
+        axios.get(`${API}/orders/${store}/history`),
+        axios.get(`${API}/prazo/debts`)  // Fetch prazo debts for all stores
       ];
-      
-      // Fetch prazo debts only for runner
-      if (store === 'runner') {
-        requests.push(axios.get(`${API}/prazo/debts`));
-      }
       
       const results = await Promise.all(requests);
       const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = results;
