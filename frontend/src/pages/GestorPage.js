@@ -1061,18 +1061,32 @@ Tente: mercado, fornecedor, contador, suplementos, VT, Vivo, sistema, salário o
                   <Receipt className="h-5 w-5 text-red-600" />
                   Gestão de Gastos
                 </h2>
-                <Button 
-                  className="bg-red-600 hover:bg-red-700"
-                  onClick={() => {
-                    setShowExpenseDialog(true);
-                    setAnalyzedExpense(null);
-                    setExpenseImage(null);
-                    setExpenseImagePreview(null);
-                    setNewExpense({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Novo Gasto
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    className="bg-brand-600 hover:bg-brand-700"
+                    onClick={() => {
+                      setExpenseImage(null);
+                      setExpenseImagePreview(null);
+                      setChatMessages([]);
+                      setAwaitingCategory(false);
+                      setShowExpenseChat(true);
+                    }}
+                  >
+                    <Camera className="h-4 w-4 mr-1" /> Foto + IA
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setShowExpenseDialog(true);
+                      setAnalyzedExpense(null);
+                      setExpenseImage(null);
+                      setExpenseImagePreview(null);
+                      setNewExpense({ description: '', amount: '', category: 'outros', store: 'all', notes: '' });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Manual
+                  </Button>
+                </div>
               </div>
 
               {/* Summary Cards */}
