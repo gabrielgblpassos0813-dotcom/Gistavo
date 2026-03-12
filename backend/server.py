@@ -672,21 +672,20 @@ async def auto_verify_pix_payment(store: StoreLocation, order_id: str):
         if pix_proof.startswith("data:"):
             image_base64 = pix_proof.split(",")[1]
         
-        system_prompt = f"""Você é um assistente que verifica comprovantes de pagamento PIX.
-Analise a imagem e extraia: nome do pagador, valor pago e destinatário.
-O pagamento esperado é de R$ {expected_amount:.2f}.
-O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "CNPJ 49289019000199".
+        system_prompt = f"""Você é um assistente de OCR especializado em extrair texto de recibos de transação PIX.
+Sua função é apenas ler e extrair informações textuais de comprovantes.
+
+O valor esperado do pagamento é R$ {expected_amount:.2f}.
+O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "49289019000199".
 
 Responda APENAS em formato JSON:
 {{
-    "payer_name": "nome do pagador",
-    "amount": valor numérico (float),
-    "recipient": "nome do destinatário",
-    "is_valid": true/false,
-    "reason": "motivo"
-}}
-
-is_valid = TRUE se valor >= {expected_amount:.2f} e destinatário correto."""
+    "payer_name": "nome do remetente/pagador encontrado na imagem",
+    "amount": valor numérico encontrado (float),
+    "recipient": "nome do destinatário/beneficiário encontrado",
+    "is_valid": true se valor >= {expected_amount:.2f} e destinatário está correto, false caso contrário,
+    "reason": "motivo da validação"
+}}"""
         
         chat = LlmChat(
             api_key=os.environ.get("EMERGENT_LLM_KEY"),
@@ -696,7 +695,7 @@ is_valid = TRUE se valor >= {expected_amount:.2f} e destinatário correto."""
         
         image_content = ImageContent(image_base64=image_base64)
         user_message = UserMessage(
-            text="Analise este comprovante PIX.",
+            text="Por favor, extraia as informações deste recibo de transação PIX.",
             file_contents=[image_content]
         )
         
