@@ -202,6 +202,19 @@ async function startBot() {
             connectionStatus = 'connected';
             qrCodeData = null;
             console.log('WhatsApp connected!');
+            
+            // Fetch available groups after connection
+            try {
+                const groups = await sock.groupFetchAllParticipating();
+                availableGroups = Object.values(groups).map(g => ({
+                    id: g.id,
+                    name: g.subject,
+                    participants: g.participants?.length || 0
+                }));
+                console.log('Available groups:', availableGroups.map(g => `${g.name} (${g.id})`));
+            } catch (e) {
+                console.error('Error fetching groups:', e);
+            }
         }
     });
     
