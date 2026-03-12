@@ -858,6 +858,8 @@ Responda APENAS em formato JSON:
                     "pix_analysis": analysis,
                     "pix_payer_name": payer_name,
                     "pix_extracted_amount": extracted_amount,
+                    "pix_transaction_time": transaction_time,
+                    "pix_transaction_date": transaction_date,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
