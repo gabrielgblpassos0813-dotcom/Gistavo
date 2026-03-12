@@ -673,6 +673,8 @@ Responda APENAS em formato JSON:
     "payer_name": "nome do remetente/pagador encontrado na imagem",
     "amount": valor numérico encontrado (float),
     "recipient": "nome do destinatário/beneficiário encontrado",
+    "transaction_time": "horário da transação encontrado (formato HH:MM)",
+    "transaction_date": "data da transação (formato DD/MM/YYYY)",
     "is_valid": true se valor >= {expected_amount:.2f} e destinatário está correto, false caso contrário,
     "reason": "motivo da validação"
 }}"""
@@ -704,6 +706,8 @@ Responda APENAS em formato JSON:
         
         payer_name = analysis.get("payer_name", "Desconhecido")
         extracted_amount = analysis.get("amount", 0)
+        transaction_time = analysis.get("transaction_time", datetime.now().strftime("%H:%M"))
+        transaction_date = analysis.get("transaction_date", datetime.now().strftime("%d/%m/%Y"))
         is_valid = analysis.get("is_valid", False)
         
         # Save analysis to order
@@ -714,6 +718,8 @@ Responda APENAS em formato JSON:
                     "pix_analysis": analysis,
                     "pix_payer_name": payer_name,
                     "pix_extracted_amount": extracted_amount,
+                    "pix_transaction_time": transaction_time,
+                    "pix_transaction_date": transaction_date,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
