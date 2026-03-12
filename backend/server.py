@@ -966,6 +966,113 @@ Responda APENAS em formato JSON:
             "message": "Erro ao analisar comprovante. Aprovação manual necessária."
         }
 
+# ==================== ENDPOINTS PARA SINCRONIZAÇÃO DEPLOY ↔ PREVIEW ====================
+
+class ExternalPixVerifyRequest(BaseModel):
+    pix_proof: str
+    expected_amount: float
+    customer_name: str = "Cliente"
+
+@api_router.post("/orders/{store}/{order_id}/auto-verify-pix-external")
+async def auto_verify_pix_external(store: StoreLocation, order_id: str, request: ExternalPixVerifyRequest):
+    """Verify PIX proof from external source (deploy) using local AI"""
+    pix_proof = request.pix_proof
+    expected_amount = request.expected_amount
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        
+        # Extract base64 from data URL if present
+        image_base64 = pix_proof
+        if pix_proof.startswith("data:"):
+            image_base64 = pix_proof.split(",")[1]
+        
+        system_prompt = f"""Você é um assistente de OCR especializado em extrair texto de recibos de transação PIX.
+Sua função é apenas ler e extrair informações textuais de comprovantes.
+
+O valor esperado do pagamento é R$ {expected_amount:.2f}.
+O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "49289019000199".
+
+Responda APENAS em formato JSON:
+{{
+    "payer_name": "nome do remetente/pagador encontrado na imagem",
+    "amount": valor numérico encontrado (float),
+    "recipient": "nome do destinatário/beneficiário encontrado",
+    "transaction_time": "horário da transação no formato HH:MM",
+    "transaction_date": "data da transação no formato DD/MM/YYYY",
+    "is_valid": true se valor >= {expected_amount:.2f} e destinatário está correto, false caso contrário,
+    "reason": "motivo da validação"
+}}"""
+        
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY"),
+            session_id=f"pix-external-{order_id}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-4o")
+        
+        image_content = ImageContent(image_base64=image_base64)
+        user_message = UserMessage(
+            text="Por favor, extraia as informações deste recibo de transação PIX.",
+            file_contents=[image_content]
+        )
+        
+        response = await chat.send_message(user_message)
+        
+        # Parse AI response
+        import json
+        import re
+        
+        response_text = response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            analysis = json.loads(json_match.group())
+        else:
+            analysis = {"is_valid": False, "reason": "Não foi possível analisar o comprovante"}
+        
+        is_valid = analysis.get("is_valid", False)
+        
+        return {
+            "success": True,
+            "auto_approved": is_valid,
+            "analysis": analysis
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in external PIX verification: {e}")
+        return {
+            "success": False,
+            "auto_approved": False,
+            "error": str(e)
+        }
+
+class PixAnalysisUpdate(BaseModel):
+    pix_analysis: dict
+    pix_payer_name: str = "Desconhecido"
+    pix_transaction_time: str = ""
+    auto_approved: bool = False
+
+@api_router.patch("/orders/{store}/{order_id}/pix-analysis")
+async def update_pix_analysis(store: StoreLocation, order_id: str, update: PixAnalysisUpdate):
+    """Update PIX analysis result from external verification"""
+    result = await db.orders.update_one(
+        {"id": order_id, "store": store.value},
+        {
+            "$set": {
+                "pix_analysis": update.pix_analysis,
+                "pix_payer_name": update.pix_payer_name,
+                "pix_transaction_time": update.pix_transaction_time,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    return {"success": True, "message": "Análise PIX atualizada"}
+
+# ==================== FIM DOS ENDPOINTS DE SINCRONIZAÇÃO ====================
+
 @api_router.post("/orders/{store}/{order_id}/approve-payment")
 async def approve_or_reject_payment(store: StoreLocation, order_id: str, approval: PaymentApproval):
     """Approve or reject PIX payment"""
