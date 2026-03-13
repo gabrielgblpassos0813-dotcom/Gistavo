@@ -470,10 +470,20 @@ async def get_menu(store: StoreLocation):
         if cat and cat not in all_categories:
             all_categories.append(cat)
     
+    # Get adicionais from database (merged with defaults)
+    custom_adicionais = await db.adicionais.find({}, {"_id": 0}).to_list(100)
+    all_adicionais = list(ADICIONAIS)
+    for custom in custom_adicionais:
+        existing_idx = next((i for i, a in enumerate(all_adicionais) if a["id"] == custom.get("id")), None)
+        if existing_idx is not None:
+            all_adicionais[existing_idx] = custom
+        else:
+            all_adicionais.append(custom)
+    
     return {
         "items": items_with_stock, 
         "categories": all_categories, 
-        "adicionais": ADICIONAIS,
+        "adicionais": all_adicionais,
         "milk_options": MILK_OPTIONS,
         "store": STORES.get(store.value)
     }
