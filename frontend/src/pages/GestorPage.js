@@ -430,6 +430,70 @@ export const GestorPage = () => {
     }
   };
 
+  // ==================== ADICIONAIS FUNCTIONS ====================
+  const fetchAdicionais = async () => {
+    try {
+      const response = await axios.get(`${API}/gestor/adicionais`, {
+        auth: { username, password }
+      });
+      setAdicionais(response.data.adicionais || []);
+    } catch (error) {
+      console.log('Erro ao carregar adicionais');
+    }
+  };
+
+  const handleSaveAdicional = async () => {
+    if (!newAdicional.name || !newAdicional.price) {
+      toast.error('Preencha nome e preço');
+      return;
+    }
+    try {
+      if (editingAdicional) {
+        await axios.put(`${API}/gestor/adicionais/${editingAdicional.id}`, {
+          name: newAdicional.name,
+          price: parseFloat(newAdicional.price)
+        }, { auth: { username, password } });
+        toast.success('Adicional atualizado!');
+      } else {
+        await axios.post(`${API}/gestor/adicionais`, {
+          name: newAdicional.name,
+          price: parseFloat(newAdicional.price)
+        }, { auth: { username, password } });
+        toast.success('Adicional criado!');
+      }
+      setShowAdicionalDialog(false);
+      setNewAdicional({ name: '', price: '' });
+      setEditingAdicional(null);
+      fetchAdicionais();
+    } catch (error) {
+      toast.error('Erro ao salvar adicional');
+    }
+  };
+
+  const handleDeleteAdicional = async (adicionalId) => {
+    try {
+      await axios.delete(`${API}/gestor/adicionais/${adicionalId}`, {
+        auth: { username, password }
+      });
+      toast.success('Adicional removido!');
+      fetchAdicionais();
+    } catch (error) {
+      toast.error('Erro ao remover adicional');
+    }
+  };
+
+  const openEditAdicional = (adicional) => {
+    setEditingAdicional(adicional);
+    setNewAdicional({ name: adicional.name, price: adicional.price.toString() });
+    setShowAdicionalDialog(true);
+  };
+
+  useEffect(() => {
+    if (activeMainTab === 'adicionais' && isAuthenticated) {
+      fetchAdicionais();
+    }
+  }, [activeMainTab, isAuthenticated]);
+
   // Poll WhatsApp status every 5 seconds when on WhatsApp tab
   useEffect(() => {
     if (activeMainTab === 'whatsapp' && isAuthenticated) {
