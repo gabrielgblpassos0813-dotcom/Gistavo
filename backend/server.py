@@ -311,6 +311,14 @@ ADICIONAIS = [
     {"id": "79", "name": "Nutella", "price": 5.00},
 ]
 
+# Opções de tipo de leite (sem custo adicional)
+MILK_OPTIONS = [
+    {"id": "milk_integral", "name": "Integral", "price": 0},
+    {"id": "milk_desnatado", "name": "Desnatado", "price": 0},
+    {"id": "milk_semi", "name": "Semi Desnatado", "price": 0},
+    {"id": "milk_zero", "name": "Zero Lactose", "price": 0},
+]
+
 STORES = {
     "runner": {"name": "GANOH Café Bistrô - Runner", "address": "Runner"},
     "gym-londres": {"name": "GANOH Café Bistrô - GYM Londres", "address": "GYM Londres"}
