@@ -33,6 +33,7 @@ export const MenuPage = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [adicionais, setAdicionais] = useState([]);
+  const [milkOptions, setMilkOptions] = useState([]);
   const [activeCategory, setActiveCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
