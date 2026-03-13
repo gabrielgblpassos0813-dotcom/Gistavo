@@ -2665,6 +2665,16 @@ async def check_and_save_low_stock_items():
         }).to_list(100)
         
         for item in low_stock_items:
+            # Get item name from menu if not in stock record
+            item_name = item.get("name")
+            if not item_name:
+                menu_item = await db.menu.find_one({"id": item.get("menu_item_id")})
+                if menu_item:
+                    item_name = menu_item.get("name")
+                else:
+                    # Try to get from default menu
+                    item_name = f"Item {item.get('menu_item_id')}"
+            
             # Check if already in the list
             existing = await db.low_stock_list.find_one({
                 "menu_item_id": item.get("menu_item_id"),
@@ -2674,22 +2684,30 @@ async def check_and_save_low_stock_items():
             if not existing:
                 await db.low_stock_list.insert_one({
                     "menu_item_id": item.get("menu_item_id"),
-                    "name": item.get("name"),
+                    "name": item_name,
                     "store": item.get("store"),
                     "quantity": item.get("quantity"),
                     "added_at": datetime.now(timezone.utc).isoformat()
                 })
-                logger.info(f"Added to low stock list: {item.get('name')} ({item.get('store')}) - {item.get('quantity')} unidades")
+                logger.info(f"Added to low stock list: {item_name} ({item.get('store')}) - {item.get('quantity')} unidades")
             else:
                 # Update quantity if changed
                 await db.low_stock_list.update_one(
                     {"menu_item_id": item.get("menu_item_id"), "store": item.get("store")},
-                    {"$set": {"quantity": item.get("quantity")}}
+                    {"$set": {"quantity": item.get("quantity"), "name": item_name}}
                 )
         
         # Also check for items that are now out of stock (quantity = 0)
         out_of_stock = await db.stock.find({"quantity": 0}).to_list(100)
         for item in out_of_stock:
+            item_name = item.get("name")
+            if not item_name:
+                menu_item = await db.menu.find_one({"id": item.get("menu_item_id")})
+                if menu_item:
+                    item_name = menu_item.get("name")
+                else:
+                    item_name = f"Item {item.get('menu_item_id')}"
+            
             existing = await db.low_stock_list.find_one({
                 "menu_item_id": item.get("menu_item_id"),
                 "store": item.get("store")
@@ -2697,12 +2715,12 @@ async def check_and_save_low_stock_items():
             if not existing:
                 await db.low_stock_list.insert_one({
                     "menu_item_id": item.get("menu_item_id"),
-                    "name": item.get("name"),
+                    "name": item_name,
                     "store": item.get("store"),
                     "quantity": 0,
                     "added_at": datetime.now(timezone.utc).isoformat()
                 })
-                logger.info(f"OUT OF STOCK: {item.get('name')} ({item.get('store')})")
+                logger.info(f"OUT OF STOCK: {item_name} ({item.get('store')})")
                 
     except Exception as e:
         logger.error(f"Error checking low stock: {e}")
