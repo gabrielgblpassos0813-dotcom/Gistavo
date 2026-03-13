@@ -136,6 +136,24 @@ export const ProductModal = ({ item, isOpen, onClose, adicionais = [], milkOptio
             </div>
           </div>
 
+          {/* Milk Type Section - Only for items with milk */}
+          {hasMilk && milkOptions.length > 0 && (
+            <div className="border-t border-border pt-4 mb-4">
+              <h3 className="font-semibold text-foreground mb-3 text-sm flex items-center gap-2">
+                <Milk className="h-4 w-4" />
+                Tipo de Leite
+              </h3>
+              <RadioGroup value={selectedMilk} onValueChange={setSelectedMilk} className="grid grid-cols-2 gap-2">
+                {milkOptions.map((milk) => (
+                  <div key={milk.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-secondary/50 cursor-pointer">
+                    <RadioGroupItem value={milk.name} id={milk.id} />
+                    <Label htmlFor={milk.id} className="text-sm cursor-pointer flex-1">{milk.name}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          )}
+
           {/* Adicionais Section - Only for applicable categories */}
           {showAdicionais && adicionais.length > 0 && (
             <div className="border-t border-border pt-4 mb-4">
