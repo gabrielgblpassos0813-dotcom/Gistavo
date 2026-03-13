@@ -1141,6 +1141,18 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
         )
         return {"success": True, "message": "Pagamento rejeitado", "new_status": "payment_rejected"}
 
+@api_router.delete("/orders/{store}/{order_id}")
+async def delete_order_permanently(store: StoreLocation, order_id: str):
+    """Delete an order permanently - it won't appear in history or gestor"""
+    result = await db.orders.delete_one({"id": order_id, "store": store.value})
+    # Also delete from history if exists
+    await db.order_history.delete_one({"id": order_id, "store": store.value})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    return {"success": True, "message": "Pedido apagado permanentemente"}
+
 @api_router.delete("/orders/history/cleanup")
 async def cleanup_old_history():
     """Clean up order history older than 24 hours (can be called by cron)"""
