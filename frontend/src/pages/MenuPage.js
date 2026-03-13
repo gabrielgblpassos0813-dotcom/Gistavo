@@ -106,6 +106,7 @@ export const MenuPage = () => {
       setMenuItems(availableItems);
       setCategories(response.data.categories);
       setAdicionais(response.data.adicionais || []);
+      setMilkOptions(response.data.milk_options || []);
       setStoreInfo(response.data.store);
       if (response.data.categories.length > 0) {
         setActiveCategory(response.data.categories[0]);
