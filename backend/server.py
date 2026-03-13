@@ -2833,3 +2833,6 @@ async def startup_db_client():
 async def shutdown_db_client():
     scheduler.shutdown()
     client.close()
+
+# Include router at the end to ensure all endpoints are registered
+app.include_router(api_router)
