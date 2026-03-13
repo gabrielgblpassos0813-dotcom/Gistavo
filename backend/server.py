@@ -2634,9 +2634,6 @@ async def join_whatsapp_group(data: WhatsAppJoinGroup):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-# Include router
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
