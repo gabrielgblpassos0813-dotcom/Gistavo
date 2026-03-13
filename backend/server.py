@@ -2436,7 +2436,7 @@ CLEAR_DATA_PASSWORD = "152637"
 
 @api_router.post("/admin/clear-data")
 async def clear_all_data(password: str):
-    """Clear all orders, expenses, and history. Protected with password."""
+    """Clear all orders, expenses, history, and related data. Protected with password."""
     if password != CLEAR_DATA_PASSWORD:
         raise HTTPException(status_code=403, detail="Senha incorreta")
     
@@ -2446,12 +2446,20 @@ async def clear_all_data(password: str):
     await db.expenses.delete_many({})
     # Delete order history
     await db.order_history.delete_many({})
+    # Delete daily sales data (for graphs)
+    await db.daily_sales.delete_many({})
+    # Delete monthly sales data
+    await db.monthly_sales.delete_many({})
+    # Delete any cached chart data
+    await db.chart_cache.delete_many({})
+    # Delete stock movements
+    await db.stock_movements.delete_many({})
     
-    return {"success": True, "message": "Todos os pedidos, gastos e histórico foram apagados"}
+    return {"success": True, "message": "Todos os dados foram apagados: pedidos, gastos, histórico e gráficos"}
 
 @api_router.post("/admin/clear-store/{store}")
 async def clear_store_data(store: StoreLocation, password: str):
-    """Clear orders for a specific store. Protected with password."""
+    """Clear all data for a specific store. Protected with password."""
     if password != CLEAR_DATA_PASSWORD:
         raise HTTPException(status_code=403, detail="Senha incorreta")
     
@@ -2459,8 +2467,16 @@ async def clear_store_data(store: StoreLocation, password: str):
     result = await db.orders.delete_many({"store": store.value})
     # Delete expenses for this store
     await db.expenses.delete_many({"$or": [{"store": store.value}, {"store": "all"}]})
+    # Delete order history for this store
+    await db.order_history.delete_many({"store": store.value})
+    # Delete daily sales for this store
+    await db.daily_sales.delete_many({"store": store.value})
+    # Delete monthly sales for this store
+    await db.monthly_sales.delete_many({"store": store.value})
+    # Delete stock movements for this store
+    await db.stock_movements.delete_many({"store": store.value})
     
-    return {"success": True, "message": f"Pedidos e gastos da loja {store.value} apagados", "deleted_count": result.deleted_count}
+    return {"success": True, "message": f"Todos os dados da loja {store.value} apagados: pedidos, gastos, histórico e gráficos", "deleted_count": result.deleted_count}
 
 # ==================== WHATSAPP BOT PROXY ====================
 WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:8002")
