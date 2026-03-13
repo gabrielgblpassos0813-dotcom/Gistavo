@@ -1818,6 +1818,60 @@ async def delete_menu_item(item_id: str, username: str = Depends(verify_gestor))
     
     return {"success": True, "message": "Item removido"}
 
+# ==================== ADICIONAIS ROUTES ====================
+
+class AdicionalCreate(BaseModel):
+    name: str
+    price: float
+
+class AdicionalUpdate(BaseModel):
+    name: Optional[str] = None
+    price: Optional[float] = None
+
+@api_router.get("/gestor/adicionais")
+async def get_adicionais(username: str = Depends(verify_gestor)):
+    """Get all adicionais (custom + default)"""
+    custom_adicionais = await db.adicionais.find({}, {"_id": 0}).to_list(100)
+    # Merge with default, custom ones override defaults with same id
+    all_adicionais = list(ADICIONAIS)
+    for custom in custom_adicionais:
+        # Check if it's an update to an existing adicional
+        existing_idx = next((i for i, a in enumerate(all_adicionais) if a["id"] == custom.get("id")), None)
+        if existing_idx is not None:
+            all_adicionais[existing_idx] = custom
+        else:
+            all_adicionais.append(custom)
+    return {"adicionais": all_adicionais}
+
+@api_router.post("/gestor/adicionais")
+async def create_adicional(adicional: AdicionalCreate, username: str = Depends(verify_gestor)):
+    """Create a new adicional"""
+    import uuid
+    new_adicional = {
+        "id": str(uuid.uuid4())[:8],
+        "name": adicional.name,
+        "price": adicional.price,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.adicionais.insert_one(new_adicional)
+    return {"success": True, "adicional": {**new_adicional, "_id": None}, "message": "Adicional criado!"}
+
+@api_router.put("/gestor/adicionais/{adicional_id}")
+async def update_adicional(adicional_id: str, update: AdicionalUpdate, username: str = Depends(verify_gestor)):
+    """Update an adicional"""
+    update_data = {k: v for k, v in update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    
+    result = await db.adicionais.update_one({"id": adicional_id}, {"$set": update_data}, upsert=True)
+    return {"success": True, "message": "Adicional atualizado"}
+
+@api_router.delete("/gestor/adicionais/{adicional_id}")
+async def delete_adicional(adicional_id: str, username: str = Depends(verify_gestor)):
+    """Delete an adicional"""
+    result = await db.adicionais.delete_one({"id": adicional_id})
+    return {"success": True, "message": "Adicional removido"}
+
 # ==================== PRAZO (CREDIT/TAB) MANAGEMENT ====================
 PRAZO_PASSWORD = "1234"
 
