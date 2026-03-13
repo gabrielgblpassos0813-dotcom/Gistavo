@@ -65,12 +65,23 @@ export const ProductModal = ({ item, isOpen, onClose, adicionais = [], milkOptio
   const itemTotal = (item.price + adicionaisTotal) * quantity;
 
   const handleAddToCart = () => {
+    let itemName = item.name;
+    
+    // Add milk type if selected
+    if (hasMilk && selectedMilk) {
+      itemName = `${itemName} (Leite ${selectedMilk})`;
+    }
+    
+    // Add adicionais
+    if (selectedAdicionais.length > 0) {
+      itemName = `${itemName} + ${selectedAdicionais.map(a => a.name).join(', ')}`;
+    }
+    
     const itemWithAdicionais = {
       ...item,
-      name: selectedAdicionais.length > 0 
-        ? `${item.name} + ${selectedAdicionais.map(a => a.name).join(', ')}`
-        : item.name,
-      price: item.price + adicionaisTotal
+      name: itemName,
+      price: item.price + adicionaisTotal,
+      milk_type: selectedMilk || null
     };
     
     for (let i = 0; i < quantity; i++) {
@@ -79,12 +90,14 @@ export const ProductModal = ({ item, isOpen, onClose, adicionais = [], milkOptio
     
     setQuantity(1);
     setSelectedAdicionais([]);
+    setSelectedMilk(hasMilk && milkOptions.length > 0 ? milkOptions[0]?.name : '');
     onClose();
   };
 
   const handleClose = () => {
     setQuantity(1);
     setSelectedAdicionais([]);
+    setSelectedMilk(hasMilk && milkOptions.length > 0 ? milkOptions[0]?.name : '');
     onClose();
   };
 
