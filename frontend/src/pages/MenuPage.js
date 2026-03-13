@@ -401,6 +401,7 @@ export const MenuPage = () => {
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
         adicionais={adicionais}
+        milkOptions={milkOptions}
       />
     </div>
   );
