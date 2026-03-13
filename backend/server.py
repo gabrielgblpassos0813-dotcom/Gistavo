@@ -2791,20 +2791,20 @@ async def send_low_stock_report():
         logger.error(f"Error in send_low_stock_report: {e}")
 
 # Endpoint to manually check low stock (for testing)
-@api_router.get("/stock/low-stock-list")
+@api_router.get("/admin/low-stock-list")
 async def get_low_stock_list():
     """Get current low stock list"""
     items = await db.low_stock_list.find({}, {"_id": 0}).to_list(100)
     return {"items": items, "count": len(items)}
 
-@api_router.post("/stock/check-low-stock")
+@api_router.post("/admin/check-low-stock")
 async def trigger_low_stock_check():
     """Manually trigger low stock check"""
     await check_and_save_low_stock_items()
     items = await db.low_stock_list.find({}, {"_id": 0}).to_list(100)
     return {"success": True, "items": items, "message": f"Encontrados {len(items)} itens com estoque baixo"}
 
-@api_router.post("/stock/send-low-stock-report")
+@api_router.post("/admin/send-low-stock-report")
 async def trigger_send_report():
     """Manually trigger sending the low stock report"""
     await send_low_stock_report()
