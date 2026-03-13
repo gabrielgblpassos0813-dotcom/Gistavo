@@ -161,6 +161,39 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ success: false, error: error.message }));
             }
         });
+    } else if (req.url === '/send-message' && req.method === 'POST') {
+        // Send simple text message to WhatsApp
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                
+                if (!data.message) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Message required' }));
+                    return;
+                }
+                
+                if (!isConnected || !sock) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'WhatsApp not connected' }));
+                    return;
+                }
+                
+                const target = process.env.WHATSAPP_TARGET || NOTIFICATION_TARGET;
+                
+                await sock.sendMessage(target, { text: data.message });
+                console.log('Text message sent to:', target);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, message: 'Message sent', target: target }));
+            } catch (error) {
+                console.error('Error sending message:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: error.message }));
+            }
+        });
     } else {
         res.writeHead(404);
         res.end('Not found');
