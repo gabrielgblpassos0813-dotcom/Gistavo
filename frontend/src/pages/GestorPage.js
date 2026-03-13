@@ -2305,6 +2305,47 @@ export const GestorPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Adicional Dialog */}
+      <Dialog open={showAdicionalDialog} onOpenChange={setShowAdicionalDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-brand-600" />
+              {editingAdicional ? 'Editar Adicional' : 'Novo Adicional'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Adicional</Label>
+              <Input
+                value={newAdicional.name}
+                onChange={(e) => setNewAdicional({ ...newAdicional, name: e.target.value })}
+                placeholder="Ex: Ovos, Mel, Queijo..."
+              />
+            </div>
+            <div>
+              <Label>Preço (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newAdicional.price}
+                onChange={(e) => setNewAdicional({ ...newAdicional, price: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowAdicionalDialog(false)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={handleSaveAdicional}>
+                {editingAdicional ? 'Salvar' : 'Criar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Expense Dialog with AI Analysis */}
       <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
