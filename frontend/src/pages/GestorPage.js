@@ -1020,6 +1020,9 @@ export const GestorPage = () => {
             <TabsTrigger value="menu" className="flex items-center gap-1 text-xs">
               <UtensilsCrossed className="h-3 w-3" /> Cardápio
             </TabsTrigger>
+            <TabsTrigger value="adicionais" className="flex items-center gap-1 text-xs">
+              <PlusCircle className="h-3 w-3" /> Adicionais
+            </TabsTrigger>
             <TabsTrigger value="whatsapp" className="flex items-center gap-1 text-xs">
               <MessageCircle className="h-3 w-3" /> WhatsApp
             </TabsTrigger>
