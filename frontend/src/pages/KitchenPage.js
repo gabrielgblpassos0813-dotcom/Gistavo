@@ -527,11 +527,12 @@ export const KitchenPage = () => {
 
   const handleDelete = async (orderId) => {
     try {
-      await axios.patch(`${API}/orders/${store}/${orderId}/status`, { status: 'delivered' });
+      // Delete permanently - won't appear in history or gestor
+      await axios.delete(`${API}/orders/${store}/${orderId}`);
       fetchData();
-      toast.success('Entregue');
+      toast.success('Pedido apagado');
     } catch (error) {
-      toast.error('Erro');
+      toast.error('Erro ao apagar');
     }
   };
 
