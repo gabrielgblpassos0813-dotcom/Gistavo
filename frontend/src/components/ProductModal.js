@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
+import { Label } from '../components/ui/label';
 import { useCart } from '../context/CartContext';
-import { Plus, Minus, Clock, X } from 'lucide-react';
+import { Plus, Minus, Clock, X, Milk } from 'lucide-react';
 
 // Categorias que NÃO mostram adicionais
 const CATEGORIES_WITHOUT_ADICIONAIS = [
@@ -12,10 +14,31 @@ const CATEGORIES_WITHOUT_ADICIONAIS = [
   "Suplementos"
 ];
 
-export const ProductModal = ({ item, isOpen, onClose, adicionais = [] }) => {
+export const ProductModal = ({ item, isOpen, onClose, adicionais = [], milkOptions = [] }) => {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedAdicionais, setSelectedAdicionais] = useState([]);
+  const [selectedMilk, setSelectedMilk] = useState('');
+
+  // Check if item has "leite" in name or description
+  const hasMilk = item && (
+    item.name?.toLowerCase().includes('leite') ||
+    item.description?.toLowerCase().includes('leite') ||
+    item.name?.toLowerCase().includes('vitamina') ||
+    item.name?.toLowerCase().includes('shake') ||
+    item.name?.toLowerCase().includes('cappuccino') ||
+    item.name?.toLowerCase().includes('café com leite') ||
+    item.name?.toLowerCase().includes('chocolate quente')
+  );
+
+  // Reset milk selection when item changes
+  useEffect(() => {
+    if (hasMilk && milkOptions.length > 0) {
+      setSelectedMilk(milkOptions[0]?.name || 'Integral');
+    } else {
+      setSelectedMilk('');
+    }
+  }, [item, hasMilk, milkOptions]);
 
   if (!item) return null;
 
