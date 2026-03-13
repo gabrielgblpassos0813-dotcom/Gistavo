@@ -474,6 +474,7 @@ async def get_menu(store: StoreLocation):
         "items": items_with_stock, 
         "categories": all_categories, 
         "adicionais": ADICIONAIS,
+        "milk_options": MILK_OPTIONS,
         "store": STORES.get(store.value)
     }
 
