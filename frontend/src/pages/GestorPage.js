@@ -133,6 +133,12 @@ export const GestorPage = () => {
   const [whatsappTarget, setWhatsappTarget] = useState('');
   const [whatsappTargetInput, setWhatsappTargetInput] = useState('');
   
+  // Adicionais states
+  const [adicionais, setAdicionais] = useState([]);
+  const [showAdicionalDialog, setShowAdicionalDialog] = useState(false);
+  const [newAdicional, setNewAdicional] = useState({ name: '', price: '' });
+  const [editingAdicional, setEditingAdicional] = useState(null);
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
