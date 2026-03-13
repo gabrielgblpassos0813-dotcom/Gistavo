@@ -2648,12 +2648,173 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# ==================== LOW STOCK ALERT SYSTEM ====================
+# Timezone for Brazil
+BRAZIL_TZ = pytz.timezone('America/Sao_Paulo')
+LOW_STOCK_THRESHOLD = 2
+
+# Scheduler instance
+scheduler = AsyncIOScheduler(timezone=BRAZIL_TZ)
+
+async def check_and_save_low_stock_items():
+    """Check stock and save items with quantity <= 2 to low_stock_list collection"""
+    try:
+        # Get all stock items with quantity <= LOW_STOCK_THRESHOLD
+        low_stock_items = await db.stock.find({
+            "quantity": {"$lte": LOW_STOCK_THRESHOLD, "$gt": 0}
+        }).to_list(100)
+        
+        for item in low_stock_items:
+            # Check if already in the list
+            existing = await db.low_stock_list.find_one({
+                "menu_item_id": item.get("menu_item_id"),
+                "store": item.get("store")
+            })
+            
+            if not existing:
+                await db.low_stock_list.insert_one({
+                    "menu_item_id": item.get("menu_item_id"),
+                    "name": item.get("name"),
+                    "store": item.get("store"),
+                    "quantity": item.get("quantity"),
+                    "added_at": datetime.now(timezone.utc).isoformat()
+                })
+                logger.info(f"Added to low stock list: {item.get('name')} ({item.get('store')}) - {item.get('quantity')} unidades")
+            else:
+                # Update quantity if changed
+                await db.low_stock_list.update_one(
+                    {"menu_item_id": item.get("menu_item_id"), "store": item.get("store")},
+                    {"$set": {"quantity": item.get("quantity")}}
+                )
+        
+        # Also check for items that are now out of stock (quantity = 0)
+        out_of_stock = await db.stock.find({"quantity": 0}).to_list(100)
+        for item in out_of_stock:
+            existing = await db.low_stock_list.find_one({
+                "menu_item_id": item.get("menu_item_id"),
+                "store": item.get("store")
+            })
+            if not existing:
+                await db.low_stock_list.insert_one({
+                    "menu_item_id": item.get("menu_item_id"),
+                    "name": item.get("name"),
+                    "store": item.get("store"),
+                    "quantity": 0,
+                    "added_at": datetime.now(timezone.utc).isoformat()
+                })
+                logger.info(f"OUT OF STOCK: {item.get('name')} ({item.get('store')})")
+                
+    except Exception as e:
+        logger.error(f"Error checking low stock: {e}")
+
+async def send_low_stock_report():
+    """Send daily low stock report to WhatsApp group at 22:00"""
+    try:
+        # Get all items in the low stock list
+        low_stock_items = await db.low_stock_list.find({}).to_list(100)
+        
+        if not low_stock_items:
+            logger.info("No low stock items to report")
+            return
+        
+        # Build the message
+        now = datetime.now(BRAZIL_TZ)
+        message_lines = [
+            f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
+            "",
+            "Itens com estoque baixo (≤ 2 unidades):",
+            ""
+        ]
+        
+        # Group by store
+        runner_items = [i for i in low_stock_items if i.get("store") == "runner"]
+        gym_items = [i for i in low_stock_items if i.get("store") == "gym-londres"]
+        
+        if runner_items:
+            message_lines.append("*🏃 RUNNER:*")
+            for item in runner_items:
+                qty = item.get("quantity", 0)
+                status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
+                message_lines.append(f"  • {item.get('name')}: {status}")
+            message_lines.append("")
+        
+        if gym_items:
+            message_lines.append("*🏋️ GYM LONDRES:*")
+            for item in gym_items:
+                qty = item.get("quantity", 0)
+                status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
+                message_lines.append(f"  • {item.get('name')}: {status}")
+            message_lines.append("")
+        
+        message_lines.append(f"_Total: {len(low_stock_items)} itens_")
+        
+        message = "\n".join(message_lines)
+        
+        # Send to WhatsApp
+        try:
+            async with httpx.AsyncClient() as client_http:
+                response = await client_http.post(
+                    f"{WHATSAPP_BOT_URL}/send-message",
+                    json={"message": message},
+                    timeout=10.0
+                )
+                if response.status_code == 200:
+                    logger.info(f"Low stock report sent successfully! {len(low_stock_items)} items")
+                    
+                    # Clear the list after sending
+                    await db.low_stock_list.delete_many({})
+                    logger.info("Low stock list cleared")
+                else:
+                    logger.error(f"Failed to send low stock report: {response.text}")
+        except Exception as e:
+            logger.error(f"Error sending WhatsApp message: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error in send_low_stock_report: {e}")
+
+# Endpoint to manually check low stock (for testing)
+@api_router.get("/stock/low-stock-list")
+async def get_low_stock_list():
+    """Get current low stock list"""
+    items = await db.low_stock_list.find({}, {"_id": 0}).to_list(100)
+    return {"items": items, "count": len(items)}
+
+@api_router.post("/stock/check-low-stock")
+async def trigger_low_stock_check():
+    """Manually trigger low stock check"""
+    await check_and_save_low_stock_items()
+    items = await db.low_stock_list.find({}, {"_id": 0}).to_list(100)
+    return {"success": True, "items": items, "message": f"Encontrados {len(items)} itens com estoque baixo"}
+
+@api_router.post("/stock/send-low-stock-report")
+async def trigger_send_report():
+    """Manually trigger sending the low stock report"""
+    await send_low_stock_report()
+    return {"success": True, "message": "Relatório enviado (se havia itens na lista)"}
+
 @app.on_event("startup")
 async def startup_db_client():
-    """Initialize database and default tenant"""
+    """Initialize database, scheduler and default tenant"""
     await ensure_default_tenant()
+    
+    # Schedule low stock check every hour
+    scheduler.add_job(check_and_save_low_stock_items, 'interval', hours=1, id='check_low_stock')
+    
+    # Schedule daily report at 22:00 Brazil time
+    scheduler.add_job(
+        send_low_stock_report, 
+        CronTrigger(hour=22, minute=0, timezone=BRAZIL_TZ),
+        id='daily_low_stock_report'
+    )
+    
+    scheduler.start()
     logger.info("Database initialized, default tenant ensured")
+    logger.info("Scheduler started - Low stock check every hour, report at 22:00")
+    
+    # Run initial low stock check
+    await check_and_save_low_stock_items()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    scheduler.shutdown()
     client.close()
