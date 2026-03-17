@@ -513,7 +513,8 @@ async def get_menu(store: StoreLocation):
         if item["category"] in STOCK_CATEGORIES:
             stock_qty = stock_map.get(item["id"], 0)
             item_copy["stock"] = stock_qty
-            item_copy["available"] = stock_qty > 0
+            # Items are ALWAYS available - stock is just for information
+            item_copy["available"] = True
         else:
             # Non-beverage items are always available
             item_copy["stock"] = None
@@ -529,7 +530,8 @@ async def get_menu(store: StoreLocation):
             if custom_item.get("category") in STOCK_CATEGORIES:
                 stock_qty = stock_map.get(custom_item.get("id"), 0)
                 item_copy["stock"] = stock_qty
-                item_copy["available"] = stock_qty > 0
+                # Items are ALWAYS available - stock is just for information
+                item_copy["available"] = True
             else:
                 item_copy["stock"] = None
                 item_copy["available"] = True
