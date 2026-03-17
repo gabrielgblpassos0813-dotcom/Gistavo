@@ -1408,12 +1408,17 @@ async def get_kitchen_stats(store: StoreLocation):
 
 @api_router.get("/cash/{store}/today")
 async def get_today_cash(store: StoreLocation):
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # Use Brazil timezone for correct day calculation
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Convert to UTC for database query
+    today_utc = today_brazil.astimezone(pytz.UTC)
     
     orders = await db.orders.find({
         "store": store.value,
         "status": {"$in": ["ready", "delivered"]},  # Conta pedidos prontos E entregues
-        "created_at": {"$gte": today.isoformat()}
+        "created_at": {"$gte": today_utc.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
     # Total VALUE by payment method (in R$)
@@ -1430,7 +1435,7 @@ async def get_today_cash(store: StoreLocation):
         by_payment_value[payment] = by_payment_value.get(payment, 0) + amount  # Value in R$
         total += amount
         
-        # Determine shift based on order time (convert UTC to Brazil time -3 hours)
+        # Determine shift based on order time in Brazil timezone
         created_at = order.get("created_at", "")
         try:
             if isinstance(created_at, str):
@@ -1438,8 +1443,10 @@ async def get_today_cash(store: StoreLocation):
             else:
                 order_time = created_at
             
-            # Convert UTC to Brazil timezone (UTC-3)
-            brazil_hour = (order_time.hour - 3) % 24
+            # Convert to Brazil timezone
+            order_time_brazil = order_time.astimezone(brazil_tz)
+            brazil_hour = order_time_brazil.hour
+            
             if 6 <= brazil_hour < 14:
                 shift_morning["total"] += amount
                 shift_morning["count"] += 1
@@ -1454,7 +1461,7 @@ async def get_today_cash(store: StoreLocation):
             shift_afternoon["by_payment"][payment] += amount  # Value in R$
     
     return {
-        "date": today.strftime("%Y-%m-%d"),
+        "date": today_brazil.strftime("%Y-%m-%d"),
         "total": total,
         "by_payment_method": by_payment_value,
         "order_count": len(orders),
