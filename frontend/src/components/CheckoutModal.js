@@ -43,8 +43,36 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
   const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState('');
   const [scheduleToggleCount, setScheduleToggleCount] = useState(0);
   const [showPrazo, setShowPrazo] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [offlineCount, setOfflineCount] = useState(0);
   const fileInputRef = useRef(null);
   const { items, total, itemCount } = useCart();
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnline(true);
+      // Try to sync offline orders when back online
+      syncOfflineOrders().then(result => {
+        if (result.synced > 0) {
+          toast.success(`${result.synced} pedido(s) sincronizado(s)!`);
+        }
+      }).catch(console.error);
+    };
+    const handleOffline = () => setOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Check for pending offline orders
+    const pending = getOfflineOrders().filter(o => !o.synced);
+    setOfflineCount(pending.length);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Fetch prazo customers for both stores
   useEffect(() => {
