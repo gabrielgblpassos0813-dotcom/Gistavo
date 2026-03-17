@@ -257,6 +257,18 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
               </>
             )}
           </DialogTitle>
+          {/* Offline indicator */}
+          {!online && (
+            <div className="flex items-center gap-2 text-amber-600 text-sm mt-1">
+              <WifiOff className="h-4 w-4" />
+              Modo offline - Pedido será enviado quando voltar a internet
+            </div>
+          )}
+          {offlineCount > 0 && online && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {offlineCount} pedido(s) pendente(s) para sincronizar
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
