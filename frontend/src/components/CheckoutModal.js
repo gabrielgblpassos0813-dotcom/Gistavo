@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Switch } from '../components/ui/switch';
 import { useCart } from '../context/CartContext';
-import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock } from 'lucide-react';
+import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { createOrder, isOnline, getOfflineOrders, syncOfflineOrders } from '../services/offlineService';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
