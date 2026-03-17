@@ -870,25 +870,19 @@ Responda APENAS em formato JSON:
                 }
             )
             
-            # Send WhatsApp notification WITH image
+            # Send WhatsApp notification via Green API
             try:
-                async with httpx.AsyncClient() as client_http:
-                    await client_http.post(
-                        f"{WHATSAPP_BOT_URL}/send-notification",
-                        json={
-                            "customerName": order.get("customer_name", "Cliente"),
-                            "payerName": payer_name,
-                            "amount": order.get("total", 0),
-                            "store": store.value,
-                            "time": transaction_time,
-                            "date": transaction_date,
-                            "orderNumber": order.get("order_number", order_id[:8]),
-                            "items": order.get("items", []),
-                            "proofImage": pix_proof,
-                            "autoApproved": True
-                        },
-                        timeout=10.0
-                    )
+                await send_whatsapp_notification(
+                    customer_name=order.get("customer_name", "Cliente"),
+                    payer_name=payer_name,
+                    amount=order.get("total", 0),
+                    store=store.value,
+                    time=transaction_time,
+                    date=transaction_date,
+                    order_number=order.get("order_number", order_id[:8]),
+                    items=order.get("items", []),
+                    auto_approved=True
+                )
             except Exception as e:
                 logger.warning(f"Could not send WhatsApp notification: {e}")
             
@@ -1009,25 +1003,19 @@ Responda APENAS em formato JSON:
                 }
             )
             
-            # Send WhatsApp notification WITH image
+            # Send WhatsApp notification via Green API
             try:
-                async with httpx.AsyncClient() as client_http:
-                    await client_http.post(
-                        f"{WHATSAPP_BOT_URL}/send-notification",
-                        json={
-                            "customerName": order.get("customer_name", "Cliente"),
-                            "payerName": payer_name,
-                            "amount": order.get("total", 0),
-                            "store": store.value,
-                            "time": transaction_time,
-                            "date": transaction_date,
-                            "orderNumber": order.get("order_number", order_id[:8]),
-                            "items": order.get("items", []),
-                            "proofImage": pix_proof,
-                            "autoApproved": True
-                        },
-                        timeout=10.0
-                    )
+                await send_whatsapp_notification(
+                    customer_name=order.get("customer_name", "Cliente"),
+                    payer_name=payer_name,
+                    amount=order.get("total", 0),
+                    store=store.value,
+                    time=transaction_time,
+                    date=transaction_date,
+                    order_number=order.get("order_number", order_id[:8]),
+                    items=order.get("items", []),
+                    auto_approved=True
+                )
             except Exception as e:
                 logger.warning(f"Could not send WhatsApp notification: {e}")
             
