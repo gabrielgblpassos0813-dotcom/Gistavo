@@ -26,6 +26,12 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Green API Configuration (Cloud WhatsApp)
+GREEN_API_URL = os.environ.get("GREEN_API_URL", "https://7107.api.greenapi.com")
+GREEN_API_INSTANCE = os.environ.get("GREEN_API_INSTANCE", "7107550497")
+GREEN_API_TOKEN = os.environ.get("GREEN_API_TOKEN", "ddbec57064a544909aecfbebe1e4d95faa1677ff39b04f68b2")
+WHATSAPP_GROUP_ID = os.environ.get("WHATSAPP_GROUP_ID", "120363424613813278@g.us")
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
