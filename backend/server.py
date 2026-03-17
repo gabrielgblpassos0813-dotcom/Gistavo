@@ -2051,7 +2051,6 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
 # ==================== EXPENSES (GASTOS) MANAGEMENT ====================
 from emergentintegrations.llm.openai import LlmChat, ImageContent
 from emergentintegrations.llm.chat import UserMessage
-import asyncio
 
 EXPENSE_CATEGORIES = [
     "contador",
