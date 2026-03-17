@@ -2619,36 +2619,48 @@ async def clear_store_data(store: StoreLocation, password: str):
     
     return {"success": True, "message": f"Todos os dados da loja {store.value} apagados: pedidos, gastos, histórico e gráficos", "deleted_count": result.deleted_count}
 
-# ==================== WHATSAPP BOT PROXY ====================
-WHATSAPP_BOT_URL = os.environ.get("WHATSAPP_BOT_URL", "http://localhost:8002")
+# ==================== WHATSAPP GREEN API PROXY ====================
 
 @api_router.get("/whatsapp/status")
 async def get_whatsapp_status():
-    """Proxy to get WhatsApp bot status"""
+    """Get WhatsApp status via Green API"""
     try:
-        async with httpx.AsyncClient() as client_http:
-            response = await client_http.get(f"{WHATSAPP_BOT_URL}/status", timeout=3.0)
-            return response.json()
+        async with httpx.AsyncClient(timeout=10.0) as client_http:
+            response = await client_http.get(get_green_api_url("getStateInstance"))
+            data = response.json()
+            state = data.get("stateInstance", "unknown")
+            return {
+                "status": "connected" if state == "authorized" else state,
+                "connected": state == "authorized",
+                "qrCode": None,
+                "greenApi": True
+            }
     except Exception as e:
-        return {"status": "offline", "connected": False, "qrCode": None}
+        return {"status": "offline", "connected": False, "qrCode": None, "error": str(e)}
 
 @api_router.get("/whatsapp/qr")
 async def get_whatsapp_qr():
-    """Proxy to get WhatsApp QR code"""
+    """Get WhatsApp QR code via Green API (if needed for reconnection)"""
     try:
-        async with httpx.AsyncClient() as client_http:
-            response = await client_http.get(f"{WHATSAPP_BOT_URL}/qr", timeout=3.0)
-            return response.json()
+        async with httpx.AsyncClient(timeout=10.0) as client_http:
+            response = await client_http.get(get_green_api_url("qr"))
+            data = response.json()
+            return {"qrCode": data.get("message"), "connected": False}
     except Exception as e:
-        return {"qrCode": None, "connected": False}
+        return {"qrCode": None, "connected": False, "error": str(e)}
 
 @api_router.get("/whatsapp/groups")
 async def get_whatsapp_groups():
-    """Proxy to get WhatsApp groups"""
+    """Get WhatsApp groups via Green API"""
     try:
-        async with httpx.AsyncClient() as client_http:
-            response = await client_http.get(f"{WHATSAPP_BOT_URL}/groups", timeout=5.0)
-            return response.json()
+        async with httpx.AsyncClient(timeout=15.0) as client_http:
+            response = await client_http.get(get_green_api_url("getChats"))
+            data = response.json()
+            groups = [
+                {"id": chat.get("id"), "name": chat.get("name", "Grupo")}
+                for chat in data if "@g.us" in chat.get("id", "")
+            ]
+            return {"success": True, "groups": groups, "currentTarget": WHATSAPP_GROUP_ID}
     except Exception as e:
         return {"success": False, "groups": [], "error": str(e)}
 
@@ -2657,32 +2669,52 @@ class WhatsAppTargetUpdate(BaseModel):
 
 @api_router.post("/whatsapp/set-target")
 async def set_whatsapp_target(data: WhatsAppTargetUpdate):
-    """Proxy to set WhatsApp notification target"""
-    try:
-        async with httpx.AsyncClient() as client_http:
-            response = await client_http.post(
-                f"{WHATSAPP_BOT_URL}/set-target",
-                json={"target": data.target},
-                timeout=5.0
-            )
-            return response.json()
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    """Set WhatsApp notification target group"""
+    global WHATSAPP_GROUP_ID
+    WHATSAPP_GROUP_ID = data.target
+    # Save to database for persistence
+    await db.settings.update_one(
+        {"key": "whatsapp_group_id"},
+        {"$set": {"value": data.target, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"success": True, "target": WHATSAPP_GROUP_ID}
 
 class WhatsAppJoinGroup(BaseModel):
     inviteLink: str
 
 @api_router.post("/whatsapp/join-group")
 async def join_whatsapp_group(data: WhatsAppJoinGroup):
-    """Proxy to join a WhatsApp group via invite link"""
+    """Join a WhatsApp group via invite link using Green API"""
     try:
-        async with httpx.AsyncClient() as client_http:
+        # Extract invite code from link
+        invite_link = data.inviteLink
+        if "chat.whatsapp.com/" in invite_link:
+            invite_code = invite_link.split("chat.whatsapp.com/")[1].split("?")[0]
+        else:
+            invite_code = invite_link
+        
+        async with httpx.AsyncClient(timeout=30.0) as client_http:
+            # Get group info
             response = await client_http.post(
-                f"{WHATSAPP_BOT_URL}/join-group",
-                json={"inviteLink": data.inviteLink},
-                timeout=30.0
+                get_green_api_url("getGroupDataByInviteLink"),
+                json={"inviteLink": f"https://chat.whatsapp.com/{invite_code}"}
             )
-            return response.json()
+            group_data = response.json()
+            
+            if group_data.get("groupJid"):
+                group_id = group_data.get("groupJid")
+                # Set as target
+                global WHATSAPP_GROUP_ID
+                WHATSAPP_GROUP_ID = group_id
+                await db.settings.update_one(
+                    {"key": "whatsapp_group_id"},
+                    {"$set": {"value": group_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True
+                )
+                return {"success": True, "groupId": group_id, "groupName": group_data.get("groupName")}
+            
+            return {"success": False, "error": "Could not get group info", "data": group_data}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
