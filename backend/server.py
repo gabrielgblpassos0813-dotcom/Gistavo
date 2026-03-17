@@ -2849,22 +2849,17 @@ async def send_low_stock_report():
         
         message = "\n".join(message_lines)
         
-        # Send to WhatsApp
+        # Send to WhatsApp via Green API
         try:
-            async with httpx.AsyncClient() as client_http:
-                response = await client_http.post(
-                    f"{WHATSAPP_BOT_URL}/send-message",
-                    json={"message": message},
-                    timeout=10.0
-                )
-                if response.status_code == 200:
-                    logger.info(f"Low stock report sent successfully! {len(low_stock_items)} items")
-                    
-                    # Clear the list after sending
-                    await db.low_stock_list.delete_many({})
-                    logger.info("Low stock list cleared")
-                else:
-                    logger.error(f"Failed to send low stock report: {response.text}")
+            result = await send_whatsapp_message(message)
+            if result.get("success"):
+                logger.info(f"Low stock report sent successfully! {len(low_stock_items)} items")
+                
+                # Clear the list after sending
+                await db.low_stock_list.delete_many({})
+                logger.info("Low stock list cleared")
+            else:
+                logger.error(f"Failed to send low stock report: {result.get('error')}")
         except Exception as e:
             logger.error(f"Error sending WhatsApp message: {e}")
             
