@@ -1481,8 +1481,15 @@ async def get_today_cash(store: StoreLocation):
 
 @api_router.get("/gestor/dashboard")
 async def get_gestor_dashboard(username: str = Depends(verify_gestor)):
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = today.replace(day=1)
+    # Use Brazil timezone for correct day calculation
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start_brazil = today_brazil.replace(day=1)
+    
+    # Convert to UTC for database query
+    today_utc = today_brazil.astimezone(pytz.UTC)
+    month_start_utc = month_start_brazil.astimezone(pytz.UTC)
     
     result = {"stores": {}}
     
@@ -1490,13 +1497,13 @@ async def get_gestor_dashboard(username: str = Depends(verify_gestor)):
         # Today's orders
         today_orders = await db.orders.find({
             "store": store_key,
-            "created_at": {"$gte": today.isoformat()}
+            "created_at": {"$gte": today_utc.isoformat()}
         }, {"_id": 0}).to_list(1000)
         
         # Month's orders
         month_orders = await db.orders.find({
             "store": store_key,
-            "created_at": {"$gte": month_start.isoformat()}
+            "created_at": {"$gte": month_start_utc.isoformat()}
         }, {"_id": 0}).to_list(10000)
         
         # Calculate totals - inclui pedidos prontos e entregues
