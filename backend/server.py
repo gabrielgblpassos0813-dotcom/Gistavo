@@ -39,6 +39,69 @@ api_router = APIRouter(prefix="/api")
 # Security
 security = HTTPBasic()
 
+# ==================== GREEN API HELPER FUNCTIONS ====================
+def get_green_api_url(method: str) -> str:
+    """Build the Green API URL for a specific method"""
+    return f"{GREEN_API_URL}/waInstance{GREEN_API_INSTANCE}/{method}/{GREEN_API_TOKEN}"
+
+async def send_whatsapp_message(message: str, group_id: str = None) -> dict:
+    """Send a text message via Green API"""
+    target = group_id or WHATSAPP_GROUP_ID
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client_http:
+            response = await client_http.post(
+                get_green_api_url("sendMessage"),
+                json={
+                    "chatId": target,
+                    "message": message
+                }
+            )
+            data = response.json()
+            return {"success": True, "data": data}
+    except Exception as e:
+        logging.error(f"Error sending WhatsApp message: {e}")
+        return {"success": False, "error": str(e)}
+
+async def send_whatsapp_notification(
+    customer_name: str,
+    payer_name: str,
+    amount: float,
+    store: str,
+    time: str,
+    date: str,
+    order_number: str,
+    items: list,
+    auto_approved: bool = False,
+    group_id: str = None
+) -> dict:
+    """Send PIX payment notification to WhatsApp group via Green API"""
+    target = group_id or WHATSAPP_GROUP_ID
+    
+    store_emoji = "🏃" if store == "runner" else "🏋️"
+    store_name = "Runner" if store == "runner" else "GYM Londres"
+    
+    status = "✅ APROVADO AUTOMATICAMENTE" if auto_approved else "⚠️ AGUARDANDO APROVAÇÃO"
+    
+    items_text = "\n".join([f"  • {item.get('quantity', 1)}x {item.get('name', 'Item')}" for item in items[:5]])
+    if len(items) > 5:
+        items_text += f"\n  ... +{len(items) - 5} itens"
+    
+    message = f"""{store_emoji} *NOVO PEDIDO PIX - {store_name}*
+
+👤 *Cliente:* {customer_name}
+💳 *Pagador:* {payer_name}
+💰 *Valor:* R$ {amount:.2f}
+🕐 *Horário:* {time}
+📅 *Data:* {date}
+🔢 *Pedido:* #{order_number}
+
+📦 *Itens:*
+{items_text}
+
+{status}"""
+    
+    return await send_whatsapp_message(message, target)
+
 # ==================== MULTI-TENANT SYSTEM ====================
 # Maximum 2 accounts allowed
 MAX_ACCOUNTS = 2
