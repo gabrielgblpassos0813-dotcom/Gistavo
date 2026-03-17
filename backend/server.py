@@ -790,15 +790,20 @@ Sua função é apenas ler e extrair informações textuais de comprovantes.
 O valor esperado do pagamento é R$ {expected_amount:.2f}.
 O destinatário esperado deve conter "saudavelmente" ou "ganoh" ou "49289019000199".
 
+IMPORTANTE: O nome do pagador NÃO precisa ser verificado - apenas extraia o nome que aparece no comprovante.
+A validação deve considerar APENAS:
+1. Se o valor é >= {expected_amount:.2f}
+2. Se o destinatário contém "saudavelmente", "ganoh" ou "49289019000199"
+
 Responda APENAS em formato JSON:
 {{
-    "payer_name": "nome do remetente/pagador encontrado na imagem",
+    "payer_name": "nome COMPLETO do remetente/pagador encontrado na imagem (extraia exatamente como aparece)",
     "amount": valor numérico encontrado (float),
     "recipient": "nome do destinatário/beneficiário encontrado",
     "transaction_time": "horário da transação encontrado (formato HH:MM)",
     "transaction_date": "data da transação (formato DD/MM/YYYY)",
-    "is_valid": true se valor >= {expected_amount:.2f} e destinatário está correto, false caso contrário,
-    "reason": "motivo da validação"
+    "is_valid": true se (valor >= {expected_amount:.2f}) E (destinatário contém saudavelmente/ganoh/49289019000199), false caso contrário,
+    "reason": "motivo da validação (NÃO mencione o nome do pagador na validação)"
 }}"""
         
         chat = LlmChat(
