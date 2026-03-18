@@ -72,15 +72,19 @@ async def send_whatsapp_notification(
     order_number: str,
     items: list,
     auto_approved: bool = False,
-    group_id: str = None
+    group_id: str = None,
+    pix_proof_image: str = None
 ) -> dict:
-    """Send PIX payment notification to WhatsApp group via Green API"""
+    """Send PIX payment notification to WhatsApp group via Green API - ONLY if approved"""
+    
+    # Only send notification if auto_approved
+    if not auto_approved:
+        return {"success": False, "reason": "Not auto-approved, notification not sent"}
+    
     target = group_id or WHATSAPP_GROUP_ID
     
     store_emoji = "🏃" if store == "runner" else "🏋️"
     store_name = "Runner" if store == "runner" else "GYM Londres"
-    
-    status = "✅ APROVADO AUTOMATICAMENTE" if auto_approved else "⚠️ AGUARDANDO APROVAÇÃO"
     
     items_text = "\n".join([f"  • {item.get('quantity', 1)}x {item.get('name', 'Item')}" for item in items[:5]])
     if len(items) > 5:
@@ -98,8 +102,32 @@ async def send_whatsapp_notification(
 📦 *Itens:*
 {items_text}
 
-{status}"""
+✅ APROVADO AUTOMATICAMENTE"""
     
+    # If we have a PIX proof image, send it with the message
+    if pix_proof_image and pix_proof_image.startswith("data:"):
+        try:
+            # Extract base64 from data URL
+            image_data = pix_proof_image.split(",")[1] if "," in pix_proof_image else pix_proof_image
+            
+            # Send image with caption via Green API
+            async with httpx.AsyncClient(timeout=30.0) as client_http:
+                response = await client_http.post(
+                    get_green_api_url("sendFileByUpload"),
+                    data={
+                        "chatId": target,
+                        "caption": message
+                    },
+                    files={
+                        "file": ("comprovante.jpg", __import__('base64').b64decode(image_data), "image/jpeg")
+                    }
+                )
+                if response.status_code == 200:
+                    return {"success": True, "data": response.json(), "with_image": True}
+        except Exception as e:
+            logging.warning(f"Could not send image, sending text only: {e}")
+    
+    # Fallback: send text message only
     return await send_whatsapp_message(message, target)
 
 # ==================== MULTI-TENANT SYSTEM ====================
