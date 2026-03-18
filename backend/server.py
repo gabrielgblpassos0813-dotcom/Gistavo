@@ -1232,7 +1232,7 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
             }
         )
         
-        # Send WhatsApp notification via Green API
+        # Send WhatsApp notification via Green API (manual approval also sends notification)
         try:
             pix_proof = order.get("pix_proof")
             payer_name = order.get("pix_payer_name", order.get("customer_name", "Cliente"))
@@ -1246,7 +1246,8 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
                 date=datetime.now().strftime("%d/%m/%Y"),
                 order_number=order.get("order_number", order_id[:8]),
                 items=order.get("items", []),
-                auto_approved=False
+                auto_approved=True,  # Manual approval also triggers notification
+                pix_proof_image=pix_proof
             )
         except Exception as e:
             logger.warning(f"Could not send WhatsApp notification: {e}")
