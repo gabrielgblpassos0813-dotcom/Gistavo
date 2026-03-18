@@ -905,7 +905,7 @@ Responda APENAS em formato JSON:
                 }
             )
             
-            # Send WhatsApp notification via Green API
+            # Send WhatsApp notification via Green API (only if approved)
             try:
                 await send_whatsapp_notification(
                     customer_name=order.get("customer_name", "Cliente"),
@@ -916,7 +916,8 @@ Responda APENAS em formato JSON:
                     date=transaction_date,
                     order_number=order.get("order_number", order_id[:8]),
                     items=order.get("items", []),
-                    auto_approved=True
+                    auto_approved=True,
+                    pix_proof_image=pix_proof
                 )
             except Exception as e:
                 logger.warning(f"Could not send WhatsApp notification: {e}")
