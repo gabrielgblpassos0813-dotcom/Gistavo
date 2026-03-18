@@ -1653,42 +1653,55 @@ async def update_gestor_stock(store: StoreLocation, menu_item_id: str, stock_upd
 @api_router.get("/gestor/chart/monthly")
 async def get_monthly_chart_data(month: int = None, year: int = None, username: str = Depends(verify_gestor)):
     """Get daily sales data for a specific month for chart visualization"""
-    now = datetime.now(timezone.utc)
+    # Use Brazil timezone (Mogi das Cruzes, SP)
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
     
     # Use provided month/year or current
-    target_month = month if month else now.month
-    target_year = year if year else now.year
+    target_month = month if month else now_brazil.month
+    target_year = year if year else now_brazil.year
     
-    month_start = datetime(target_year, target_month, 1, tzinfo=timezone.utc)
+    # Create month start/end in Brazil timezone
+    month_start_brazil = brazil_tz.localize(datetime(target_year, target_month, 1))
     
     # Calculate month end
     if target_month == 12:
-        month_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+        month_end_brazil = brazil_tz.localize(datetime(target_year + 1, 1, 1))
     else:
-        month_end = datetime(target_year, target_month + 1, 1, tzinfo=timezone.utc)
+        month_end_brazil = brazil_tz.localize(datetime(target_year, target_month + 1, 1))
+    
+    # Convert to UTC for database query
+    month_start_utc = month_start_brazil.astimezone(pytz.UTC)
+    month_end_utc = month_end_brazil.astimezone(pytz.UTC)
     
     # Get all completed orders this month
     orders = await db.orders.find({
         "status": {"$in": ["ready", "delivered", "received"]},
-        "created_at": {"$gte": month_start.isoformat(), "$lt": month_end.isoformat()}
+        "created_at": {"$gte": month_start_utc.isoformat(), "$lt": month_end_utc.isoformat()}
     }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
     
     # Get number of days in month
     import calendar
     days_in_month = calendar.monthrange(target_year, target_month)[1]
     
-    # Group by day
+    # Group by day (in Brazil timezone)
     daily_data = {}
     for i in range(days_in_month):
-        day_date = month_start + timedelta(days=i)
+        day_date = month_start_brazil + timedelta(days=i)
         day_str = day_date.strftime("%Y-%m-%d")
         daily_data[day_str] = {"date": day_str, "day": i + 1, "total": 0, "count": 0}
     
     for order in orders:
-        date = order.get("created_at", "")[:10]
-        if date in daily_data:
-            daily_data[date]["total"] += order.get("total", 0)
-            daily_data[date]["count"] += 1
+        try:
+            order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            # Convert to Brazil timezone to get correct day
+            order_time_brazil = order_time.astimezone(brazil_tz)
+            date = order_time_brazil.strftime("%Y-%m-%d")
+            if date in daily_data:
+                daily_data[date]["total"] += order.get("total", 0)
+                daily_data[date]["count"] += 1
+        except:
+            pass
     
     # Convert to sorted list
     chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
