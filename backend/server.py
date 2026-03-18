@@ -1708,24 +1708,31 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
 @api_router.get("/gestor/chart/daily")
 async def get_daily_chart_data(date: str = None, username: str = Depends(verify_gestor)):
     """Get hourly sales data for a specific day"""
-    now = datetime.now(timezone.utc)
+    # Use Brazil timezone (Mogi das Cruzes, SP)
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
     
-    # Parse date or use today
+    # Parse date or use today (in Brazil timezone)
     if date:
-        target_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+        target_date = brazil_tz.localize(target_date)
     else:
-        target_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        target_date = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    day_end = day_start + timedelta(days=1)
+    day_start_brazil = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end_brazil = day_start_brazil + timedelta(days=1)
+    
+    # Convert to UTC for database query
+    day_start_utc = day_start_brazil.astimezone(pytz.UTC)
+    day_end_utc = day_end_brazil.astimezone(pytz.UTC)
     
     # Get all completed orders this day
     orders = await db.orders.find({
         "status": {"$in": ["ready", "delivered", "received"]},
-        "created_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}
+        "created_at": {"$gte": day_start_utc.isoformat(), "$lt": day_end_utc.isoformat()}
     }, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1}).to_list(10000)
     
-    # Group by hour
+    # Group by hour (in Brazil timezone)
     hourly_data = {}
     for hour in range(24):
         hour_str = f"{hour:02d}:00"
@@ -1734,8 +1741,9 @@ async def get_daily_chart_data(date: str = None, username: str = Depends(verify_
     for order in orders:
         try:
             order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
-            # Convert UTC to Brazil timezone (UTC-3)
-            brazil_hour = (order_time.hour - 3) % 24
+            # Convert to Brazil timezone
+            order_time_brazil = order_time.astimezone(brazil_tz)
+            brazil_hour = order_time_brazil.hour
             hourly_data[brazil_hour]["total"] += order.get("total", 0)
             hourly_data[brazil_hour]["count"] += 1
         except:
