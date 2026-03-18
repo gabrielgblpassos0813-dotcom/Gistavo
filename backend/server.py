@@ -1777,19 +1777,26 @@ async def get_daily_chart_data(date: str = None, username: str = Depends(verify_
 @api_router.get("/gestor/chart/yearly")
 async def get_yearly_chart_data(year: int = None, username: str = Depends(verify_gestor)):
     """Get monthly sales data for a specific year"""
-    now = datetime.now(timezone.utc)
-    target_year = year if year else now.year
+    # Use Brazil timezone (Mogi das Cruzes, SP)
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    target_year = year if year else now_brazil.year
     
-    year_start = datetime(target_year, 1, 1, tzinfo=timezone.utc)
-    year_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc)
+    # Create year start/end in Brazil timezone
+    year_start_brazil = brazil_tz.localize(datetime(target_year, 1, 1))
+    year_end_brazil = brazil_tz.localize(datetime(target_year + 1, 1, 1))
+    
+    # Convert to UTC for database query
+    year_start_utc = year_start_brazil.astimezone(pytz.UTC)
+    year_end_utc = year_end_brazil.astimezone(pytz.UTC)
     
     # Get all completed orders this year
     orders = await db.orders.find({
         "status": {"$in": ["ready", "delivered", "received"]},
-        "created_at": {"$gte": year_start.isoformat(), "$lt": year_end.isoformat()}
+        "created_at": {"$gte": year_start_utc.isoformat(), "$lt": year_end_utc.isoformat()}
     }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(100000)
     
-    # Group by month
+    # Group by month (in Brazil timezone)
     month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
     monthly_data = {}
     for month in range(1, 13):
@@ -1797,8 +1804,10 @@ async def get_yearly_chart_data(year: int = None, username: str = Depends(verify
     
     for order in orders:
         try:
-            order_date = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
-            month = order_date.month
+            order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+            # Convert to Brazil timezone to get correct month
+            order_time_brazil = order_time.astimezone(brazil_tz)
+            month = order_time_brazil.month
             monthly_data[month]["total"] += order.get("total", 0)
             monthly_data[month]["count"] += 1
         except:
@@ -1819,13 +1828,16 @@ async def get_yearly_chart_data(year: int = None, username: str = Depends(verify
 @api_router.get("/gestor/sales-by-category")
 async def get_sales_by_category(username: str = Depends(verify_gestor)):
     """Get sales data grouped by product category for the current month"""
-    now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Use Brazil timezone
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    month_start_brazil = now_brazil.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start_utc = month_start_brazil.astimezone(pytz.UTC)
     
     # Get all completed orders this month
     orders = await db.orders.find({
         "status": {"$in": ["ready", "delivered"]},
-        "created_at": {"$gte": month_start.isoformat()}
+        "created_at": {"$gte": month_start_utc.isoformat()}
     }, {"_id": 0, "items": 1, "total": 1, "store": 1}).to_list(10000)
     
     # Group by category
