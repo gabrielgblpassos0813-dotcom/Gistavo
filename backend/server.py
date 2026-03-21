@@ -89,7 +89,18 @@ async def send_whatsapp_notification(
         return {"success": False, "reason": "Not auto-approved, notification not sent"}
     
     # Select the correct group based on store (Runner or GYM Londres)
-    target = group_id or STORE_WHATSAPP_GROUPS.get(store, WHATSAPP_GROUP_ID)
+    # IMPORTANT: Use exact store value to select group
+    logger.info(f"WhatsApp notification for store: '{store}' - Groups mapping: {STORE_WHATSAPP_GROUPS}")
+    
+    if store == "runner":
+        target = WHATSAPP_GROUP_RUNNER
+        logger.info(f"Using RUNNER group: {target}")
+    elif store == "gym-londres":
+        target = WHATSAPP_GROUP_ID
+        logger.info(f"Using GYM LONDRES group: {target}")
+    else:
+        target = group_id or WHATSAPP_GROUP_ID
+        logger.warning(f"Unknown store '{store}', using default group: {target}")
     
     store_emoji = "🏃" if store == "runner" else "🏋️"
     store_name = "Runner" if store == "runner" else "GYM Londres"
