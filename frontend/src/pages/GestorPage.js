@@ -15,6 +15,7 @@ import {
   ChevronRight, Trash2, Plus, Pencil, UtensilsCrossed, CalendarClock, UserPlus, Receipt, Camera, Upload, Loader2, MessageCircle, QrCode, Users, PlusCircle
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import { AdicionaisTab, WhatsAppTab } from '../components/gestor';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -1948,180 +1949,26 @@ export const GestorPage = () => {
 
           {/* ADICIONAIS TAB */}
           <TabsContent value="adicionais">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <PlusCircle className="h-5 w-5 text-brand-600" />
-                    Gerenciar Adicionais
-                  </div>
-                  <Button size="sm" onClick={() => { setEditingAdicional(null); setNewAdicional({ name: '', price: '' }); setShowAdicionalDialog(true); }}>
-                    <Plus className="h-4 w-4 mr-1" /> Novo Adicional
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Gerencie os adicionais disponíveis para os itens do cardápio (ex: ovos, queijo, mel).
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {adicionais.map((adicional) => (
-                    <div key={adicional.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{adicional.name}</p>
-                        <p className="text-sm text-brand-600">R$ {adicional.price?.toFixed(2)}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => openEditAdicional(adicional)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDeleteAdicional(adicional.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {adicionais.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <PlusCircle className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                    <p>Nenhum adicional cadastrado</p>
-                    <p className="text-sm">Clique em "Novo Adicional" para começar</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <AdicionaisTab 
+              adicionais={adicionais}
+              onNewAdicional={() => { setEditingAdicional(null); setNewAdicional({ name: '', price: '' }); setShowAdicionalDialog(true); }}
+              onEditAdicional={openEditAdicional}
+              onDeleteAdicional={handleDeleteAdicional}
+            />
           </TabsContent>
 
           {/* WHATSAPP TAB */}
           <TabsContent value="whatsapp">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-green-600" />
-                  WhatsApp Bot - Notificações PIX
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground mb-4">
-                  Conecte o WhatsApp para receber notificações automáticas quando um PIX for aprovado.
-                </div>
-                
-                {/* Status */}
-                <div className="flex items-center gap-3 p-4 bg-secondary/30 rounded-lg">
-                  <div className={`w-3 h-3 rounded-full ${
-                    whatsappStatus === 'connected' ? 'bg-green-500' :
-                    whatsappStatus === 'waiting_qr' ? 'bg-yellow-500 animate-pulse' :
-                    whatsappStatus === 'reconnecting' ? 'bg-blue-500 animate-pulse' :
-                    'bg-red-500'
-                  }`} />
-                  <span className="font-medium">
-                    {whatsappStatus === 'connected' ? '✅ Conectado' :
-                     whatsappStatus === 'waiting_qr' ? '📱 Aguardando QR Code...' :
-                     whatsappStatus === 'reconnecting' ? '🔄 Reconectando...' :
-                     whatsappStatus === 'offline' ? '⚠️ Bot offline (inicie o serviço)' :
-                     '❌ Desconectado'}
-                  </span>
-                </div>
-
-                {/* QR Code */}
-                {whatsappQR && whatsappStatus !== 'connected' && (
-                  <div className="bg-white p-6 rounded-lg border text-center">
-                    <p className="text-sm font-medium mb-4">Escaneie o QR Code com seu WhatsApp:</p>
-                    <div className="inline-block p-4 bg-white border rounded-lg">
-                      <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(whatsappQR)}`}
-                        alt="WhatsApp QR Code"
-                        className="w-48 h-48"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-4">
-                      1. Abra o WhatsApp no celular<br/>
-                      2. Vá em Configurações → Aparelhos Conectados<br/>
-                      3. Escaneie o código acima
-                    </p>
-                  </div>
-                )}
-
-                {whatsappStatus === 'connected' && (
-                  <div className="space-y-4">
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <p className="text-green-700 font-medium">🎉 WhatsApp conectado com sucesso!</p>
-                      <p className="text-sm text-green-600 mt-2">
-                        Quando um PIX for aprovado, você receberá uma notificação automática com a foto do comprovante.
-                      </p>
-                    </div>
-                    
-                    {/* Configurar destino das notificações */}
-                    <div className="bg-secondary/30 p-4 rounded-lg border">
-                      <Label className="font-medium flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4" /> Destino das Notificações
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Cole o link do grupo WhatsApp para entrar e receber notificações
-                      </p>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={whatsappTargetInput}
-                          onChange={(e) => setWhatsappTargetInput(e.target.value)}
-                          placeholder="https://chat.whatsapp.com/xxx"
-                          className="flex-1"
-                        />
-                        <Button onClick={joinWhatsAppGroup} className="bg-green-600 hover:bg-green-700">
-                          Entrar no Grupo
-                        </Button>
-                      </div>
-                      {whatsappTarget && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          ✅ Destino atual: <code className="bg-secondary px-1 rounded">{whatsappTarget}</code>
-                        </p>
-                      )}
-                    </div>
-                    
-                    {/* Grupos disponíveis */}
-                    {whatsappGroups.length > 0 && (
-                      <div className="bg-secondary/30 p-4 rounded-lg border">
-                        <Label className="font-medium flex items-center gap-2 mb-2">
-                          <MessageCircle className="h-4 w-4" /> Grupos Disponíveis
-                        </Label>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {whatsappGroups.map((group) => (
-                            <div 
-                              key={group.id} 
-                              className="flex items-center justify-between p-2 bg-white rounded border text-sm hover:bg-secondary/50 cursor-pointer"
-                              onClick={() => {
-                                setWhatsappTargetInput(group.id);
-                                toast.info(`Grupo "${group.name}" selecionado. Clique em Salvar.`);
-                              }}
-                            >
-                              <span>{group.name}</span>
-                              <span className="text-xs text-muted-foreground">{group.participants} membros</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {whatsappStatus === 'offline' && (
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <p className="text-yellow-700 font-medium">⚠️ Serviço do bot não está rodando</p>
-                    <p className="text-sm text-yellow-600 mt-2">
-                      O bot do WhatsApp precisa ser iniciado no servidor.
-                    </p>
-                  </div>
-                )}
-
-                <Button 
-                  variant="outline" 
-                  onClick={fetchWhatsAppStatus}
-                  className="w-full"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Status
-                </Button>
-              </CardContent>
-            </Card>
+            <WhatsAppTab 
+              whatsappStatus={whatsappStatus}
+              whatsappQR={whatsappQR}
+              whatsappGroups={whatsappGroups}
+              whatsappTarget={whatsappTarget}
+              whatsappTargetInput={whatsappTargetInput}
+              setWhatsappTargetInput={setWhatsappTargetInput}
+              onJoinGroup={joinWhatsAppGroup}
+              onRefreshStatus={fetchWhatsAppStatus}
+            />
           </TabsContent>
         </Tabs>
       </main>
