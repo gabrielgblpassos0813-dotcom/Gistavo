@@ -955,6 +955,13 @@ export const GestorPage = () => {
 
   const handleExportContador = async () => {
     try {
+      const auth = localStorage.getItem('gestor_auth');
+      if (!auth) {
+        toast.error('Não autenticado');
+        return;
+      }
+      const [user, pass] = atob(auth).split(':');
+      
       toast.loading('Gerando relatório para contador...', { id: 'export' });
       const response = await axios.get(`${API}/expenses/export-contador`, {
         params: {
@@ -983,6 +990,7 @@ export const GestorPage = () => {
         duration: 5000
       });
     } catch (error) {
+      console.error('Export error:', error);
       toast.error('Erro ao gerar relatório', { id: 'export' });
     }
   };
