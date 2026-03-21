@@ -117,6 +117,7 @@ export const GestorPage = () => {
   const [expensesSelectedMonth, setExpensesSelectedMonth] = useState(new Date().getMonth() + 1);
   const [expensesSelectedYear, setExpensesSelectedYear] = useState(new Date().getFullYear());
   const [expensesSelectedDate, setExpensesSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expenseStoreFilter, setExpenseStoreFilter] = useState('all');
   
   // AI Chat for expenses
   const [showExpenseChat, setShowExpenseChat] = useState(false);
@@ -952,6 +953,40 @@ export const GestorPage = () => {
     }
   };
 
+  const handleExportContador = async () => {
+    try {
+      toast.loading('Gerando relatório para contador...', { id: 'export' });
+      const response = await axios.get(`${API}/expenses/export-contador`, {
+        params: {
+          month: expensesSelectedMonth,
+          year: expensesSelectedYear,
+          store: expenseStoreFilter !== 'all' ? expenseStoreFilter : null
+        },
+        auth: { username: user, password: pass }
+      });
+      
+      // Create downloadable JSON
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio_contador_${response.data.periodo.mes_nome}_${response.data.periodo.ano}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Relatório de ${response.data.periodo.mes_nome}/${response.data.periodo.ano} gerado!`, { id: 'export' });
+      
+      // Show summary
+      toast.info(`Receita: R$${response.data.resumo.receita_total.toFixed(2)} | Despesas: R$${response.data.resumo.despesas_total.toFixed(2)} | Lucro: R$${response.data.resumo.lucro_bruto.toFixed(2)}`, {
+        duration: 5000
+      });
+    } catch (error) {
+      toast.error('Erro ao gerar relatório', { id: 'export' });
+    }
+  };
+
   useEffect(() => {
     // Check for tenant auth first
     const tenantId = localStorage.getItem('tenant_id');
@@ -1480,6 +1515,13 @@ export const GestorPage = () => {
                 </h2>
                 <div className="flex gap-2">
                   <Button 
+                    variant="outline"
+                    onClick={handleExportContador}
+                    title="Exportar para Contador"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" /> Exportar IR
+                  </Button>
+                  <Button 
                     className="bg-brand-600 hover:bg-brand-700"
                     onClick={() => {
                       setExpenseImage(null);
@@ -1504,6 +1546,21 @@ export const GestorPage = () => {
                     <Plus className="h-4 w-4 mr-1" /> Manual
                   </Button>
                 </div>
+              </div>
+
+              {/* Store Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Filtrar por Loja:</span>
+                <Select value={expenseStoreFilter} onValueChange={setExpenseStoreFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="runner">Runner</SelectItem>
+                    <SelectItem value="gym-londres">GYM Londres</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Summary Cards */}
@@ -1736,12 +1793,18 @@ export const GestorPage = () => {
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {expenses
                         .filter(e => selectedCategory === 'all' || e.category === selectedCategory)
+                        .filter(e => expenseStoreFilter === 'all' || e.store === expenseStoreFilter || e.store === 'all')
                         .map((expense) => (
                         <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{expense.description}</span>
                               <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{expense.category}</span>
+                              {expense.store && expense.store !== 'all' && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                  {expense.store === 'runner' ? 'Runner' : 'GYM Londres'}
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground">
                               {new Date(expense.created_at).toLocaleDateString('pt-BR')} • {expense.notes || 'Sem observações'}
@@ -2309,6 +2372,19 @@ export const GestorPage = () => {
                     {EXPENSE_CATEGORIES.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Loja</Label>
+                <Select value={newExpense.store} onValueChange={(v) => setNewExpense({...newExpense, store: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as Lojas</SelectItem>
+                    <SelectItem value="runner">Runner</SelectItem>
+                    <SelectItem value="gym-londres">GYM Londres</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

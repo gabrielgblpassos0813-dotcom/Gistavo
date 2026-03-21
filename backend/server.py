@@ -240,6 +240,27 @@ class MenuItem(BaseModel):
     category: str
     prep_time: int = 15
     available: bool = True
+    # Fiscal fields for NF-e (Nota Fiscal)
+    codigo: Optional[str] = None  # Product code
+    codigo_externo: Optional[str] = None  # External code
+    unidade: str = "UN"  # UN, KG, LT
+    valor_custo: float = 0.0  # Cost value
+    codigo_barras: Optional[str] = None  # Barcode
+    grupo: Optional[str] = None  # Product group
+    # Fiscal/Tax fields
+    ncm: Optional[str] = None  # NCM code (Nomenclatura Comum do Mercosul)
+    cst: Optional[str] = None  # CST (Código de Situação Tributária)
+    csosn: Optional[str] = None  # CSOSN (Código de Situação da Operação - Simples Nacional)
+    cfop: Optional[str] = None  # CFOP (Código Fiscal de Operações e Prestações)
+    cest: Optional[str] = None  # CEST (Código Especificador da Substituição Tributária)
+    icms_aliquota: Optional[float] = None  # ICMS rate
+    icms_tipo: Optional[str] = None  # isento, substituicao, nao_incidencia, or percentage
+    pis_cst: Optional[str] = None  # PIS CST
+    pis_aliquota: Optional[float] = None  # PIS rate
+    cofins_cst: Optional[str] = None  # COFINS CST
+    cofins_aliquota: Optional[float] = None  # COFINS rate
+    estoque_minimo: float = 0.0  # Minimum stock
+    estoque_producao: bool = False  # Production stock
 
 class StockItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -2055,6 +2076,92 @@ class PrazoPayment(BaseModel):
     amount: float
     password: str
 
+# ==================== KITCHEN MANAGEMENT ENDPOINTS (No auth required) ====================
+# These endpoints allow the kitchen to manage adicionais, menu items, and prazo
+
+@api_router.get("/kitchen/adicionais")
+async def get_adicionais_kitchen():
+    """Get all adicionais for kitchen view"""
+    adicionais = await db.adicionais.find({}, {"_id": 0}).to_list(500)
+    return {"adicionais": adicionais}
+
+@api_router.post("/kitchen/adicionais")
+async def create_adicional_kitchen(adicional: AdicionalCreate):
+    """Create new adicional from kitchen"""
+    new_adicional = {
+        "id": str(uuid.uuid4()),
+        "name": adicional.name,
+        "price": adicional.price,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.adicionais.insert_one(new_adicional)
+    return {**new_adicional, "_id": None}
+
+@api_router.put("/kitchen/adicionais/{adicional_id}")
+async def update_adicional_kitchen(adicional_id: str, update: AdicionalUpdate):
+    """Update adicional from kitchen"""
+    await db.adicionais.update_one({"id": adicional_id}, {"$set": {"name": update.name, "price": update.price}})
+    return {"success": True}
+
+@api_router.delete("/kitchen/adicionais/{adicional_id}")
+async def delete_adicional_kitchen(adicional_id: str):
+    """Delete adicional from kitchen"""
+    await db.adicionais.delete_one({"id": adicional_id})
+    return {"success": True, "message": "Adicional removido"}
+
+@api_router.get("/kitchen/menu/{store}")
+async def get_menu_kitchen(store: StoreLocation):
+    """Get all menu items for kitchen management"""
+    custom_items = await db.menu.find({"store": store.value}, {"_id": 0}).to_list(500)
+    return {"items": custom_items}
+
+@api_router.post("/kitchen/menu")
+async def create_menu_item_kitchen(item: MenuItem):
+    """Create new menu item from kitchen"""
+    item_dict = item.model_dump()
+    item_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db.menu.insert_one(item_dict)
+    return {**item_dict, "_id": None}
+
+@api_router.put("/kitchen/menu/{item_id}")
+async def update_menu_item_kitchen(item_id: str, item: MenuItem):
+    """Update menu item from kitchen"""
+    update_data = item.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.menu.update_one({"id": item_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    return {"success": True}
+
+@api_router.delete("/kitchen/menu/{item_id}")
+async def delete_menu_item_kitchen(item_id: str):
+    """Delete menu item from kitchen"""
+    result = await db.menu.delete_one({"id": item_id})
+    return {"success": True, "message": "Item removido"}
+
+@api_router.post("/kitchen/prazo/customers")
+async def create_prazo_customer_kitchen(customer: PrazoCustomerCreate):
+    """Register a new prazo customer from kitchen"""
+    existing = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer.name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Cliente já cadastrado")
+    
+    new_customer = {
+        "id": str(uuid.uuid4()),
+        "name": customer.name,
+        "phone": customer.phone,
+        "notes": customer.notes,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.prazo_customers.insert_one(new_customer)
+    return {**new_customer, "_id": None}
+
+@api_router.delete("/kitchen/prazo/customers/{customer_id}")
+async def delete_prazo_customer_kitchen(customer_id: str):
+    """Delete prazo customer from kitchen"""
+    result = await db.prazo_customers.delete_one({"id": customer_id})
+    return {"success": True, "message": "Cliente removido"}
+
 @api_router.get("/prazo/customers")
 async def get_prazo_customers():
     """Get all registered prazo customers"""
@@ -2267,6 +2374,130 @@ async def delete_expense(expense_id: str, username: str = Depends(verify_gestor)
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Gasto não encontrado")
     return {"success": True, "message": "Gasto removido"}
+
+# ==================== EXPORT TO ACCOUNTANT ====================
+@api_router.get("/expenses/export-contador")
+async def export_expenses_for_accountant(
+    month: Optional[int] = None, 
+    year: Optional[int] = None,
+    store: Optional[str] = None,
+    username: str = Depends(verify_gestor)
+):
+    """Export all financial data for accountant (IR - Imposto de Renda)"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brazil_tz)
+    
+    target_month = month or now.month
+    target_year = year or now.year
+    
+    # Calculate date range
+    month_start = brazil_tz.localize(datetime(target_year, target_month, 1))
+    if target_month == 12:
+        month_end = brazil_tz.localize(datetime(target_year + 1, 1, 1))
+    else:
+        month_end = brazil_tz.localize(datetime(target_year, target_month + 1, 1))
+    
+    month_start_utc = month_start.astimezone(pytz.UTC).isoformat()
+    month_end_utc = month_end.astimezone(pytz.UTC).isoformat()
+    
+    # Build query for expenses
+    expense_query = {"created_at": {"$gte": month_start_utc, "$lt": month_end_utc}}
+    if store and store != "all":
+        expense_query["$or"] = [{"store": store}, {"store": "all"}]
+    
+    # Get expenses
+    expenses = await db.expenses.find(expense_query, {"_id": 0}).to_list(10000)
+    
+    # Get orders (sales)
+    order_query = {
+        "created_at": {"$gte": month_start_utc, "$lt": month_end_utc},
+        "status": {"$in": ["ready", "delivered"]}
+    }
+    if store and store != "all":
+        order_query["store"] = store
+    
+    orders = await db.orders.find(order_query, {"_id": 0}).to_list(10000)
+    
+    # Get menu items with fiscal info
+    menu_items = await db.menu.find({}, {"_id": 0}).to_list(1000)
+    
+    # Calculate totals
+    total_expenses = sum(e.get("amount", 0) for e in expenses)
+    total_sales = sum(o.get("total", 0) for o in orders)
+    profit = total_sales - total_expenses
+    
+    # Group expenses by category
+    expenses_by_category = {}
+    for exp in expenses:
+        cat = exp.get("category", "outros")
+        if cat not in expenses_by_category:
+            expenses_by_category[cat] = {"total": 0, "count": 0, "items": []}
+        expenses_by_category[cat]["total"] += exp.get("amount", 0)
+        expenses_by_category[cat]["count"] += 1
+        expenses_by_category[cat]["items"].append({
+            "date": exp.get("created_at", "")[:10],
+            "description": exp.get("description", ""),
+            "amount": exp.get("amount", 0),
+            "store": exp.get("store", "all"),
+            "notes": exp.get("notes", "")
+        })
+    
+    # Group sales by payment method
+    sales_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}
+    for order in orders:
+        pm = order.get("payment_method", "cash")
+        sales_by_payment[pm] = sales_by_payment.get(pm, 0) + order.get("total", 0)
+    
+    # Products with fiscal info
+    products_fiscal = []
+    for item in menu_items:
+        if item.get("ncm") or item.get("csosn"):
+            products_fiscal.append({
+                "id": item.get("id"),
+                "codigo": item.get("codigo"),
+                "name": item.get("name"),
+                "price": item.get("price"),
+                "valor_custo": item.get("valor_custo", 0),
+                "ncm": item.get("ncm"),
+                "cst": item.get("cst"),
+                "csosn": item.get("csosn"),
+                "cfop": item.get("cfop"),
+                "cest": item.get("cest"),
+                "icms_aliquota": item.get("icms_aliquota"),
+                "pis_cst": item.get("pis_cst"),
+                "cofins_cst": item.get("cofins_cst")
+            })
+    
+    return {
+        "periodo": {
+            "mes": target_month,
+            "ano": target_year,
+            "mes_nome": ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][target_month - 1]
+        },
+        "loja": store or "todas",
+        "resumo": {
+            "receita_total": total_sales,
+            "despesas_total": total_expenses,
+            "lucro_bruto": profit,
+            "total_pedidos": len(orders),
+            "total_gastos": len(expenses)
+        },
+        "receita_por_forma_pagamento": sales_by_payment,
+        "despesas_por_categoria": expenses_by_category,
+        "despesas_detalhadas": expenses,
+        "vendas_detalhadas": [{
+            "id": o.get("id"),
+            "date": o.get("created_at", "")[:10],
+            "customer": o.get("customer_name"),
+            "total": o.get("total"),
+            "payment_method": o.get("payment_method"),
+            "store": o.get("store"),
+            "items": o.get("items", [])
+        } for o in orders],
+        "produtos_com_info_fiscal": products_fiscal,
+        "gerado_em": now.isoformat()
+    }
 
 @api_router.post("/expenses/analyze-image")
 async def analyze_expense_image(analysis: ExpenseAnalysis, username: str = Depends(verify_gestor)):

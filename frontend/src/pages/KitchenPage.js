@@ -11,8 +11,9 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Toaster, toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -419,6 +420,19 @@ export const KitchenPage = () => {
   const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState(null);
   const [prazoPassword, setPrazoPassword] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  // Adicionais and Menu states
+  const [adicionais, setAdicionais] = useState([]);
+  const [showAdicionalDialog, setShowAdicionalDialog] = useState(false);
+  const [newAdicional, setNewAdicional] = useState({ name: '', price: '' });
+  const [editingAdicional, setEditingAdicional] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [showMenuDialog, setShowMenuDialog] = useState(false);
+  const [newMenuItem, setNewMenuItem] = useState({ name: '', description: '', price: '', category: 'doces' });
+  const [editingMenuItem, setEditingMenuItem] = useState(null);
+  // Prazo customers state
+  const [prazoCustomers, setPrazoCustomers] = useState([]);
+  const [showPrazoCustomerDialog, setShowPrazoCustomerDialog] = useState(false);
+  const [newPrazoCustomer, setNewPrazoCustomer] = useState({ name: '', phone: '', notes: '' });
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -470,11 +484,14 @@ export const KitchenPage = () => {
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`),
-        axios.get(`${API}/prazo/debts`)  // Fetch prazo debts for all stores
+        axios.get(`${API}/prazo/debts`),  // Fetch prazo debts for all stores
+        axios.get(`${API}/kitchen/adicionais`),  // Fetch adicionais
+        axios.get(`${API}/menu/${store}`),  // Fetch menu items
+        axios.get(`${API}/prazo/customers`)  // Fetch prazo customers
       ];
       
       const results = await Promise.all(requests);
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes] = results;
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes] = results;
       
       const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
       
@@ -482,7 +499,7 @@ export const KitchenPage = () => {
       const newPendingCount = newOrders.filter(o => o.status === 'received').length + pixRes.data.orders.length;
       if (prevOrderCount.current > 0 && newPendingCount > prevOrderCount.current) {
         playNewOrderSound();
-        toast.info('🔔 Novo pedido!', { duration: 3000 });
+        toast.info('Novo pedido!', { duration: 3000 });
       }
       prevOrderCount.current = newPendingCount;
       
@@ -494,8 +511,23 @@ export const KitchenPage = () => {
       setHistoryOrders(historyRes.data.orders);
       
       // Set prazo debts for all stores
-      if (results[6]) {
-        setPrazoDebts(results[6].data);
+      if (prazoDebtsRes) {
+        setPrazoDebts(prazoDebtsRes.data);
+      }
+      
+      // Set adicionais
+      if (adicionaisRes) {
+        setAdicionais(adicionaisRes.data.adicionais || []);
+      }
+      
+      // Set menu items
+      if (menuRes) {
+        setMenuItems(menuRes.data.items || []);
+      }
+      
+      // Set prazo customers
+      if (prazoCustomersRes) {
+        setPrazoCustomers(prazoCustomersRes.data.customers || []);
       }
       
       if (showToast) toast.success('Atualizado');
@@ -633,6 +665,108 @@ export const KitchenPage = () => {
     }
   };
 
+  // ==================== ADICIONAIS MANAGEMENT ====================
+  const handleSaveAdicional = async () => {
+    if (!newAdicional.name || !newAdicional.price) {
+      toast.error('Preencha nome e preço');
+      return;
+    }
+    try {
+      const data = { name: newAdicional.name, price: parseFloat(newAdicional.price) };
+      if (editingAdicional) {
+        await axios.put(`${API}/kitchen/adicionais/${editingAdicional.id}`, data);
+        toast.success('Adicional atualizado!');
+      } else {
+        await axios.post(`${API}/kitchen/adicionais`, data);
+        toast.success('Adicional criado!');
+      }
+      setShowAdicionalDialog(false);
+      setNewAdicional({ name: '', price: '' });
+      setEditingAdicional(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao salvar adicional');
+    }
+  };
+
+  const handleDeleteAdicional = async (adicionalId) => {
+    try {
+      await axios.delete(`${API}/kitchen/adicionais/${adicionalId}`);
+      toast.success('Adicional removido');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao remover');
+    }
+  };
+
+  // ==================== MENU MANAGEMENT ====================
+  const handleSaveMenuItem = async () => {
+    if (!newMenuItem.name || !newMenuItem.price) {
+      toast.error('Preencha nome e preço');
+      return;
+    }
+    try {
+      const data = {
+        name: newMenuItem.name,
+        description: newMenuItem.description || '',
+        price: parseFloat(newMenuItem.price),
+        category: newMenuItem.category || 'doces',
+        store: store,
+        available: true
+      };
+      if (editingMenuItem) {
+        await axios.put(`${API}/kitchen/menu/${editingMenuItem.id}`, { ...editingMenuItem, ...data });
+        toast.success('Item atualizado!');
+      } else {
+        await axios.post(`${API}/kitchen/menu`, data);
+        toast.success('Item criado!');
+      }
+      setShowMenuDialog(false);
+      setNewMenuItem({ name: '', description: '', price: '', category: 'doces' });
+      setEditingMenuItem(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao salvar item');
+    }
+  };
+
+  const handleDeleteMenuItem = async (itemId) => {
+    try {
+      await axios.delete(`${API}/kitchen/menu/${itemId}`);
+      toast.success('Item removido');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao remover');
+    }
+  };
+
+  // ==================== PRAZO CUSTOMERS MANAGEMENT ====================
+  const handleSavePrazoCustomer = async () => {
+    if (!newPrazoCustomer.name) {
+      toast.error('Preencha o nome do cliente');
+      return;
+    }
+    try {
+      await axios.post(`${API}/kitchen/prazo/customers`, newPrazoCustomer);
+      toast.success('Cliente cadastrado!');
+      setShowPrazoCustomerDialog(false);
+      setNewPrazoCustomer({ name: '', phone: '', notes: '' });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao cadastrar');
+    }
+  };
+
+  const handleDeletePrazoCustomer = async (customerId) => {
+    try {
+      await axios.delete(`${API}/kitchen/prazo/customers/${customerId}`);
+      toast.success('Cliente removido');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao remover');
+    }
+  };
+
   const receivedOrders = orders.filter(o => o.status === 'received');
   const preparingOrders = orders.filter(o => o.status === 'preparing');
   const readyOrders = orders.filter(o => o.status === 'ready');
@@ -736,7 +870,7 @@ export const KitchenPage = () => {
 
       <main className="p-2">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full h-9 grid-cols-6">
+          <TabsList className="grid w-full h-9 grid-cols-8">
             <TabsTrigger value="pix" className="text-xs h-7 px-1">
               PIX {pendingPixOrders.length > 0 && <Badge className="ml-1 bg-blue-600 h-4 min-w-4 p-0 justify-center text-[10px]">{pendingPixOrders.length}</Badge>}
             </TabsTrigger>
@@ -750,6 +884,8 @@ export const KitchenPage = () => {
             <TabsTrigger value="estoque" className="text-xs h-7 px-1">
               Est. {lowStockCount > 0 && <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 justify-center text-[10px]">{lowStockCount}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="cardapio" className="text-xs h-7 px-1">Card.</TabsTrigger>
+            <TabsTrigger value="adicionais" className="text-xs h-7 px-1">Adic.</TabsTrigger>
             <TabsTrigger value="historico" className="text-xs h-7 px-1">
               <History className="h-3 w-3" />
             </TabsTrigger>
@@ -919,6 +1055,14 @@ export const KitchenPage = () => {
 
           {/* PRAZO TAB - For all stores */}
           <TabsContent value="prazo" className="mt-2 space-y-3">
+            {/* Header with button */}
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-sm">Clientes no Prazo</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowPrazoCustomerDialog(true)}>
+                <UserPlus className="h-3 w-3 mr-1" /> Novo Cliente
+              </Button>
+            </div>
+            
             {/* Total Prazo */}
             <div className="bg-amber-600 text-white rounded-xl p-4">
               <div className="flex justify-between items-center">
@@ -1030,6 +1174,98 @@ export const KitchenPage = () => {
             )}
           </TabsContent>
 
+          {/* CARDÁPIO TAB */}
+          <TabsContent value="cardapio" className="mt-2">
+            <div className="bg-white rounded-xl p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm flex items-center gap-1">
+                  <UtensilsCrossed className="h-4 w-4 text-brand-600" /> Cardápio
+                </h3>
+                <Button size="sm" variant="outline" onClick={() => { setEditingMenuItem(null); setNewMenuItem({ name: '', description: '', price: '', category: 'doces' }); setShowMenuDialog(true); }}>
+                  <Plus className="h-3 w-3 mr-1" /> Novo Item
+                </Button>
+              </div>
+              <ScrollArea className="h-[55vh]">
+                <div className="space-y-2 pr-2">
+                  {menuItems.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <UtensilsCrossed className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum item personalizado</p>
+                      <p className="text-xs">Adicione itens ao cardápio desta loja</p>
+                    </div>
+                  ) : (
+                    menuItems.map(item => (
+                      <div key={item.id} className="flex items-center justify-between p-2 border rounded-lg bg-gray-50 hover:bg-gray-100">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{item.name}</span>
+                            <Badge variant="outline" className="text-[10px] h-4">{item.category}</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            R$ {item.price?.toFixed(2)} {item.description && `• ${item.description}`}
+                          </div>
+                          {item.codigo && <span className="text-[10px] text-muted-foreground">Cód: {item.codigo}</span>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingMenuItem(item); setNewMenuItem({ name: item.name, description: item.description || '', price: item.price?.toString() || '', category: item.category || 'doces' }); setShowMenuDialog(true); }}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => handleDeleteMenuItem(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
+          {/* ADICIONAIS TAB */}
+          <TabsContent value="adicionais" className="mt-2">
+            <div className="bg-white rounded-xl p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm flex items-center gap-1">
+                  <Plus className="h-4 w-4 text-green-600" /> Adicionais
+                </h3>
+                <Button size="sm" variant="outline" onClick={() => { setEditingAdicional(null); setNewAdicional({ name: '', price: '' }); setShowAdicionalDialog(true); }}>
+                  <Plus className="h-3 w-3 mr-1" /> Novo Adicional
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Adicionais como ovos, queijo, mel disponíveis para todos os itens.
+              </p>
+              <ScrollArea className="h-[50vh]">
+                <div className="grid grid-cols-2 gap-2 pr-2">
+                  {adicionais.length === 0 ? (
+                    <div className="col-span-2 text-center py-8 text-muted-foreground">
+                      <Plus className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum adicional cadastrado</p>
+                    </div>
+                  ) : (
+                    adicionais.map(adicional => (
+                      <div key={adicional.id} className="flex items-center justify-between p-2 border rounded-lg bg-green-50">
+                        <div>
+                          <p className="font-medium text-sm">{adicional.name}</p>
+                          <p className="text-xs text-green-600">R$ {adicional.price?.toFixed(2)}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditingAdicional(adicional); setNewAdicional({ name: adicional.name, price: adicional.price?.toString() || '' }); setShowAdicionalDialog(true); }}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-600" onClick={() => handleDeleteAdicional(adicional.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </TabsContent>
+
           {/* HISTÓRICO TAB */}
           <TabsContent value="historico" className="mt-2">
             <div className="bg-white rounded-xl p-3">
@@ -1139,6 +1375,167 @@ export const KitchenPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Adicional Dialog */}
+      <Dialog open={showAdicionalDialog} onOpenChange={setShowAdicionalDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4 text-green-600" />
+              {editingAdicional ? 'Editar Adicional' : 'Novo Adicional'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Nome</Label>
+              <Input
+                value={newAdicional.name}
+                onChange={(e) => setNewAdicional({ ...newAdicional, name: e.target.value })}
+                placeholder="Ex: Ovo, Queijo, Mel"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Preço (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={newAdicional.price}
+                onChange={(e) => setNewAdicional({ ...newAdicional, price: e.target.value })}
+                placeholder="0.00"
+                className="h-9"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowAdicionalDialog(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleSaveAdicional}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Menu Item Dialog */}
+      <Dialog open={showMenuDialog} onOpenChange={setShowMenuDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <UtensilsCrossed className="h-4 w-4 text-brand-600" />
+              {editingMenuItem ? 'Editar Item' : 'Novo Item do Cardápio'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Nome</Label>
+              <Input
+                value={newMenuItem.name}
+                onChange={(e) => setNewMenuItem({ ...newMenuItem, name: e.target.value })}
+                placeholder="Ex: Açaí com Banana"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Descrição (opcional)</Label>
+              <Input
+                value={newMenuItem.description}
+                onChange={(e) => setNewMenuItem({ ...newMenuItem, description: e.target.value })}
+                placeholder="Descrição breve"
+                className="h-9"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Preço (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newMenuItem.price}
+                  onChange={(e) => setNewMenuItem({ ...newMenuItem, price: e.target.value })}
+                  placeholder="0.00"
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Categoria</Label>
+                <Select value={newMenuItem.category} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, category: v })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="doces">Doces</SelectItem>
+                    <SelectItem value="salgados">Salgados</SelectItem>
+                    <SelectItem value="bebidas">Bebidas</SelectItem>
+                    <SelectItem value="sucos">Sucos</SelectItem>
+                    <SelectItem value="acai">Açaí</SelectItem>
+                    <SelectItem value="cafes">Cafés</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowMenuDialog(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="flex-1 bg-brand-600 hover:bg-brand-700" onClick={handleSaveMenuItem}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prazo Customer Dialog */}
+      <Dialog open={showPrazoCustomerDialog} onOpenChange={setShowPrazoCustomerDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-amber-600" />
+              Cadastrar Cliente Prazo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Nome do Cliente</Label>
+              <Input
+                value={newPrazoCustomer.name}
+                onChange={(e) => setNewPrazoCustomer({ ...newPrazoCustomer, name: e.target.value })}
+                placeholder="Nome completo"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Telefone (opcional)</Label>
+              <Input
+                value={newPrazoCustomer.phone}
+                onChange={(e) => setNewPrazoCustomer({ ...newPrazoCustomer, phone: e.target.value })}
+                placeholder="(11) 99999-9999"
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Observações (opcional)</Label>
+              <Input
+                value={newPrazoCustomer.notes}
+                onChange={(e) => setNewPrazoCustomer({ ...newPrazoCustomer, notes: e.target.value })}
+                placeholder="Ex: Academia, Personal"
+                className="h-9"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowPrazoCustomerDialog(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700" onClick={handleSavePrazoCustomer}>
+                Cadastrar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
