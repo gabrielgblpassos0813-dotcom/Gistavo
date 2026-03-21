@@ -30,7 +30,14 @@ db = client[os.environ['DB_NAME']]
 GREEN_API_URL = os.environ.get("GREEN_API_URL", "https://7107.api.greenapi.com")
 GREEN_API_INSTANCE = os.environ.get("GREEN_API_INSTANCE", "7107550497")
 GREEN_API_TOKEN = os.environ.get("GREEN_API_TOKEN", "ddbec57064a544909aecfbebe1e4d95faa1677ff39b04f68b2")
-WHATSAPP_GROUP_ID = os.environ.get("WHATSAPP_GROUP_ID", "120363424613813278@g.us")
+WHATSAPP_GROUP_ID = os.environ.get("WHATSAPP_GROUP_ID", "120363424613813278@g.us")  # GYM Londres
+WHATSAPP_GROUP_RUNNER = os.environ.get("WHATSAPP_GROUP_RUNNER", "5511974449533-1572969909@g.us")  # Runner
+
+# Map stores to their WhatsApp groups
+STORE_WHATSAPP_GROUPS = {
+    "runner": WHATSAPP_GROUP_RUNNER,
+    "gym-londres": WHATSAPP_GROUP_ID
+}
 
 # Create the main app
 app = FastAPI()
@@ -81,7 +88,8 @@ async def send_whatsapp_notification(
     if not auto_approved:
         return {"success": False, "reason": "Not auto-approved, notification not sent"}
     
-    target = group_id or WHATSAPP_GROUP_ID
+    # Select the correct group based on store (Runner or GYM Londres)
+    target = group_id or STORE_WHATSAPP_GROUPS.get(store, WHATSAPP_GROUP_ID)
     
     store_emoji = "🏃" if store == "runner" else "🏋️"
     store_name = "Runner" if store == "runner" else "GYM Londres"
@@ -2925,39 +2933,57 @@ async def send_low_stock_report():
         runner_items = [i for i in low_stock_items if i.get("store") == "runner"]
         gym_items = [i for i in low_stock_items if i.get("store") == "gym-londres"]
         
+        # Send separate reports to each store's group
+        messages_sent = 0
+        
+        # Send Runner report to Runner group
         if runner_items:
-            message_lines.append("*🏃 RUNNER:*")
+            runner_message_lines = [
+                f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
+                "",
+                "Itens com estoque baixo (≤ 2 unidades):",
+                "",
+                "*🏃 RUNNER:*"
+            ]
             for item in runner_items:
                 qty = item.get("quantity", 0)
                 status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
-                message_lines.append(f"  • {item.get('name')}: {status}")
-            message_lines.append("")
+                runner_message_lines.append(f"  • {item.get('name')}: {status}")
+            runner_message_lines.append("")
+            runner_message_lines.append(f"_Total: {len(runner_items)} itens_")
+            
+            runner_message = "\n".join(runner_message_lines)
+            result = await send_whatsapp_message(runner_message, WHATSAPP_GROUP_RUNNER)
+            if result.get("success"):
+                messages_sent += 1
+                logger.info(f"Runner low stock report sent! {len(runner_items)} items")
         
+        # Send GYM Londres report to GYM Londres group
         if gym_items:
-            message_lines.append("*🏋️ GYM LONDRES:*")
+            gym_message_lines = [
+                f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
+                "",
+                "Itens com estoque baixo (≤ 2 unidades):",
+                "",
+                "*🏋️ GYM LONDRES:*"
+            ]
             for item in gym_items:
                 qty = item.get("quantity", 0)
                 status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
-                message_lines.append(f"  • {item.get('name')}: {status}")
-            message_lines.append("")
-        
-        message_lines.append(f"_Total: {len(low_stock_items)} itens_")
-        
-        message = "\n".join(message_lines)
-        
-        # Send to WhatsApp via Green API
-        try:
-            result = await send_whatsapp_message(message)
+                gym_message_lines.append(f"  • {item.get('name')}: {status}")
+            gym_message_lines.append("")
+            gym_message_lines.append(f"_Total: {len(gym_items)} itens_")
+            
+            gym_message = "\n".join(gym_message_lines)
+            result = await send_whatsapp_message(gym_message, WHATSAPP_GROUP_ID)
             if result.get("success"):
-                logger.info(f"Low stock report sent successfully! {len(low_stock_items)} items")
-                
-                # Clear the list after sending
-                await db.low_stock_list.delete_many({})
-                logger.info("Low stock list cleared")
-            else:
-                logger.error(f"Failed to send low stock report: {result.get('error')}")
-        except Exception as e:
-            logger.error(f"Error sending WhatsApp message: {e}")
+                messages_sent += 1
+                logger.info(f"GYM Londres low stock report sent! {len(gym_items)} items")
+        
+        # Clear the list after sending
+        if messages_sent > 0:
+            await db.low_stock_list.delete_many({})
+            logger.info(f"Low stock list cleared. {messages_sent} reports sent.")
             
     except Exception as e:
         logger.error(f"Error in send_low_stock_report: {e}")
