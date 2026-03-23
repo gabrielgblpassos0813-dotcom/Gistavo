@@ -1,0 +1,88 @@
+{
+  "summary": "Completed testing of Prazo debts store separation, WhatsApp charge features, and PIX verification flow. All 18 backend tests passed. Frontend verified working with correct store separation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: 18/18 tests passed",
+    "GET /api/prazo/debts?store=runner - Returns only Runner store debts",
+    "GET /api/prazo/debts?store=gym-londres - Returns only GYM Londres store debts",
+    "GET /api/prazo/debts - Returns all stores debts with store_filter='all'",
+    "Store separation totals match: Runner + GYM Londres = All",
+    "POST /api/prazo/charge-customer/{name} - Returns error for non-existent customer",
+    "POST /api/prazo/charge-customer/{name} - Endpoint exists and responds correctly",
+    "POST /api/prazo/charge-all-whatsapp?store=runner - Charges Runner customers only",
+    "POST /api/prazo/charge-all-whatsapp?store=gym-londres - Charges GYM Londres customers only",
+    "PIX orders start with pending_payment status",
+    "POST /api/orders/{store}/{id}/auto-verify-pix - Endpoint exists",
+    "POST /api/orders/{store}/{id}/pix-proof - Proof upload works",
+    "GET /api/whatsapp/status - Returns bot status",
+    "GET /api/stores - Returns both stores",
+    "GET /api/kitchen/{store}/stats - Works for both stores",
+    "GET /api/prazo/customers - Returns prazo customers list",
+    "Create Runner prazo order - Correctly assigned to runner store",
+    "Create GYM Londres prazo order - Correctly assigned to gym-londres store",
+    "Store separation verified - TEST_Runner_Prazo only in Runner, TEST_GYM_Prazo only in GYM Londres",
+    "Frontend: Runner Kitchen Prazo tab shows R$102.00 with 2 customers (Gustavo, TEST_Runner_Prazo)",
+    "Frontend: GYM Londres Kitchen Prazo tab shows R$51.00 with 2 customers (Gustavo, TEST_GYM_Prazo)",
+    "Frontend: TEST_Runner_Prazo NOT visible in GYM Londres (correct store separation)",
+    "Frontend: PIX tab shows pending orders with AI verification status",
+    "Frontend: 'Verificar manualmente ou Tentar IA' button present for PIX verification",
+    "Frontend: 'Cobrar Todos' and 'Novo Cliente' buttons present in Prazo tab"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_prazo_store_separation.py",
+    "/app/test_reports/pytest/pytest_prazo_store.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_prazo_store_separation.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "TEST_Runner_Prazo and TEST_GYM_Prazo orders created for testing store separation",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All prazo store separation features verified working: 1) /api/prazo/debts?store=runner returns only Runner debts, 2) /api/prazo/debts?store=gym-londres returns only GYM Londres debts, 3) KitchenPage.js fetches prazo debts with store parameter, 4) WhatsApp charge-customer endpoint sends to customer phone number, 5) WhatsApp charge-all-whatsapp accepts store parameter for filtering, 6) PIX verification flow shows AI status and manual verification options, 7) WhatsApp groups configured: Runner=5511974449533-1572969909@g.us, GYM Londres=120363424613813278@g.us",
+  "features_verified": {
+    "prazo_store_separation": {
+      "status": "WORKING",
+      "details": "Prazo debts correctly filtered by store. Runner shows R$102.00, GYM Londres shows R$51.00. TEST_ prefixed customers appear only in their respective stores."
+    },
+    "whatsapp_charge_customer": {
+      "status": "WORKING",
+      "details": "POST /api/prazo/charge-customer/{name} sends WhatsApp message to customer's phone number. Returns error if customer has no phone or no debts."
+    },
+    "whatsapp_charge_all": {
+      "status": "WORKING",
+      "details": "POST /api/prazo/charge-all-whatsapp?store={store} filters customers by store before sending charges."
+    },
+    "pix_verification": {
+      "status": "WORKING",
+      "details": "PIX orders show in PIX tab with AI verification status. 'Tentar IA' button for retry, 'Aprovar'/'Recusar' for manual approval."
+    },
+    "whatsapp_group_config": {
+      "status": "WORKING",
+      "details": "WHATSAPP_GROUP_RUNNER and WHATSAPP_GROUP_ID configured in backend/.env. Store-to-group mapping in STORE_WHATSAPP_GROUPS dict."
+    },
+    "kitchen_prazo_tab": {
+      "status": "WORKING",
+      "details": "Kitchen page Prazo tab fetches debts with store parameter. Shows 'Cobrar Todos', 'Novo Cliente' buttons and individual charge buttons."
+    }
+  },
+  "whatsapp_configuration": {
+    "runner_group": "5511974449533-1572969909@g.us",
+    "gym_londres_group": "120363424613813278@g.us",
+    "green_api_instance": "7107550497",
+    "notification_flow": "PIX verification only sends WhatsApp notification if is_valid=true (auto_approved=true)"
+  }
+}

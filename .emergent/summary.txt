@@ -2,199 +2,237 @@
 The user's initial request was for a digital menu, which has evolved into a comprehensive, multi-store restaurant management system.
 
 **LATEST PRODUCT REQUIREMENTS ADDED:**
-*   **Green API Integration**: The local WhatsApp bot must be replaced entirely with Green API for sending all notifications (PIX approvals, low-stock alerts). The bot should send the PIX proof image along with the approval notification.
-*   **Offline Ordering**: The application must support offline ordering. When the internet connection is down, customer orders should be saved locally and automatically submitted to the backend once the connection is restored.
-*   **Sales Reporting Accuracy**: A critical and recurring bug where sales totals in the manager's dashboard do not match the actual sales must be permanently fixed. The issue is related to incorrect timezone handling; all calculations must use the America/Sao_Paulo timezone. The user has explicitly stated not to alter or delete any existing sales data.
-*   **Stock & Menu Management**:
-    *   Items should never become unavailable to customers, even if the stock count is zero.
-    *   A new system must be created to generate a daily shopping list. This system will detect items with a stock quantity of 2 or less, and at 22:00 each day, it will send a consolidated list to a designated WhatsApp group. If the list is empty, no message should be sent. The list should be cleared after being sent.
-*   **Item Customization**:
-    *   All menu items containing the word leite (milk) must offer customization options: desnatado, semi desnatado, zero, and integral.
-    *   A new section in the manager panel is required to allow the manager to add, edit, and delete adicionais (add-ons) for menu items.
-*   **AI PIX Verification**: The AI should extract the payer's name from the proof for display purposes but **not** validate it. It must still strictly validate the payment amount and ensure the recipient's name includes saudavelmente. The notification should only be sent if the AI or a manager approves the payment.
-*   **Order Management**: The trash can icon next to an order in the kitchen view should permanently delete the order from the database, ensuring it does not appear in any reports or the manager panel.
-*   **Data Persistence**: The user has strongly requested that no existing menu items or sales data be modified or deleted during system updates.
+*   **Store-Specific Functionality**:
+    *   PIX notifications for the Runner store must be sent to a separate, dedicated WhatsApp group (), distinct from the GYM Londres group. This is now implemented.
+    *   The Prazo (credit/tab) system must be separated by store. Debts from Runner and GYM Londres should not be aggregated.
+*   **Prazo (Credit/Tab) System Enhancements**:
+    *   Implement a crédito na casa (house credit) system where customers can pre-pay an amount, and their purchases are deducted from this balance.
+    *   Create a Cobrar Todos (Charge All) button in the kitchen view to send a bulk collection message to all customers with outstanding debts.
+    *   Collection messages must be sent to the individual customer's WhatsApp number, **not** to a group. The message should be well-formatted.
+    *   The Prazo payment option should be always visible and highlighted in the checkout modal, not hidden.
+*   **UI/UX Changes**:
+    *   Move the management of Prazo, Adicionais (add-ons), and Cardápio (menu items) from the authenticated Gestor (Manager) panel to the unauthenticated Cozinha (Kitchen) view.
+    *   Remove the Cardápio and Adicionais tabs from the Gestor panel.
+*   **Accountant & Fiscal Features**:
+    *   Add a new payment method: Voucher.
+    *   In the Gastos (Expenses) tab of the manager panel, add a filter to view expenses by store (Runner, GYM Londres, or All).
+    *   When the AI analyzes an expense receipt, it should ask which store the expense belongs to.
+    *   Add an Exportar IR (Export for Income Tax) button that generates a comprehensive, well-formatted report for an accountant. This report should allow specifying the accountant's email and should include detailed sales data, expenses, and products with their fiscal information.
+    *   Add extensive fiscal fields to each menu item based on a provided image, including NCM, CSOSN, CFOP, ICMS, PIS, COFINS, and barcode.
+*   **Bug Fixes & Verification**:
+    *   The graph in the manager panel must show revenue separated by store.
+    *   The WhatsApp link for Prazo customers was not working and needs to be fixed (now replaced by the direct cobrança feature).
 
 **User's preferred language**: The user's primary language is **Portuguese**. The next agent MUST respond in Portuguese.
 
 **what currently exists?**
 *   A full-stack application (FastAPI, React, MongoDB) with a multi-tenant architecture.
-*   The backend () has been significantly expanded to handle all new business logic.
-*   **Green API is fully integrated**, replacing the previous local Baileys bot. All WhatsApp notifications (PIX approvals, low-stock alerts) are now sent via Green API helper functions within .
-*   A **low-stock alert system** using  is configured to run at 22:00 daily, check for items with stock <= 2, and send a report via Green API.
-*   **Offline ordering support** has been added to the frontend via a new service worker () and integrated into the .
-*   The frontend  includes a new Adicionais tab for managing menu add-ons.
-*   The  has been updated to display milk selection options for relevant products.
-*   The logic to keep items available regardless of stock and to permanently delete orders from the kitchen view has been implemented in the backend.
-*   Multiple fixes for the **timezone issue** have been applied across various graph and dashboard endpoints in  to use .
+*   Green API is integrated for all WhatsApp notifications, with separate group IDs now configured for the 'Runner' and 'GYM Londres' stores.
+*   The critical timezone bug in sales reporting was fixed and verified by the user in the deploy environment.
+*   The offline ordering system was implemented and tested via API calls.
+*   The backend  has been heavily modified to support new features:
+    *   Voucher as a new .
+    *   A  field and management endpoints () for the Prazo system.
+    *   An endpoint to send collection messages to all Prazo customers () and individual customers ().
+    *   Fiscal fields (NCM, CSOSN, etc.) added to the  model.
+    *   An endpoint () to generate a detailed financial report.
+    *   Unauthenticated endpoints () for managing the menu and add-ons.
+    *   Graph endpoints now return data separated by store.
+*   The frontend  has been significantly updated to include tabs and management functionality for Prazo, Adicionais, and Cardápio.
+*   The frontend  has been updated to filter expenses by store and includes a button to trigger the accountant export. The Cardapio and Adicionais tabs were removed.
+*   The refactoring of  was started by moving some tabs into separate components, but this work was interrupted and is incomplete.
 
 **Last working item**:
-*   **Last item agent was working**: Fixing a recurring and critical bug where the sales dashboard in the **deploy environment** showed incorrect daily totals due to a timezone mismatch. The user reported that the dashboard was not accounting for all sales made during a day.
+*   **Last item agent was working**: Implementing the separation of Prazo (credit/tab) debts by store and ensuring collection messages are sent to the individual customer's WhatsApp number.
 *   **Status**: IN PROGRESS
 *   **Agent Testing Done**: N
-*   **Which testing method agent to use?**: Manual testing by  and user verification. The agent's fix has been applied to the code, but it will only take effect in the production environment after a **new deploy**. The next agent must:
-    1.  Clearly explain to the user that a new deploy is necessary to apply the fix.
-    2.  After the user confirms the deploy is complete, use  to query the production dashboard endpoint (e.g., ) to verify that the sales totals and order counts are now correct according to the  timezone.
+*   **Which testing method agent to use?**: Backend testing agent and Frontend testing agent.
+    *   **Backend**: Use  to test the new  endpoint for both 'runner' and 'gym-londres' to ensure data is separated. Test the  and  endpoints to confirm messages are routed to individual numbers.
+    *   **Frontend**: Use the  to verify that the  correctly fetches and displays prazo debts based on the current store ( vs ).
 *   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-*   Issue 1: Sales figures are incorrect in the deploy environment due to timezone issues (Priority: P0)
-*   Issue 2: The new offline ordering system is untested (Priority: P1)
-*   Issue 3: Refactor monolithic files (, ) (Priority: P2)
+*   Issue 1: Prazo debts are not yet separated by store on the frontend (Priority: P0)
+*   Issue 2: The accountant export needs a better UI and email functionality (Priority: P1)
+*   Issue 3: Refactor monolithic files (, ) (Priority: P1)
+*   Issue 4: AI expense analysis doesn't ask for the store (Priority: P2)
+*   Issue 5: Automatic categorization of new menu items is missing (Priority: P2)
 
 **Issues Detail**:
 *   **Issue 1**:
-    *   **Description**: The sales dashboards (, ) in the production environment show incorrect daily revenue and order counts. This is because the backend queries were using UTC time, causing orders made late in the evening (Brazil time) to be counted for the next day.
-    *   **Attempted fixes**: The agent identified and patched multiple endpoints in  (, , and the daily/monthly/yearly chart endpoints) to consistently use  when determining the start and end of the current day.
+    *   **Description**: The user wants Prazo debts to be completely separate for each store. The backend was updated to support fetching debts by store (), but the frontend  still fetches all debts combined.
+    *   **Attempted fixes**: The agent modified the backend  function to accept a  parameter. They then started modifying  in  but did not complete the implementation.
     *   **Next debug checklist**:
-        1.  Confirm with the user that they have performed a **new deploy**.
-        2.   the production dashboard endpoints to validate the fix.
-        3.  Ask the user to verify the numbers on their end.
-    *   **Why fix this issue and what will be achieved with the fix?**: This is a critical business logic bug. Fixing it will provide the user with accurate, reliable sales data, which is essential for managing their business.
+        1.  In , modify the  function.
+        2.  Change the  call to include the store parameter: .
+        3.  Test the  for both stores to confirm that only the relevant prazo customers and debts are displayed.
+    *   **Why fix this issue and what will be achieved with the fix?**: This is a core business logic requirement for managing the two store locations independently.
     *   **Status**: IN PROGRESS
-    *   **Is recurring issue?**: Y
-    *   **Should Test frontend/backend/both after fix?**: Backend.
-    *   **Blocked on other issue**: User action (deploying the new code).
-*   **Issue 2**:
-    *   **Description**: A service worker and logic for offline ordering () have been implemented in the frontend, but the functionality has not been tested to confirm it works as expected.
-    *   **Attempted fixes**: None (feature was just implemented).
-    *   **Next debug checklist**:
-        1.  Explain the testing steps to the user (e.g., disconnect from the internet, place an order, see the pending sync message, reconnect, and verify the order appears in the kitchen).
-        2.  Alternatively, the testing agent can be used to simulate this flow.
-    *   **Why fix this issue and what will be achieved with the fix?**: Ensures the application is resilient to network interruptions, preventing lost sales.
-    *   **Status**: TESTING PENDING
     *   **Is recurring issue?**: N
-    *   **Should Test frontend/backend/both after fix?**: Frontend.
+    *   **Should Test frontend/backend/both after fix?**: Both.
+    *   **Blocked on other issue**: None.
+*   **Issue 2**:
+    *   **Description**: The Exportar IR feature currently generates a JSON report and downloads it. The user wants a more user-friendly experience: a modal to input the accountant's email, a nicely formatted report (HTML or similar), and the ability to send it directly via email.
+    *   **Attempted fixes**: An endpoint () was created that generates a detailed JSON report. A basic modal was added to the frontend.
+    *   **Next debug checklist**:
+        1.  Backend: Modify  to optionally accept an email address. Integrate an email service (e.g., Resend, SendGrid) to send the report. Convert the JSON report into a readable HTML format.
+        2.  Frontend: Enhance the  in  to include an email input field and handle the API call to the new email-sending endpoint.
+    *   **Why fix this issue and what will be achieved with the fix?**: This improves the usability of a key business feature, making it easier to share financial data with an accountant.
+    *   **Status**: NOT STARTED
+    *   **Is recurring issue?**: N
+    *   **Should Test frontend/backend/both after fix?**: Both.
     *   **Blocked on other issue**: None.
 *   **Issue 3**:
-    *   **Description**:  (now >3000 lines) and  (>2600 lines) are extremely large and difficult to maintain.
-    *   **Attempted fixes**: None. This has been consistently postponed.
+    *   **Description**:  (>3600 lines) and  (>2500 lines) are extremely large, making maintenance difficult and risky.
+    *   **Attempted fixes**: Agent created a  directory for the backend and started moving frontend tabs from  into a  directory. This work was interrupted and is incomplete.
     *   **Next debug checklist**:
-        1.  **Backend**: Create a  directory. Move endpoint groups (e.g., , , , ) into separate files and include them in .
-        2.  **Frontend**: Create a  directory and break down  into components for each tab (Dashboard, Graphs, Adicionais, etc.).
-    *   **Why fix this issue and what will be achieved with the fix?**: Improves code maintainability, readability, and reduces the risk of introducing new bugs.
+        1.  **Frontend**: Continue breaking down  into smaller components for each tab (Dashboard, Graphs, Expenses, Prazo) and move state management logic down into these components.
+        2.  **Backend**: Systematically move endpoint groups from  into the respective files in the  directory (e.g., , , ).
+    *   **Why fix this issue and what will be achieved with the fix?**: This is critical technical debt. Fixing it will improve code maintainability, readability, and developer velocity, reducing the risk of introducing bugs.
+    *   **Status**: IN PROGRESS
+    *   **Is recurring issue?**: Y
+    *   **Should Test frontend/backend/both after fix?**: Both (requires extensive regression testing).
+    *   **Blocked on other issue**: None.
+*   **Issue 4**:
+    *   **Description**: When analyzing an expense receipt with AI, the system should ask the user which store (Runner or GYM Londres) the expense belongs to. Currently, it defaults to all.
+    *   **Attempted fixes**: The agent added a store filter to the manual expense creation modal but did not modify the more complex AI chat flow.
+    *   **Next debug checklist**:
+        1.  Modify the AI prompt in  in  to instruct it to ask for the store if not specified.
+        2.  Modify the frontend chat logic in  () to handle this new question-answer step in the AI conversation.
+    *   **Why fix this issue and what will be achieved with the fix?**: Provides accurate expense tracking per store, which is essential for financial reporting.
+    *   **Status**: NOT STARTED
+    *   **Is recurring issue?**: N
+    *   **Should Test frontend/backend/both after fix?**: Both.
+    *   **Blocked on other issue**: None.
+*   **Issue 5**:
+    *   **Description**: A long-standing user request that new menu items (except água) should automatically be assigned to the Doces category has never been implemented.
+    *   **Attempted fixes**: None. This has been repeatedly missed.
+    *   **Next debug checklist**: In , locate the menu item creation endpoint ( or ) and add logic to set a default category if one is not provided.
+    *   **Why fix this issue and what will be achieved with the fix?**: Fulfills a user request and improves the quality of life for menu management.
     *   **Status**: NOT STARTED
     *   **Is recurring issue?**: Y
-    *   **Should Test frontend/backend/both after fix?**: Both (extensive regression testing).
+    *   **Should Test frontend/backend/both after fix?**: Backend.
     *   **Blocked on other issue**: None.
 
 **In progress Task List**:
-None.
+*   **Task 1**: Complete the refactoring of .
+    *   **Where to resume**: The agent created  and  and updated  to use them. The remaining tabs (Dashboard, Gráficos, Gastos, Prazo, Menu) still need to be extracted into their own components. The file is currently located at .
+    *   **What will be achieved with this?**: A more maintainable and organized frontend codebase for the manager panel.
+    *   **Status**: IN PROGRESS
+    *   **Should Test frontend/backend/both after fix?**: Frontend.
+    *   **Blocked on something**: None.
 
 **Upcoming and Future Tasks**
 *   **Upcoming Tasks**:
-    *   **(P0)** Guide the user through deploying the latest changes and verify the timezone fix for sales reporting.
-    *   **(P1)** Test the offline ordering feature.
-    *   **(P1)** Test the daily low-stock report scheduled for 22:00.
+    *   **(P0)** Finish the Prazo-by-store implementation (Issue #1).
+    *   **(P1)** Improve the accountant export feature with HTML formatting and email functionality (Issue #2).
+    *   **(P1)** Add a UI in the kitchen/menu management section to edit the new fiscal fields (NCM, CSOSN) for each product.
+    *   **(P1)** Perform comprehensive testing of all recent features: Voucher payment, Prazo credit system, separated graphs, and the new kitchen management tabs.
 *   **Future Tasks**:
-    *   **(P2)** Refactor the monolithic  and  files.
-    *   **(P2)** Implement the automatic categorization of new menu items to Doces (an early request that was missed).
-    *   **(P2)** Verify the  is using the latest PIX QR code image.
+    *   **(P1)** Complete the refactoring of  and  (Issue #3).
+    *   **(P2)** Update the AI expense analysis to ask for the store location (Issue #4).
+    *   **(P2)** Implement the automatic categorization of new menu items to Doces (Issue #5).
 
 **Completed work in this session**
-*   **WhatsApp Bot Migrated to Green API**: Successfully replaced the entire local bot with Green API, including sending PIX proof images in notifications.
-*   **Low-Stock Alert System**: Implemented a daily scheduled job to find low-stock items and send a report via WhatsApp.
-*   **Offline Ordering System**: Created a service worker and integrated it into the checkout flow to handle orders made without an internet connection.
-*   **Menu & Item Customization**: Added a manager panel for adicionais and implemented milk-type options for relevant menu items.
-*   **Core Logic Fixes**:
-    *   Corrected the timezone bug in all sales/graph endpoints (pending deploy).
-    *   Ensured menu items remain available even with zero stock.
-    *   Modified the kitchen's trash icon to permanently delete orders.
-    *   Updated the Clear Data function to be more comprehensive.
-*   **AI PIX Verification Refined**: Updated AI prompt to extract the payer's name without validating it, while still validating amount and recipient.
-*   **Resolved Graph Rendering Bugs**: Fixed CSS that was preventing chart bars from displaying correctly.
-*   **Resolved AI Verification UI Bug**: Fixed the frontend  to correctly display the status of AI verification.
-
-**Earlier issues found/mentioned but not fixed**
-*   **Automatic categorization of new menu items**: User requested that new items (except água) default to the Doces category. This was acknowledged but never implemented.
-
-**Known issue recurrence from previous fork**
-*   **Issue recurrence in previous fork**: The need to refactor monolithic files (, ) has been carried over from previous sessions.
-*   **Recurrence count**: 3
-*   **Status**: NOT STARTED
+- **Timezone Fix Verified**: Confirmed with the user that after they performed a deploy, the sales figures in the production dashboard are now correct.
+- **Store-Specific WhatsApp Notifications**: Implemented logic to send PIX approval notifications to different WhatsApp groups based on the store ('Runner' vs 'GYM Londres').
+- **Prazo (Credit) System Overhaul**:
+    - Implemented a credit system allowing customers to pre-pay.
+    - Created a Charge All button and API to send bulk collection messages.
+    - Modified collection messages to be sent to the customer's private number instead of a group.
+    - Added endpoints to manage credit (, ).
+- **New Payment Method**: Added Voucher as a payment option in the backend and frontend checkout.
+- **Kitchen View Enhancements**: Moved Prazo, Adicionais, and Cardápio management from the Gestor panel to the Kitchen page, making them accessible without manager login.
+- **Gestor Panel Enhancements**:
+    - Graphs now show revenue separated by store.
+    - Expenses can be filtered by store.
+    - Created an Exportar IR button and backend endpoint () to generate a detailed financial report.
+- **Fiscal Data Integration**: Added numerous fiscal fields (NCM, CSOSN, etc.) to the  model in the backend.
+- **UI/UX Fixes**:
+    - Made the Prazo payment option always visible and highlighted in the checkout modal.
+    - Fixed a bug where the Exportar IR button was failing due to an auth scope issue.
+    - Fixed a duplicate function declaration () in .
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 *   **Backend**: FastAPI, Pydantic, MongoDB,  for timezone handling,  for scheduled jobs.
-*   **Frontend**: React (, ), Tailwind CSS, Recharts. PWA concepts with a new Service Worker for offline functionality.
-*   **AI**:  with GPT-4o for vision.
-*   **3rd Party Integrations**: **Green API** is now the exclusive provider for all WhatsApp functionality. The local Baileys bot ( directory) and the  script are **obsolete**.
+*   **Frontend**: React (, , ), Tailwind CSS, Shadcn/UI, Recharts. PWA with Service Worker.
+*   **AI**:  with GPT-4o for vision (receipt analysis).
+*   **3rd Party Integrations**: **Green API** for all WhatsApp functionality.
 
 **key DB schema**
-*   **adicionais**:  (new collection, managed by gestor)
-*   **low_stock_list**:  (transient collection for daily report)
-*   The  collection documents are now updated with an  field.
+*   **menu_items**:  (existing fields) plus new fiscal fields: 
+*   **prazo_customers**:  (added )
+*   **expenses**:  (existing  field is now used for filtering)
 
 **All files of reference**
-*   **/app/backend/server.py**: Heavily modified with Green API integration,  job, new endpoints for adicionais, timezone fixes, and logic for all new features.
-*   **/app/frontend/src/pages/GestorPage.js**: Modified to add the Adicionais tab and its management logic.
-*   **/app/frontend/src/components/CheckoutModal.js**: Modified to integrate the new .
-*   **/app/frontend/src/components/ProductModal.js**: Modified to add milk type selection UI.
-*   **/app/frontend/src/pages/KitchenPage.js**: Modified to handle permanent order deletion.
-*   **/app/frontend/src/services/offlineService.js**: New file implementing offline order queuing.
-*   **/app/whatsapp-bot/**: This entire directory is now **obsolete**.
-*   **/app/backend/deploy_sync.py**: This file is now **obsolete**.
+*   **/app/backend/server.py**: Heavily modified with new endpoints for Prazo credit, store separation, fiscal export, and kitchen management. Still a monolith.
+*   **/app/frontend/src/pages/KitchenPage.js**: Heavily modified to include new tabs and logic for Prazo, Cardápio, and Adicionais management.
+*   **/app/frontend/src/pages/GestorPage.js**: Modified to remove tabs, add expense filters, and add the accountant export modal. Partially refactored.
+*   **/app/frontend/src/components/CheckoutModal.js**: Modified to add Voucher and highlight the Prazo payment option.
+*   **/app/backend/routers/**: New directory with several new (mostly empty) files intended for refactoring.
+*   **/app/frontend/src/components/gestor/**: New directory with components extracted from .
 
 **Areas that need refactoring**:
-*   ****: Urgent. The file's size and complexity are unsustainable.
-*   ****: Urgent. Needs to be broken down into smaller components per tab.
+*   ****: Urgent. The file is over 3600 lines and growing. The refactoring plan to move routes into the  directory should be executed.
+*   ****: Urgent. The refactoring started by the previous agent needs to be completed to make the component manageable.
+*   ****: Now over 1600 lines and has absorbed significant logic from . It should also be considered for refactoring into smaller components for each of its tabs.
 
 **key api endpoints**
-*    (GET, POST),  (PUT, DELETE)
-*   
-*   
-*    (now uses Green API)
-*   The  and  endpoints in the old  are now defunct. All calls are handled internally in  via Green API.
+*    (GET - New): Get prazo debts for a specific store.
+*    (POST - New): Add credit to a prazo customer's account.
+*    (POST - New): Send collection messages to all customers with debt.
+*    (POST - New): Send a collection message to a single customer.
+*    (GET - New): Generate a detailed financial report.
+*    (GET, POST),  (PUT, DELETE) (New)
+*    (GET, POST),  (PUT, DELETE) (New)
+*    (GET, POST) (New)
 
 **Critical Info for New Agent**
-*   **The WhatsApp bot is now fully handled by Green API.** The local  directory and the  script are **obsolete and should be ignored**. All notification logic is in .
-*   **Timezone issues are the user's biggest pain point.** The application must reliably use . Be vigilant about this in any date-related logic.
-*   **A new deploy is required to fix the sales reporting bug.** The user must perform a deploy before the latest fixes will work in their production environment. You must communicate this clearly.
-*   The user is actively using the deploy environment for their business. **Do not alter or delete any production data (sales, products) without explicit permission.**
-*   The new offline ordering and daily low-stock report features have been implemented but require testing and user verification.
-
-**documents and test reports created in this job**
-*   /app/memory/PRD.md
-*   /app/test_reports/iteration_8.json
+*   The immediate next task is to finish the Prazo-by-store feature by updating the  to fetch data from the new  endpoint.
+*   The user is adding complex features rapidly. It is crucial to plan implementations carefully and test thoroughly to avoid regressions.
+*   The refactoring of  and  is a recurring, high-priority technical debt. Progress should be made on this whenever possible to ensure long-term stability.
+*   Collection (cobrança) messages for Prazo customers should now be sent to their individual WhatsApp numbers, using the customer's phone number from the database. The logic has been updated in the backend but needs verification.
+*   A pod restart interrupted the previous agent's work. Be aware that some files (especially  and its new components) might be in an incomplete state.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Asks for a way to clear all data, including graphs and expenses. (Resolved).
-2.  **User**: Provides a list of new features: milk options, adicionais management panel, permanent order deletion, no notifications on AI failure, and a warning not to touch existing menu items. (Resolved).
-3.  **User**: Asks for a system to create and send a daily low-stock shopping list to WhatsApp at 22:00. (Resolved).
-4.  **User**: Asks the agent to test everything and preserve items in the deploy environment. (Agent completed testing).
-5.  **User**: Requests migration to Green API, an offline ordering system, a fix for items appearing as unavailable, and a fix for incorrect sales figures in deploy. Provides Green API credentials. (Partially Resolved - Implementation done, sales fix pending deploy).
-6.  **User**: Provides a WhatsApp group link and clarifies not to make items unavailable when stock is zero. (Resolved).
-7.  **User**: Reports again that the sales value in the deploy dashboard is wrong. (Agent investigated and applied a new timezone fix).
-8.  **User**: Wants the AI to extract the payer's name from the PIX proof but not use it for validation. (Resolved).
-9.  **User**: Clarifies that WhatsApp notifications should only be sent if the payment is approved. Asks the bot to send the PIX proof image in the notification. (Resolved).
-10. **User**: Reports again that sales are not being counted correctly and emphasizes the need to use the Brasília timezone permanently without future errors. (This is the current P0 issue).
+10. **User**: Requests separation of Prazo debts by store and that collection messages go to the customer's number, not the group. (IN PROGRESS)
+9. **User**: Asks for Prazo to be always visible in checkout (not hidden), confirms adding Prazo customers is in the kitchen, and asks how to add credit. (Resolved/Explained)
+8. **User**: Asks to test everything and provides a long list of new features: Prazo credit, remove Cardapio/Adicionais from Gestor, fix Prazo WhatsApp button, add bulk charge button, add Voucher payment method. (Mostly Implemented)
+7. **User**: Reports that the revenue graph in the manager panel is not separated by store and requests significant enhancements to the accountant export feature (email, formatting, more data). (IN PROGRESS)
+6. **User**: Confirms the fix for cross-sending WhatsApp notifications is correct and asks to proceed. (Resolved)
+5. **User**: Reports that notifications for the Runner store are going to the Londres group and vice-versa. (Resolved)
+4. **User**: Reports an error with the Exportar IR button. (Resolved)
+3. **User**: Provides a screenshot of the new features he wants related to fiscal information on products (NCM, etc.). (Backend Implemented)
+2. **User**: Asks to perform all necessary tests and adds a new list of features: move Prazo/Adicionais/Menu to Kitchen, filter expenses by store, have AI ask for store on expense, add accountant export button, and add fiscal invoice data. (Mostly Implemented)
+1. **User**: Acknowledges test message for low-stock alert was sent and approves refactoring plan. (Resolved)
 
 **Project Health Check:**
 *   **Broken**:
-    *   Sales reporting in the production (deploy) environment shows incorrect daily totals due to a timezone bug. A code fix has been applied but requires a new deploy to become effective.
+    *   The Prazo tab in the  is not yet filtering debts by store, even though the backend supports it.
 *   **Mocked**: None.
 
 **3rd Party Integrations**
 *   **OpenAI GPT-4o**: Used via  for receipt analysis. Uses Emergent LLM Key.
 *   **Green API**: Used for all WhatsApp messaging. Requires user-provided  and .
-*   **Baileys (Node.js)**: Deprecated and now **obsolete**.
 
 **Testing status**
-*   **Testing agent used after significant changes**: YES. A full test run passed successfully (), but many critical changes (Green API, offline mode, new timezone fixes) were implemented *after* this test run.
+*   **Testing agent used after significant changes**: NO. The last major changes have been tested manually with  and .
 *   **Troubleshoot agent used after agent stuck in loop**: NO
 *   **Test files created**: None.
-*   **Known regressions**: The sales reporting timezone bug has been a recurring regression.
+*   **Known regressions**: None currently, but the high rate of change increases regression risk.
 
 **Credentials to test flow:**
-*   **Manager Panel Access**: Navigate to .
+*   **Manager Panel Access**: 
 *   **Username**: 
 *   **Password**: 
-*   **Green API Instance**: 
-*   **Green API Group ID**:  (GANOH- Londres)
+*   **Green API Group IDs**:
+    *   **GYM Londres**: 
+    *   **Runner**: 
 
 **What agent forgot to execute**
-*   The agent did not implement the user's earlier request to automatically categorize newly added menu items into Doces.
-*   The agent did not explicitly verify that the latest PIX QR code image is being used in the .
-*   The agent implemented the offline ordering feature but did not guide the user on how to test it or perform a test themselves.</analysis>
+*   **Automatic categorization of new menu items**: User requested that new items default to the Doces category. This was acknowledged but never implemented.
+*   **AI Expense Analysis Update**: The agent did not modify the AI chat flow to prompt the user for the store location when analyzing an expense receipt.
+*   **PIX QR Code Verification**: The agent did not verify that the  is using the latest PIX QR code image, a minor task from the previous handoff.</analysis>

@@ -2240,27 +2240,34 @@ async def delete_prazo_customer(customer_id: str, username: str = Depends(verify
     return {"success": True, "message": "Cliente removido"}
 
 @api_router.get("/prazo/debts")
-async def get_prazo_debts():
-    """Get all prazo debts summary"""
-    # Get all unpaid prazo orders
-    prazo_orders = await db.orders.find({
+async def get_prazo_debts(store: Optional[str] = None):
+    """Get prazo debts summary - optionally filtered by store"""
+    # Build query
+    query = {
         "payment_method": "prazo",
         "prazo_paid": {"$ne": True}
-    }, {"_id": 0}).to_list(1000)
+    }
+    if store:
+        query["store"] = store
+    
+    # Get unpaid prazo orders
+    prazo_orders = await db.orders.find(query, {"_id": 0}).to_list(1000)
     
     # Group by customer name
     debts_by_customer = {}
     for order in prazo_orders:
         name = order.get("customer_name", "Desconhecido")
+        order_store = order.get("store", "")
         if name not in debts_by_customer:
-            debts_by_customer[name] = {"name": name, "total": 0, "orders": [], "order_count": 0}
+            debts_by_customer[name] = {"name": name, "total": 0, "orders": [], "order_count": 0, "store": order_store}
         debts_by_customer[name]["total"] += order.get("total", 0)
         debts_by_customer[name]["order_count"] += 1
         debts_by_customer[name]["orders"].append({
             "id": order.get("id"),
             "total": order.get("total"),
             "date": order.get("created_at"),
-            "items": order.get("items", [])
+            "items": order.get("items", []),
+            "store": order_store
         })
     
     # Sort by total debt descending
@@ -2270,7 +2277,8 @@ async def get_prazo_debts():
     return {
         "debts": debts,
         "total_prazo": total_prazo,
-        "customer_count": len(debts)
+        "customer_count": len(debts),
+        "store_filter": store or "all"
     }
 
 @api_router.post("/prazo/pay/{order_id}")
@@ -2352,17 +2360,21 @@ async def use_prazo_credit(customer_id: str, credit_data: PrazoCreditAdd):
     }
 
 @api_router.post("/prazo/charge-all-whatsapp")
-async def charge_all_prazo_via_whatsapp():
-    """Send WhatsApp messages to all prazo customers with pending debts"""
-    # Get all prazo debts
+async def charge_all_prazo_via_whatsapp(store: Optional[str] = None):
+    """Send WhatsApp messages to all prazo customers with pending debts - sends to their phone number"""
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now = datetime.now(brazil_tz)
     
-    # Get all unpaid prazo orders grouped by customer
-    prazo_orders = await db.orders.find({
+    # Build query
+    query = {
         "payment_method": "prazo",
         "prazo_paid": {"$ne": True}
-    }, {"_id": 0}).to_list(10000)
+    }
+    if store:
+        query["store"] = store
+    
+    # Get unpaid prazo orders
+    prazo_orders = await db.orders.find(query, {"_id": 0}).to_list(10000)
     
     # Group by customer
     debts_by_customer = {}
@@ -2379,12 +2391,27 @@ async def charge_all_prazo_via_whatsapp():
     
     messages_sent = 0
     failed = []
+    no_phone = []
     
     for customer_name, debt_info in debts_by_customer.items():
         if debt_info["total"] <= 0:
             continue
             
         phone = customer_phones.get(customer_name, "")
+        
+        # Skip if no phone
+        if not phone:
+            no_phone.append(customer_name)
+            continue
+        
+        # Format phone for WhatsApp (remove non-digits, add country code if needed)
+        phone_clean = ''.join(filter(str.isdigit, phone))
+        if len(phone_clean) == 11:  # Brazilian mobile without country code
+            phone_clean = "55" + phone_clean
+        elif len(phone_clean) == 10:  # Brazilian landline without country code
+            phone_clean = "55" + phone_clean
+        
+        phone_id = f"{phone_clean}@c.us"
         
         # Build nice message
         message = f"""☕ *GANOH Café Bistrô*
@@ -2409,18 +2436,9 @@ Agradecemos a preferência! 🙏
 
 _Mensagem automática - {now.strftime('%d/%m/%Y')}_"""
 
-        # Send to WhatsApp group (since we may not have individual numbers)
+        # Send to customer's phone number
         try:
-            # Determine which store this customer mostly uses
-            stores_count = {}
-            for order in debt_info["orders"]:
-                store = order.get("store", "gym-londres")
-                stores_count[store] = stores_count.get(store, 0) + 1
-            
-            primary_store = max(stores_count, key=stores_count.get) if stores_count else "gym-londres"
-            target_group = WHATSAPP_GROUP_RUNNER if primary_store == "runner" else WHATSAPP_GROUP_ID
-            
-            result = await send_whatsapp_message(message, target_group)
+            result = await send_whatsapp_message(message, phone_id)
             if result.get("success"):
                 messages_sent += 1
             else:
@@ -2433,13 +2451,14 @@ _Mensagem automática - {now.strftime('%d/%m/%Y')}_"""
         "success": True,
         "messages_sent": messages_sent,
         "failed": failed,
+        "no_phone": no_phone,
         "total_customers": len(debts_by_customer),
-        "message": f"Cobrança enviada para {messages_sent} cliente(s)"
+        "message": f"Cobrança enviada para {messages_sent} cliente(s)" + (f" ({len(no_phone)} sem telefone)" if no_phone else "")
     }
 
 @api_router.post("/prazo/charge-customer/{customer_name}")
 async def charge_single_prazo_customer(customer_name: str):
-    """Send WhatsApp message to a single prazo customer"""
+    """Send WhatsApp message to a single prazo customer's phone number"""
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now = datetime.now(brazil_tz)
     
@@ -2458,10 +2477,24 @@ async def charge_single_prazo_customer(customer_name: str):
     # Get customer info
     customer = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer_name}$", "$options": "i"}})
     credit = customer.get("credit", 0) if customer else 0
+    phone = customer.get("phone", "") if customer else ""
+    
+    # Check if customer has phone
+    if not phone:
+        return {"success": False, "message": "Cliente não tem telefone cadastrado"}
+    
+    # Format phone for WhatsApp
+    phone_clean = ''.join(filter(str.isdigit, phone))
+    if len(phone_clean) == 11:
+        phone_clean = "55" + phone_clean
+    elif len(phone_clean) == 10:
+        phone_clean = "55" + phone_clean
+    
+    phone_id = f"{phone_clean}@c.us"
     
     # Build message
     items_detail = []
-    for order in prazo_orders[-5:]:  # Show last 5 orders
+    for order in prazo_orders[-5:]:
         order_date = order.get("created_at", "")[:10]
         items_detail.append(f"  • {order_date}: R$ {order.get('total', 0):.2f}")
     
@@ -2487,23 +2520,16 @@ Quando puder regularizar, estamos à disposição! 😊
 
 _Mensagem automática - {now.strftime('%d/%m/%Y %H:%M')}_"""
 
-    # Determine store
-    stores_count = {}
-    for order in prazo_orders:
-        store = order.get("store", "gym-londres")
-        stores_count[store] = stores_count.get(store, 0) + 1
-    
-    primary_store = max(stores_count, key=stores_count.get) if stores_count else "gym-londres"
-    target_group = WHATSAPP_GROUP_RUNNER if primary_store == "runner" else WHATSAPP_GROUP_ID
-    
-    result = await send_whatsapp_message(message, target_group)
+    # Send to customer's phone number
+    result = await send_whatsapp_message(message, phone_id)
     
     return {
         "success": result.get("success", False),
         "message": f"Cobrança enviada para {customer_name}" if result.get("success") else "Falha ao enviar",
         "total_debt": total,
         "credit": credit,
-        "net_debt": net_debt
+        "net_debt": net_debt,
+        "phone": phone
     }
 
 # ==================== EXPENSES (GASTOS) MANAGEMENT ====================

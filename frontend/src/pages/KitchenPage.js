@@ -484,7 +484,7 @@ export const KitchenPage = () => {
         axios.get(`${API}/stock/${store}`),
         axios.get(`${API}/orders/${store}/pending-pix`),
         axios.get(`${API}/orders/${store}/history`),
-        axios.get(`${API}/prazo/debts`),  // Fetch prazo debts for all stores
+        axios.get(`${API}/prazo/debts?store=${store}`),  // Fetch prazo debts for this store only
         axios.get(`${API}/kitchen/adicionais`),  // Fetch adicionais
         axios.get(`${API}/menu/${store}`),  // Fetch menu items
         axios.get(`${API}/prazo/customers`)  // Fetch prazo customers
@@ -510,7 +510,7 @@ export const KitchenPage = () => {
       setPendingPixOrders(pixRes.data.orders);
       setHistoryOrders(historyRes.data.orders);
       
-      // Set prazo debts for all stores
+      // Set prazo debts for this store
       if (prazoDebtsRes) {
         setPrazoDebts(prazoDebtsRes.data);
       }
@@ -774,7 +774,7 @@ export const KitchenPage = () => {
   const handleChargeAllPrazo = async () => {
     try {
       toast.loading('Enviando cobranças...', { id: 'charge-all' });
-      const response = await axios.post(`${API}/prazo/charge-all-whatsapp`);
+      const response = await axios.post(`${API}/prazo/charge-all-whatsapp?store=${store}`);
       if (response.data.success) {
         toast.success(`${response.data.messages_sent} cobrança(s) enviada(s)!`, { id: 'charge-all' });
         if (response.data.failed?.length > 0) {
