@@ -427,8 +427,12 @@ export const KitchenPage = () => {
   const [editingAdicional, setEditingAdicional] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [showMenuDialog, setShowMenuDialog] = useState(false);
-  const [newMenuItem, setNewMenuItem] = useState({ name: '', description: '', price: '', category: 'doces' });
+  const [newMenuItem, setNewMenuItem] = useState({ 
+    name: '', description: '', price: '', category: 'doces',
+    ncm: '', csosn: '', cfop: '', codigo_barras: ''
+  });
   const [editingMenuItem, setEditingMenuItem] = useState(null);
+  const [showFiscalFields, setShowFiscalFields] = useState(false);
   // Prazo customers state
   const [prazoCustomers, setPrazoCustomers] = useState([]);
   const [showPrazoCustomerDialog, setShowPrazoCustomerDialog] = useState(false);
@@ -486,7 +490,7 @@ export const KitchenPage = () => {
         axios.get(`${API}/orders/${store}/history`),
         axios.get(`${API}/prazo/debts?store=${store}`),  // Fetch prazo debts for this store only
         axios.get(`${API}/kitchen/adicionais`),  // Fetch adicionais
-        axios.get(`${API}/menu/${store}`),  // Fetch menu items
+        axios.get(`${API}/kitchen/menu/${store}`),  // Fetch menu items for this store
         axios.get(`${API}/prazo/customers`)  // Fetch prazo customers
       ];
       
@@ -701,7 +705,12 @@ export const KitchenPage = () => {
         price: parseFloat(newMenuItem.price),
         category: newMenuItem.category || 'doces',
         store: store,
-        available: true
+        available: true,
+        // Fiscal fields
+        ncm: newMenuItem.ncm || '',
+        csosn: newMenuItem.csosn || '',
+        cfop: newMenuItem.cfop || '',
+        codigo_barras: newMenuItem.codigo_barras || ''
       };
       if (editingMenuItem) {
         await axios.put(`${API}/kitchen/menu/${editingMenuItem.id}`, { ...editingMenuItem, ...data });
@@ -711,8 +720,9 @@ export const KitchenPage = () => {
         toast.success('Item criado!');
       }
       setShowMenuDialog(false);
-      setNewMenuItem({ name: '', description: '', price: '', category: 'doces' });
+      setNewMenuItem({ name: '', description: '', price: '', category: 'doces', ncm: '', csosn: '', cfop: '', codigo_barras: '' });
       setEditingMenuItem(null);
+      setShowFiscalFields(false);
       fetchData();
     } catch (error) {
       toast.error('Erro ao salvar item');
@@ -1251,7 +1261,7 @@ export const KitchenPage = () => {
                 <h3 className="font-semibold text-sm flex items-center gap-1">
                   <UtensilsCrossed className="h-4 w-4 text-brand-600" /> Cardápio
                 </h3>
-                <Button size="sm" variant="outline" onClick={() => { setEditingMenuItem(null); setNewMenuItem({ name: '', description: '', price: '', category: 'doces' }); setShowMenuDialog(true); }}>
+                <Button size="sm" variant="outline" onClick={() => { setEditingMenuItem(null); setNewMenuItem({ name: '', description: '', price: '', category: 'doces', ncm: '', csosn: '', cfop: '', codigo_barras: '' }); setShowFiscalFields(false); setShowMenuDialog(true); }}>
                   <Plus className="h-3 w-3 mr-1" /> Novo Item
                 </Button>
               </div>
@@ -1277,7 +1287,7 @@ export const KitchenPage = () => {
                           {item.codigo && <span className="text-[10px] text-muted-foreground">Cód: {item.codigo}</span>}
                         </div>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingMenuItem(item); setNewMenuItem({ name: item.name, description: item.description || '', price: item.price?.toString() || '', category: item.category || 'doces' }); setShowMenuDialog(true); }}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingMenuItem(item); setNewMenuItem({ name: item.name, description: item.description || '', price: item.price?.toString() || '', category: item.category || 'doces', ncm: item.ncm || '', csosn: item.csosn || '', cfop: item.cfop || '', codigo_barras: item.codigo_barras || '' }); setShowFiscalFields(!!item.ncm || !!item.csosn); setShowMenuDialog(true); }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => handleDeleteMenuItem(item.id)}>
@@ -1548,6 +1558,66 @@ export const KitchenPage = () => {
                 </Select>
               </div>
             </div>
+            
+            {/* Fiscal Fields Toggle */}
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="sm" 
+              className="w-full text-xs text-muted-foreground"
+              onClick={() => setShowFiscalFields(!showFiscalFields)}
+            >
+              {showFiscalFields ? '▲ Ocultar campos fiscais' : '▼ Campos fiscais (NF-e)'}
+            </Button>
+            
+            {/* Fiscal Fields */}
+            {showFiscalFields && (
+              <div className="bg-amber-50 rounded-lg p-3 space-y-2 border border-amber-200">
+                <p className="text-[10px] text-amber-700 font-medium">Dados para Nota Fiscal Eletrônica</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px]">NCM</Label>
+                    <Input
+                      value={newMenuItem.ncm || ''}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, ncm: e.target.value })}
+                      placeholder="21069090"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">CSOSN</Label>
+                    <Input
+                      value={newMenuItem.csosn || ''}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, csosn: e.target.value })}
+                      placeholder="0102"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">CFOP</Label>
+                    <Input
+                      value={newMenuItem.cfop || ''}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, cfop: e.target.value })}
+                      placeholder="5102"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">Cód. Barras</Label>
+                    <Input
+                      value={newMenuItem.codigo_barras || ''}
+                      onChange={(e) => setNewMenuItem({ ...newMenuItem, codigo_barras: e.target.value })}
+                      placeholder="7891234567890"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+                <p className="text-[9px] text-amber-600">
+                  NCM: Nomenclatura Comum do Mercosul | CSOSN: Simples Nacional | CFOP: Código Fiscal
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowMenuDialog(false)}>
                 Cancelar

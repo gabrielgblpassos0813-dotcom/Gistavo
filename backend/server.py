@@ -17,6 +17,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -250,6 +251,7 @@ class MenuItem(BaseModel):
     description: str
     price: float
     category: str
+    store: Optional[str] = None  # Store location (runner, gym-londres, or all)
     prep_time: int = 15
     available: bool = True
     # Fiscal fields for NF-e (Nota Fiscal)
@@ -1955,7 +1957,7 @@ async def get_sales_by_category(username: str = Depends(verify_gestor)):
         del cat["items"]  # Remove the dict version
     
     return {
-        "month": now.strftime("%B %Y"),
+        "month": now_brazil.strftime("%B %Y"),
         "categories": categories_list,
         "total_items_sold": sum(c["count"] for c in categories_list),
         "total_revenue": sum(c["revenue"] for c in categories_list)
@@ -2873,6 +2875,190 @@ async def export_expenses_for_accountant(
         "gerado_por": username
     }
 
+class ContadorEmailRequest(BaseModel):
+    email: str
+    month: Optional[int] = None
+    year: Optional[int] = None
+    store: Optional[str] = None
+
+def generate_contador_html_report(data: dict) -> str:
+    """Generate a beautiful HTML report for the accountant"""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+            .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            h1 {{ color: #1a5f2a; border-bottom: 3px solid #1a5f2a; padding-bottom: 10px; }}
+            h2 {{ color: #333; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .summary-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }}
+            .summary-card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }}
+            .summary-card.receita {{ background: #d4edda; border-left: 4px solid #28a745; }}
+            .summary-card.despesa {{ background: #f8d7da; border-left: 4px solid #dc3545; }}
+            .summary-card.lucro {{ background: #d1ecf1; border-left: 4px solid #17a2b8; }}
+            .summary-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
+            .summary-value {{ font-size: 24px; font-weight: bold; margin-top: 5px; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+            th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+            th {{ background: #f8f9fa; font-weight: bold; }}
+            .store-section {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; }}
+            .store-name {{ font-weight: bold; color: #1a5f2a; }}
+            .payment-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }}
+            .payment-item {{ background: #f0f0f0; padding: 10px; border-radius: 5px; text-align: center; }}
+            .fiscal-info {{ background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📊 {data['titulo']}</h1>
+                <p><strong>{data['empresa']['nome']}</strong></p>
+                <p>Período: {data['periodo']['mes_nome']} / {data['periodo']['ano']}</p>
+                <p>({data['periodo']['data_inicio']} a {data['periodo']['data_fim']})</p>
+            </div>
+            
+            <h2>📈 Resumo Geral</h2>
+            <div class="summary-grid">
+                <div class="summary-card receita">
+                    <div class="summary-label">Receita Total</div>
+                    <div class="summary-value">R$ {data['resumo_geral']['receita_total']:,.2f}</div>
+                    <div class="summary-label">{data['resumo_geral']['total_pedidos']} pedidos</div>
+                </div>
+                <div class="summary-card despesa">
+                    <div class="summary-label">Despesas Total</div>
+                    <div class="summary-value">R$ {data['resumo_geral']['despesas_total']:,.2f}</div>
+                    <div class="summary-label">{data['resumo_geral']['total_registros_despesas']} registros</div>
+                </div>
+                <div class="summary-card lucro">
+                    <div class="summary-label">Lucro Bruto</div>
+                    <div class="summary-value">R$ {data['resumo_geral']['lucro_bruto']:,.2f}</div>
+                    <div class="summary-label">Margem: {data['resumo_geral']['margem_lucro_percentual']}%</div>
+                </div>
+            </div>
+            
+            <h2>🏪 Por Loja</h2>
+            <div class="store-section">
+                <p class="store-name">🏃 Runner</p>
+                <p>Receita: R$ {data['resumo_por_loja']['runner']['receita']:,.2f} | Pedidos: {data['resumo_por_loja']['runner']['pedidos']} | Ticket Médio: R$ {data['resumo_por_loja']['runner']['ticket_medio']:,.2f}</p>
+            </div>
+            <div class="store-section">
+                <p class="store-name">🏋️ GYM Londres</p>
+                <p>Receita: R$ {data['resumo_por_loja']['gym_londres']['receita']:,.2f} | Pedidos: {data['resumo_por_loja']['gym_londres']['pedidos']} | Ticket Médio: R$ {data['resumo_por_loja']['gym_londres']['ticket_medio']:,.2f}</p>
+            </div>
+            
+            <h2>💳 Receita por Forma de Pagamento</h2>
+            <div class="payment-grid">
+                <div class="payment-item"><strong>PIX</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['pix']:,.2f}</div>
+                <div class="payment-item"><strong>Débito</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['debito']:,.2f}</div>
+                <div class="payment-item"><strong>Crédito</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['credito']:,.2f}</div>
+                <div class="payment-item"><strong>Dinheiro</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['dinheiro']:,.2f}</div>
+                <div class="payment-item"><strong>Prazo/Fiado</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['prazo_fiado']:,.2f}</div>
+                <div class="payment-item"><strong>Voucher</strong><br>R$ {data['receita_por_forma_pagamento_consolidado']['voucher']:,.2f}</div>
+            </div>
+            
+            <h2>📦 Produtos Mais Vendidos</h2>
+            <table>
+                <tr><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>
+    """
+    
+    # Add top 15 products
+    for prod in data.get('produtos_vendidos', [])[:15]:
+        html += f"""
+                <tr>
+                    <td>{prod['produto']}</td>
+                    <td>{prod['quantidade_vendida']}</td>
+                    <td>R$ {prod['valor_unitario']:,.2f}</td>
+                    <td>R$ {prod['total_vendido']:,.2f}</td>
+                </tr>
+        """
+    
+    html += """
+            </table>
+            
+            <h2>💸 Despesas por Categoria</h2>
+            <table>
+                <tr><th>Categoria</th><th>Qtd</th><th>Total</th></tr>
+    """
+    
+    # Add expenses by category
+    for cat, cat_data in data.get('despesas_por_categoria', {}).items():
+        html += f"""
+                <tr>
+                    <td>{cat.upper()}</td>
+                    <td>{cat_data['quantidade']}</td>
+                    <td>R$ {cat_data['total']:,.2f}</td>
+                </tr>
+        """
+    
+    html += f"""
+            </table>
+            
+            <div class="fiscal-info">
+                <h3>📋 Informações Fiscais</h3>
+                <p><strong>Regime Tributário:</strong> {data['observacoes_fiscais']['regime_tributario']}</p>
+                <p><strong>NCM Padrão:</strong> {data['observacoes_fiscais']['ncm_padrao_alimentos']}</p>
+                <p><strong>CSOSN:</strong> {data['observacoes_fiscais']['csosn_padrao']}</p>
+                <p><strong>CFOP:</strong> {data['observacoes_fiscais']['cfop_venda_interna']}</p>
+                <p><strong>PIS/COFINS:</strong> {data['observacoes_fiscais']['pis_cofins']}</p>
+            </div>
+            
+            <div class="footer">
+                <p>Relatório gerado em {data['gerado_em']} por {data['gerado_por']}</p>
+                <p>GANOH Café Bistrô - Sistema de Gestão</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+@api_router.post("/expenses/send-contador-email")
+async def send_contador_email(request: ContadorEmailRequest, username: str = Depends(verify_gestor)):
+    """Send accountant report via email"""
+    try:
+        # Get the report data
+        report_data = await export_expenses_for_accountant(
+            month=request.month,
+            year=request.year,
+            store=request.store,
+            username=username
+        )
+        
+        # Generate HTML report
+        html_content = generate_contador_html_report(report_data)
+        
+        # Configure Resend
+        resend_key = os.environ.get("RESEND_API_KEY")
+        if not resend_key:
+            raise HTTPException(status_code=500, detail="RESEND_API_KEY não configurada. Configure a chave no ambiente.")
+        
+        resend.api_key = resend_key
+        
+        # Send email
+        params = {
+            "from": os.environ.get("SENDER_EMAIL", "onboarding@resend.dev"),
+            "to": [request.email],
+            "subject": f"📊 Relatório Financeiro GANOH - {report_data['periodo']['mes_nome']}/{report_data['periodo']['ano']}",
+            "html": html_content
+        }
+        
+        email = await asyncio.to_thread(resend.Emails.send, params)
+        
+        return {
+            "success": True,
+            "message": f"Relatório enviado para {request.email}",
+            "email_id": email.get("id"),
+            "periodo": f"{report_data['periodo']['mes_nome']}/{report_data['periodo']['ano']}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error sending contador email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar email: {str(e)}")
+
 @api_router.post("/expenses/analyze-image")
 async def analyze_expense_image(analysis: ExpenseAnalysis, username: str = Depends(verify_gestor)):
     """Use AI to analyze expense receipt/invoice image"""
@@ -2889,8 +3075,14 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
 {
     "description": "descrição do gasto (o que foi comprado)",
     "amount": valor numérico em reais (apenas o número, sem R$),
-    "notes": "nome do estabelecimento ou local onde foi gasto"
+    "notes": "nome do estabelecimento ou local onde foi gasto",
+    "store": "runner" ou "gym-londres" ou "all" (tente identificar pela nota se é para Runner ou GYM Londres. Se não conseguir identificar, use "all")
 }
+
+IMPORTANTE: Tente identificar a loja pelo endereço, nome do estabelecimento ou contexto da nota fiscal.
+- Se mencionar "Runner" ou estiver na região do Runner -> "runner"
+- Se mencionar "GYM Londres", "Londres" ou estiver na região -> "gym-londres"
+- Se for um gasto geral (contador, sistema, etc) ou não conseguir identificar -> "all"
 
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
@@ -2900,7 +3092,7 @@ Responda APENAS com o JSON, sem texto adicional."""
         
         # Create user message with image
         user_message = UserMessage(
-            text="Analise este comprovante/nota fiscal e extraia: o valor total, o que foi comprado e onde foi comprado.",
+            text="Analise este comprovante/nota fiscal e extraia: o valor total, o que foi comprado, onde foi comprado, e para qual loja (Runner, GYM Londres ou geral).",
             file_contents=[image_content]
         )
         
@@ -2961,10 +3153,16 @@ Para CADA imagem, extraia as informações e retorne um JSON com uma lista:
             "id": 1,
             "description": "o que foi comprado",
             "amount": valor numérico em reais (apenas o número),
-            "notes": "nome do estabelecimento/local"
+            "notes": "nome do estabelecimento/local",
+            "store": "runner" ou "gym-londres" ou "all"
         }}
     ]
 }}
+
+IMPORTANTE: Tente identificar a loja pelo endereço, nome do estabelecimento ou contexto da nota fiscal.
+- Se mencionar "Runner" ou estiver na região do Runner -> "runner"
+- Se mencionar "GYM Londres", "Londres" ou estiver na região -> "gym-londres"
+- Se for um gasto geral (contador, sistema, etc) ou não conseguir identificar -> "all"
 
 Responda APENAS com o JSON, sem texto adicional."""
         ).with_model("openai", "gpt-4o")
@@ -2974,7 +3172,7 @@ Responda APENAS com o JSON, sem texto adicional."""
         
         # Create user message with all images
         user_message = UserMessage(
-            text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste: valor, o que foi comprado e onde foi comprado para cada uma.",
+            text=f"Analise estas {len(data.images)} nota(s) fiscal(is) e liste: valor, o que foi comprado, onde foi comprado, e para qual loja (Runner, GYM Londres ou geral).",
             file_contents=image_contents
         )
         

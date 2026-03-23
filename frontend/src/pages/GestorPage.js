@@ -681,7 +681,9 @@ export const GestorPage = () => {
         // Create list message
         let listMessage = `📋 **Encontrei ${expenses.length} gasto(s):**\n\n`;
         expenses.forEach((exp, idx) => {
-          listMessage += `**${idx + 1}.** R$ ${exp.amount?.toFixed(2) || '0.00'} - ${exp.description || 'Sem descrição'}\n`;
+          const storeLabel = exp.store === 'runner' ? '🏃 Runner' : 
+                            exp.store === 'gym-londres' ? '🏋️ GYM' : '📦 Geral';
+          listMessage += `**${idx + 1}.** R$ ${exp.amount?.toFixed(2) || '0.00'} - ${exp.description || 'Sem descrição'} [${storeLabel}]\n`;
           if (exp.notes) listMessage += `   📍 ${exp.notes}\n`;
           listMessage += '\n';
         });
@@ -737,7 +739,7 @@ export const GestorPage = () => {
               description: matchingExpense.description,
               amount: matchingExpense.amount,
               category: cmd.category,
-              store: 'all',
+              store: matchingExpense.store || 'all',
               notes: matchingExpense.notes || '',
               image_url: ''
             }, { auth: { username: user, password: pass } });
@@ -819,7 +821,7 @@ export const GestorPage = () => {
               description: matchingExpense.description,
               amount: matchingExpense.amount,
               category: cmd.category,
-              store: 'all',
+              store: matchingExpense.store || 'all',
               notes: matchingExpense.notes || '',
               image_url: ''
             }, { auth: { username: user, password: pass } });
@@ -868,7 +870,7 @@ export const GestorPage = () => {
             description: exp.description,
             amount: exp.amount,
             category: validCategory,
-            store: 'all',
+            store: exp.store || 'all',
             notes: exp.notes || '',
             image_url: ''
           }, { auth: { username: user, password: pass } });
@@ -1010,9 +1012,37 @@ export const GestorPage = () => {
       toast.error('Digite o e-mail do contador');
       return;
     }
-    // For now, just download and show a message to send manually
-    handleDownloadContadorReport();
-    toast.info(`Envie o arquivo para: ${contadorEmail}`, { duration: 5000 });
+    
+    try {
+      const auth = localStorage.getItem('gestor_auth');
+      if (!auth) {
+        toast.error('Não autenticado');
+        return;
+      }
+      const [user, pass] = atob(auth).split(':');
+      
+      toast.loading('Enviando relatório por e-mail...', { id: 'email' });
+      
+      const response = await axios.post(`${API}/expenses/send-contador-email`, {
+        email: contadorEmail,
+        month: expensesSelectedMonth,
+        year: expensesSelectedYear,
+        store: expenseStoreFilter !== 'all' ? expenseStoreFilter : null
+      }, {
+        auth: { username: user, password: pass }
+      });
+      
+      if (response.data.success) {
+        toast.success(`Relatório enviado para ${contadorEmail}!`, { id: 'email' });
+        setContadorEmail('');
+      } else {
+        toast.error('Erro ao enviar e-mail', { id: 'email' });
+      }
+    } catch (error) {
+      console.error('Email error:', error);
+      const errorMsg = error.response?.data?.detail || 'Erro ao enviar e-mail';
+      toast.error(errorMsg, { id: 'email' });
+    }
   };
 
   useEffect(() => {
@@ -2715,7 +2745,7 @@ export const GestorPage = () => {
 
               {/* Email do Contador */}
               <div className="border rounded-lg p-3">
-                <Label className="text-sm font-semibold">E-mail do Contador (opcional)</Label>
+                <Label className="text-sm font-semibold">📧 Enviar por E-mail</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     type="email"
@@ -2724,12 +2754,12 @@ export const GestorPage = () => {
                     onChange={(e) => setContadorEmail(e.target.value)}
                     className="flex-1"
                   />
-                  <Button variant="outline" onClick={handleSendContadorEmail} disabled={!contadorEmail}>
-                    Preparar Envio
+                  <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={handleSendContadorEmail} disabled={!contadorEmail}>
+                    Enviar E-mail
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  O relatório será baixado para você enviar manualmente por e-mail
+                  O relatório será enviado diretamente para o e-mail do contador
                 </p>
               </div>
             </div>
