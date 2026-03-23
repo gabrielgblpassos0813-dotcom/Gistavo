@@ -210,6 +210,12 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 
 ## Changelog
 
+### 23/03/2026 - Voucher nas Vendas e Gráficos
+- ✅ **Implementado**: Método de pagamento "Voucher" agora aparece nas vendas e gráficos
+- ✅ **Backend**: Adicionado "voucher" e "prazo" em todos os endpoints de vendas (`/cash/{store}/today`, `/gestor/dashboard`)
+- ✅ **Frontend**: Aba Vendas na Cozinha agora mostra 6 métodos de pagamento (PIX, Débito, Crédito, Dinheiro, Prazo, Voucher)
+- ✅ **Frontend**: Modal Exportar IR agora mostra Voucher na receita por forma de pagamento
+
 ### 23/03/2026 - Melhorias no Sistema e Campos Fiscais
 - ✅ **Corrigido**: Adicionar itens ao cardápio nas duas lojas - Campo `store` estava faltando no modelo MenuItem
 - ✅ **Implementado**: UI para campos fiscais (NCM, CSOSN, CFOP, código de barras) no modal de novo item
