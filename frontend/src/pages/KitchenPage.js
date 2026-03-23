@@ -437,6 +437,12 @@ export const KitchenPage = () => {
   const [prazoCustomers, setPrazoCustomers] = useState([]);
   const [showPrazoCustomerDialog, setShowPrazoCustomerDialog] = useState(false);
   const [newPrazoCustomer, setNewPrazoCustomer] = useState({ name: '', phone: '', notes: '' });
+  // Cash drawer state
+  const [cashDrawer, setCashDrawer] = useState({ cash_in: 0, withdrawals: 0, current_balance: 0, withdrawal_history: [] });
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawCategory, setWithdrawCategory] = useState('outros');
+  const [withdrawDescription, setWithdrawDescription] = useState('');
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -491,11 +497,12 @@ export const KitchenPage = () => {
         axios.get(`${API}/prazo/debts?store=${store}`),  // Fetch prazo debts for this store only
         axios.get(`${API}/kitchen/adicionais`),  // Fetch adicionais
         axios.get(`${API}/kitchen/menu/${store}`),  // Fetch menu items for this store
-        axios.get(`${API}/prazo/customers`)  // Fetch prazo customers
+        axios.get(`${API}/prazo/customers`),  // Fetch prazo customers
+        axios.get(`${API}/cash/${store}/drawer`)  // Fetch cash drawer status
       ];
       
       const results = await Promise.all(requests);
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes] = results;
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes, cashDrawerRes] = results;
       
       const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
       
@@ -532,6 +539,11 @@ export const KitchenPage = () => {
       // Set prazo customers
       if (prazoCustomersRes) {
         setPrazoCustomers(prazoCustomersRes.data.customers || []);
+      }
+      
+      // Set cash drawer
+      if (cashDrawerRes) {
+        setCashDrawer(cashDrawerRes.data);
       }
       
       if (showToast) toast.success('Atualizado');
@@ -810,6 +822,40 @@ export const KitchenPage = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao adicionar crédito');
+    }
+  };
+
+  const handleCashWithdraw = async () => {
+    if (!withdrawAmount || isNaN(parseFloat(withdrawAmount)) || parseFloat(withdrawAmount) <= 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
+    
+    if (parseFloat(withdrawAmount) > cashDrawer.current_balance) {
+      toast.error('Saldo insuficiente no caixa');
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API}/cash/${store}/withdraw`, {
+        amount: parseFloat(withdrawAmount),
+        category: withdrawCategory,
+        description: withdrawDescription || null
+      });
+      
+      if (response.data.success) {
+        toast.success(`Retirada de R$ ${parseFloat(withdrawAmount).toFixed(2)} realizada!`);
+        if (response.data.expense_created) {
+          toast.info('Gasto de VT registrado automaticamente');
+        }
+        setShowWithdrawDialog(false);
+        setWithdrawAmount('');
+        setWithdrawCategory('outros');
+        setWithdrawDescription('');
+        fetchData();
+      }
+    } catch (error) {
+      toast.error('Erro ao retirar do caixa');
     }
   };
 
@@ -1117,6 +1163,51 @@ export const KitchenPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Caixa (Dinheiro em Espécie) */}
+            <div className="bg-green-600 text-white rounded-xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <p className="text-sm opacity-80 flex items-center gap-1">
+                    <Banknote className="h-4 w-4" /> Caixa (Dinheiro)
+                  </p>
+                  <p className="text-2xl font-bold">{formatCurrency(cashDrawer.current_balance || 0)}</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="secondary" 
+                  className="bg-white/20 hover:bg-white/30 text-white border-0"
+                  onClick={() => setShowWithdrawDialog(true)}
+                  disabled={(cashDrawer.current_balance || 0) <= 0}
+                >
+                  <Minus className="h-3 w-3 mr-1" /> Retirar
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-white/10 rounded p-2">
+                  <p className="text-xs opacity-70">Entradas (Dinheiro)</p>
+                  <p className="font-bold">{formatCurrency(cashDrawer.cash_in || 0)}</p>
+                </div>
+                <div className="bg-white/10 rounded p-2">
+                  <p className="text-xs opacity-70">Retiradas</p>
+                  <p className="font-bold">{formatCurrency(cashDrawer.withdrawals || 0)}</p>
+                </div>
+              </div>
+              {/* Histórico de retiradas */}
+              {cashDrawer.withdrawal_history?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <p className="text-xs opacity-70 mb-2">Retiradas de hoje:</p>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {cashDrawer.withdrawal_history.map((w, idx) => (
+                      <div key={idx} className="flex justify-between text-xs bg-white/10 rounded px-2 py-1">
+                        <span>{w.category === 'vt' ? '🚌 VT' : '💵 Outros'} - {w.description}</span>
+                        <span className="font-bold">-{formatCurrency(w.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* PRAZO TAB - For all stores */}
@@ -1152,26 +1243,28 @@ export const KitchenPage = () => {
             {prazoCustomers.length > 0 && (
               <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
                 <h4 className="font-semibold text-sm text-blue-800 mb-2 flex items-center gap-1">
-                  <DollarSign className="h-4 w-4" /> Clientes com Crédito na Casa
+                  <DollarSign className="h-4 w-4" /> Clientes Cadastrados ({prazoCustomers.length})
                 </h4>
-                <div className="space-y-2">
-                  {prazoCustomers.filter(c => (c.credit || 0) > 0).map(customer => (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {prazoCustomers.map(customer => (
                     <div key={customer.id} className="flex items-center justify-between bg-white p-2 rounded border">
                       <div>
                         <p className="font-medium text-sm">{customer.name}</p>
                         <p className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-green-600">R$ {(customer.credit || 0).toFixed(2)}</span>
-                        <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => handleAddCredit(customer)}>
+                        {(customer.credit || 0) > 0 && (
+                          <span className="font-bold text-green-600 text-sm">+R$ {(customer.credit || 0).toFixed(2)}</span>
+                        )}
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-green-600" onClick={() => handleAddCredit(customer)} title="Adicionar crédito">
                           <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-red-600" onClick={() => handleDeletePrazoCustomer(customer.id)} title="Excluir cliente">
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
                   ))}
-                  {prazoCustomers.filter(c => (c.credit || 0) > 0).length === 0 && (
-                    <p className="text-xs text-blue-600 text-center py-2">Nenhum cliente com crédito</p>
-                  )}
                 </div>
               </div>
             )}
@@ -1693,6 +1786,92 @@ export const KitchenPage = () => {
               </Button>
               <Button size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700" onClick={handleSavePrazoCustomer}>
                 Cadastrar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Withdrawal Dialog */}
+      <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-green-600" />
+              Retirar do Caixa
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">Saldo disponível</p>
+              <p className="text-xl font-bold text-green-600">{formatCurrency(cashDrawer.current_balance || 0)}</p>
+            </div>
+            
+            <div>
+              <Label className="text-xs">Valor a retirar (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="0.00"
+                className="h-9"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-xs">Tipo de retirada</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant={withdrawCategory === 'vt' ? 'default' : 'outline'}
+                  size="sm"
+                  className={withdrawCategory === 'vt' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  onClick={() => setWithdrawCategory('vt')}
+                >
+                  🚌 Vale Transporte
+                </Button>
+                <Button
+                  type="button"
+                  variant={withdrawCategory === 'outros' ? 'default' : 'outline'}
+                  size="sm"
+                  className={withdrawCategory === 'outros' ? 'bg-gray-600 hover:bg-gray-700' : ''}
+                  onClick={() => setWithdrawCategory('outros')}
+                >
+                  💵 Outros
+                </Button>
+              </div>
+              {withdrawCategory === 'vt' && (
+                <p className="text-xs text-blue-600 mt-1">* Será registrado automaticamente como gasto</p>
+              )}
+            </div>
+            
+            <div>
+              <Label className="text-xs">Descrição (opcional)</Label>
+              <Input
+                value={withdrawDescription}
+                onChange={(e) => setWithdrawDescription(e.target.value)}
+                placeholder={withdrawCategory === 'vt' ? 'Ex: VT da semana' : 'Ex: Troco para cliente'}
+                className="h-9"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                setShowWithdrawDialog(false);
+                setWithdrawAmount('');
+                setWithdrawCategory('outros');
+                setWithdrawDescription('');
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-green-600 hover:bg-green-700" 
+                onClick={handleCashWithdraw}
+                disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
+              >
+                Confirmar Retirada
               </Button>
             </div>
           </div>

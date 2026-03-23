@@ -1,0 +1,96 @@
+{
+  "summary": "Completed testing of Cash Drawer and Prazo Customer Management features. All 12 backend tests passed. Frontend verified for both Runner and GYM Londres stores - Vendas tab shows Caixa section with balance/withdraw functionality, Prazo tab shows customer management with delete and add credit buttons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: 12/12 tests passed",
+    "GET /api/cash/runner/drawer - Returns cash_in, withdrawals, current_balance",
+    "GET /api/cash/gym-londres/drawer - Returns cash_in, withdrawals, current_balance",
+    "Cash drawer balance calculation: current_balance = cash_in - withdrawals",
+    "POST /api/cash/runner/withdraw with category=vt creates expense automatically",
+    "POST /api/cash/runner/withdraw with category=outros does NOT create expense",
+    "POST /api/kitchen/prazo/customers - Creates new prazo customer",
+    "DELETE /api/kitchen/prazo/customers/{id} - Deletes prazo customer",
+    "POST /api/prazo/customers/{id}/add-credit - Adds credit to customer",
+    "GET /api/prazo/customers - Returns list of prazo customers",
+    "GET /api/kitchen/runner/stats - Returns order stats",
+    "GET /api/prazo/debts?store=runner - Returns prazo debts for store",
+    "Frontend Runner: Vendas tab shows Caixa section with balance R$ -5.00, Entradas R$ 50.00, Retiradas R$ 55.00",
+    "Frontend Runner: Vendas tab shows Retirar button and withdrawal history",
+    "Frontend Runner: Prazo tab shows 'Clientes no Prazo' header, 'Novo Cliente' and 'Cobrar Todos' buttons",
+    "Frontend Runner: Prazo tab shows 'Clientes Cadastrados' section with delete and add credit buttons",
+    "Frontend GYM Londres: Vendas tab shows Caixa section with balance R$ 0.00",
+    "Frontend GYM Londres: Prazo tab shows customer management interface",
+    "WhatsApp groups configured: Runner=5511974449533-1572969909@g.us, GYM Londres=120363424613813278@g.us"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_cash_drawer_prazo.py",
+    "/app/test_reports/pytest/pytest_cash_prazo.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_cash_drawer_prazo.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Created and cleaned up TEST_ prefixed customers and orders for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cash drawer and Prazo customer management features fully working: 1) /api/cash/{store}/drawer returns cash_in, withdrawals, current_balance, 2) /api/cash/{store}/withdraw with category=vt auto-creates expense, category=outros does not, 3) Prazo customers can be created, deleted, and have credit added via /api/kitchen/prazo/customers and /api/prazo/customers/{id}/add-credit, 4) Frontend KitchenPage Vendas tab shows Caixa section with balance and withdraw button, 5) Frontend KitchenPage Prazo tab shows all registered customers with delete and add credit buttons, 6) WhatsApp notifications use store-based group selection (Runner→WHATSAPP_GROUP_RUNNER, GYM Londres→WHATSAPP_GROUP_ID)",
+  "features_verified": {
+    "cash_drawer_endpoint": {
+      "status": "WORKING",
+      "details": "/api/cash/{store}/drawer returns cash_in, withdrawals, current_balance for both Runner and GYM Londres"
+    },
+    "cash_withdraw_vt": {
+      "status": "WORKING",
+      "details": "/api/cash/{store}/withdraw with category=vt creates expense automatically"
+    },
+    "cash_withdraw_outros": {
+      "status": "WORKING",
+      "details": "/api/cash/{store}/withdraw with category=outros does NOT create expense"
+    },
+    "prazo_customer_delete": {
+      "status": "WORKING",
+      "details": "DELETE /api/kitchen/prazo/customers/{customer_id} works correctly"
+    },
+    "prazo_customer_add_credit": {
+      "status": "WORKING",
+      "details": "POST /api/prazo/customers/{id}/add-credit adds credit and accumulates correctly"
+    },
+    "frontend_vendas_caixa": {
+      "status": "WORKING",
+      "details": "KitchenPage Vendas tab shows Caixa section with balance, entradas, retiradas, and withdraw button"
+    },
+    "frontend_prazo_customers": {
+      "status": "WORKING",
+      "details": "KitchenPage Prazo tab shows all registered customers with delete and add credit buttons"
+    },
+    "whatsapp_store_groups": {
+      "status": "CONFIGURED",
+      "details": "WhatsApp notifications use store-based group selection: Runner→5511974449533-1572969909@g.us, GYM Londres→120363424613813278@g.us"
+    }
+  },
+  "api_endpoints_tested": {
+    "GET /api/cash/runner/drawer": "200 OK - Returns cash_in=50.00, withdrawals=55.00, current_balance=-5.00",
+    "GET /api/cash/gym-londres/drawer": "200 OK - Returns cash_in=0, withdrawals=0, current_balance=0",
+    "POST /api/cash/runner/withdraw (vt)": "200 OK - Creates withdrawal and expense",
+    "POST /api/cash/runner/withdraw (outros)": "200 OK - Creates withdrawal only, no expense",
+    "POST /api/kitchen/prazo/customers": "200 OK - Creates new prazo customer",
+    "DELETE /api/kitchen/prazo/customers/{id}": "200 OK - Deletes prazo customer",
+    "POST /api/prazo/customers/{id}/add-credit": "200 OK - Adds credit to customer",
+    "GET /api/prazo/customers": "200 OK - Returns list of prazo customers",
+    "GET /api/kitchen/runner/stats": "200 OK - Returns order stats",
+    "GET /api/prazo/debts?store=runner": "200 OK - Returns prazo debts for store"
+  }
+}

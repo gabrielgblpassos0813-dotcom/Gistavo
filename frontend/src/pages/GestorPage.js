@@ -1574,6 +1574,39 @@ export const GestorPage = () => {
                         </>
                       )}
                     </div>
+                    
+                    {/* Receita por Forma de Pagamento */}
+                    {chartData.by_payment && (
+                      <div className="mt-4 border-t pt-4">
+                        <h4 className="text-sm font-semibold mb-3 text-center">Receita por Forma de Pagamento</h4>
+                        <div className="grid grid-cols-6 gap-2 text-center">
+                          <div className="bg-brand-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">PIX</p>
+                            <p className="text-sm font-bold text-brand-600">{formatPrice(chartData.by_payment.pix || 0)}</p>
+                          </div>
+                          <div className="bg-blue-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">Débito</p>
+                            <p className="text-sm font-bold text-blue-600">{formatPrice(chartData.by_payment.debito || 0)}</p>
+                          </div>
+                          <div className="bg-purple-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">Crédito</p>
+                            <p className="text-sm font-bold text-purple-600">{formatPrice(chartData.by_payment.credito || 0)}</p>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">Dinheiro</p>
+                            <p className="text-sm font-bold text-green-600">{formatPrice(chartData.by_payment.dinheiro || 0)}</p>
+                          </div>
+                          <div className="bg-amber-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">Prazo</p>
+                            <p className="text-sm font-bold text-amber-600">{formatPrice(chartData.by_payment.prazo || 0)}</p>
+                          </div>
+                          <div className="bg-pink-50 rounded-lg p-2">
+                            <p className="text-[10px] text-muted-foreground">Voucher</p>
+                            <p className="text-sm font-bold text-pink-600">{formatPrice(chartData.by_payment.voucher || 0)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

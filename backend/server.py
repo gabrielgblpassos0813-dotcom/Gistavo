@@ -336,6 +336,19 @@ class SalesReport(BaseModel):
     top_products: List[dict]
     low_products: List[dict]
 
+class CashWithdrawal(BaseModel):
+    amount: float
+    category: str  # "vt" (vale transporte) or "outros"
+    description: Optional[str] = None
+
+class CashWithdrawalResponse(BaseModel):
+    id: str
+    store: str
+    amount: float
+    category: str
+    description: str
+    created_at: str
+
 # Menu Data - GANOH Café Bistrô (same for both stores)
 MENU_DATA = [
     # Omeletes, Tapiocas e Crepiocas
@@ -1568,6 +1581,102 @@ async def get_today_cash(store: StoreLocation):
         }
     }
 
+# ==================== CASH DRAWER / CAIXA ROUTES ====================
+
+@api_router.get("/cash/{store}/drawer")
+async def get_cash_drawer(store: StoreLocation):
+    """Get current cash drawer status - how much cash is in the register"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc = today_brazil.astimezone(pytz.UTC)
+    
+    # Get today's cash orders (dinheiro)
+    cash_orders = await db.orders.find({
+        "store": store.value,
+        "status": {"$in": ["ready", "delivered"]},
+        "payment_method": "cash",
+        "created_at": {"$gte": today_utc.isoformat()}
+    }, {"_id": 0, "total": 1}).to_list(1000)
+    
+    total_cash_in = sum(o.get("total", 0) for o in cash_orders)
+    
+    # Get today's withdrawals
+    withdrawals = await db.cash_withdrawals.find({
+        "store": store.value,
+        "created_at": {"$gte": today_utc.isoformat()}
+    }, {"_id": 0}).to_list(100)
+    
+    total_withdrawn = sum(w.get("amount", 0) for w in withdrawals)
+    
+    return {
+        "store": store.value,
+        "date": now_brazil.strftime("%d/%m/%Y"),
+        "cash_in": round(total_cash_in, 2),
+        "withdrawals": round(total_withdrawn, 2),
+        "current_balance": round(total_cash_in - total_withdrawn, 2),
+        "withdrawal_history": withdrawals
+    }
+
+@api_router.post("/cash/{store}/withdraw")
+async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
+    """Withdraw cash from the drawer and optionally register as expense"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    
+    # Create withdrawal record
+    withdrawal_record = {
+        "id": str(uuid.uuid4()),
+        "store": store.value,
+        "amount": withdrawal.amount,
+        "category": withdrawal.category,
+        "description": withdrawal.description or ("Vale Transporte" if withdrawal.category == "vt" else "Retirada de caixa"),
+        "created_at": now_brazil.isoformat()
+    }
+    
+    await db.cash_withdrawals.insert_one({**withdrawal_record})
+    
+    # If VT, also register as expense
+    if withdrawal.category == "vt":
+        expense = {
+            "id": str(uuid.uuid4()),
+            "description": "Vale Transporte (VT)",
+            "amount": withdrawal.amount,
+            "category": "vt",
+            "store": store.value,
+            "notes": f"Retirado do caixa em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
+            "created_at": now_brazil.isoformat(),
+            "image_url": ""
+        }
+        await db.expenses.insert_one({**expense})
+    
+    # Get updated drawer status
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc = today_brazil.astimezone(pytz.UTC)
+    
+    cash_orders = await db.orders.find({
+        "store": store.value,
+        "status": {"$in": ["ready", "delivered"]},
+        "payment_method": "cash",
+        "created_at": {"$gte": today_utc.isoformat()}
+    }, {"_id": 0, "total": 1}).to_list(1000)
+    
+    total_cash_in = sum(o.get("total", 0) for o in cash_orders)
+    
+    withdrawals = await db.cash_withdrawals.find({
+        "store": store.value,
+        "created_at": {"$gte": today_utc.isoformat()}
+    }, {"_id": 0}).to_list(100)
+    
+    total_withdrawn = sum(w.get("amount", 0) for w in withdrawals)
+    
+    return {
+        "success": True,
+        "withdrawal": withdrawal_record,
+        "expense_created": withdrawal.category == "vt",
+        "current_balance": round(total_cash_in - total_withdrawn, 2)
+    }
+
 # ==================== GESTOR ROUTES (Protected) ====================
 
 @api_router.get("/gestor/dashboard")
@@ -1721,11 +1830,14 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
     orders = await db.orders.find({
         "status": {"$in": ["ready", "delivered", "received"]},
         "created_at": {"$gte": month_start_utc.isoformat(), "$lt": month_end_utc.isoformat()}
-    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1}).to_list(10000)
+    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "payment_method": 1}).to_list(10000)
     
     # Get number of days in month
     import calendar
     days_in_month = calendar.monthrange(target_year, target_month)[1]
+    
+    # Payment methods breakdown
+    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
     
     # Group by day (in Brazil timezone) - with store separation
     daily_data = {}
@@ -1751,6 +1863,10 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
             date = order_time_brazil.strftime("%Y-%m-%d")
             store = order.get("store", "")
             order_total = order.get("total", 0)
+            payment_method = order.get("payment_method", "cash")
+            
+            # Count by payment method
+            by_payment[payment_method] = by_payment.get(payment_method, 0) + order_total
             
             if date in daily_data:
                 daily_data[date]["total"] += order_total
@@ -1786,6 +1902,14 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
         "by_store": {
             "runner": {"total": total_runner, "orders": sum(d["runner_count"] for d in chart_data)},
             "gym_londres": {"total": total_gym, "orders": sum(d["gym_londres_count"] for d in chart_data)}
+        },
+        "by_payment": {
+            "pix": round(by_payment.get("pix", 0), 2),
+            "debito": round(by_payment.get("debit", 0), 2),
+            "credito": round(by_payment.get("credit", 0), 2),
+            "dinheiro": round(by_payment.get("cash", 0), 2),
+            "prazo": round(by_payment.get("prazo", 0), 2),
+            "voucher": round(by_payment.get("voucher", 0), 2)
         }
     }
 
