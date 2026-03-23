@@ -443,6 +443,9 @@ export const KitchenPage = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawCategory, setWithdrawCategory] = useState('outros');
   const [withdrawDescription, setWithdrawDescription] = useState('');
+  // Cash balance adjustment state
+  const [showCashBalanceDialog, setShowCashBalanceDialog] = useState(false);
+  const [newCashBalance, setNewCashBalance] = useState('');
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -825,6 +828,23 @@ export const KitchenPage = () => {
     }
   };
 
+  const handleDeletePrazoDebt = async (customerName) => {
+    const password = prompt(`Apagar dívida de ${customerName}?\n\nDigite a senha do Prazo para confirmar:`);
+    if (!password) return;
+    
+    try {
+      const response = await axios.delete(`${API}/prazo/debt/${encodeURIComponent(customerName)}?password=${encodeURIComponent(password)}`);
+      toast.success(response.data.message);
+      fetchData();
+    } catch (error) {
+      if (error.response?.status === 403) {
+        toast.error('Senha incorreta');
+      } else {
+        toast.error('Erro ao apagar dívida');
+      }
+    }
+  };
+
   const handleCashWithdraw = async () => {
     if (!withdrawAmount || isNaN(parseFloat(withdrawAmount)) || parseFloat(withdrawAmount) <= 0) {
       toast.error('Digite um valor válido');
@@ -859,21 +879,20 @@ export const KitchenPage = () => {
     }
   };
 
-  const handleSetCashBalance = async () => {
-    const currentBalance = cashDrawer.initial_balance || 0;
-    const newBalance = prompt(
-      `Ajustar saldo inicial do caixa\n\nSaldo inicial atual: R$ ${currentBalance.toFixed(2)}\n\nDigite o novo valor que já está no caixa (não conta como venda):`
-    );
-    
-    if (newBalance === null) return; // Cancelled
-    
-    const value = parseFloat(newBalance);
+  const handleSetCashBalance = () => {
+    setNewCashBalance(cashDrawer.initial_balance?.toString() || '0');
+    setShowCashBalanceDialog(true);
+  };
+
+  const handleConfirmCashBalance = async () => {
+    const value = parseFloat(newCashBalance);
     if (isNaN(value) || value < 0) {
       toast.error('Digite um valor válido (maior ou igual a zero)');
       return;
     }
     
     try {
+      const currentBalance = cashDrawer.initial_balance || 0;
       const response = await axios.post(`${API}/cash/${store}/set-balance`, {
         balance: value,
         notes: `Ajustado de R$ ${currentBalance.toFixed(2)} para R$ ${value.toFixed(2)}`
@@ -881,6 +900,8 @@ export const KitchenPage = () => {
       
       toast.success(`Saldo inicial ajustado para R$ ${value.toFixed(2)}`);
       setCashDrawer(response.data);
+      setShowCashBalanceDialog(false);
+      setNewCashBalance('');
     } catch (error) {
       toast.error('Erro ao ajustar saldo');
     }
@@ -1345,8 +1366,18 @@ export const KitchenPage = () => {
                             setSelectedPrazoCustomer(debt);
                             setShowPrazoPayDialog(true);
                           }}
+                          title="Registrar pagamento"
                         >
                           <Check className="h-4 w-4 mr-1" /> Pagar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-red-600 border-red-600 hover:bg-red-50 h-8 px-2"
+                          onClick={() => handleDeletePrazoDebt(debt.name)}
+                          title="Apagar/zerar dívida"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -1918,6 +1949,58 @@ export const KitchenPage = () => {
                 disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
               >
                 Confirmar Retirada
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Balance Adjustment Dialog */}
+      <Dialog open={showCashBalanceDialog} onOpenChange={setShowCashBalanceDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-green-600" />
+              Ajustar Saldo do Caixa
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">Saldo inicial atual</p>
+              <p className="text-xl font-bold">{formatCurrency(cashDrawer.initial_balance || 0)}</p>
+            </div>
+            
+            <div>
+              <Label className="text-sm">Novo saldo inicial (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newCashBalance}
+                onChange={(e) => setNewCashBalance(e.target.value)}
+                placeholder="0.00"
+                className="h-10 text-lg"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Este valor é o dinheiro que já estava no caixa. Não conta como venda.
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                setShowCashBalanceDialog(false);
+                setNewCashBalance('');
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-green-600 hover:bg-green-700" 
+                onClick={handleConfirmCashBalance}
+                disabled={!newCashBalance || parseFloat(newCashBalance) < 0}
+              >
+                Salvar
               </Button>
             </div>
           </div>

@@ -1,0 +1,100 @@
+{
+  "summary": "Completed testing of 3 new features: 1) DELETE prazo debt endpoint, 2) Set cash balance endpoint, 3) Daily chart store filter. All 15 backend tests passed. Frontend verified for KitchenPage (Prazo tab delete button, Vendas tab cash balance adjustment) and GestorPage (Gráfico tab store filter dropdown).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: 15/15 tests passed",
+    "DELETE /api/prazo/debt/{customer_name}?password=1234 - Clears prazo debt with correct password",
+    "DELETE /api/prazo/debt/{customer_name} - Returns 403 with wrong password",
+    "DELETE /api/prazo/debt/{customer_name} - Returns 403 without password",
+    "POST /api/cash/runner/set-balance - Sets initial cash balance",
+    "POST /api/cash/gym-londres/set-balance - Sets initial cash balance",
+    "POST /api/cash/{store}/set-balance - Can set balance to zero",
+    "GET /api/cash/{store}/drawer - Returns updated balance after set-balance",
+    "GET /api/gestor/chart/daily - Returns data for all stores",
+    "GET /api/gestor/chart/daily?store=runner - Returns filtered data for Runner",
+    "GET /api/gestor/chart/daily?store=gym-londres - Returns filtered data for GYM Londres",
+    "GET /api/gestor/chart/daily?date=YYYY-MM-DD&store=runner - Combines date and store filter",
+    "Daily chart response has all required fields (date, store_filter, data, total_day, by_store, by_payment)",
+    "GET /api/prazo/debts - Returns all debts",
+    "GET /api/prazo/debts?store=runner - Returns debts filtered by store",
+    "GET /api/prazo/debts?store=gym-londres - Returns debts filtered by store",
+    "Frontend KitchenPage: Prazo tab has delete (trash) buttons for each debt",
+    "Frontend KitchenPage: Vendas tab has pencil button to adjust cash balance",
+    "Frontend KitchenPage: Vendas tab shows Caixa section with Saldo Inicial, +Vendas, -Retiradas",
+    "Frontend GestorPage: Gráfico tab has 'Todas Lojas' store filter dropdown",
+    "Frontend GestorPage: Store filter dropdown shows Runner and GYM Londres options"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_v3.py",
+    "/app/test_reports/pytest/pytest_new_features_v3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_new_features_v3.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Created test prazo orders for delete debt testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 requested features are working: 1) DELETE /api/prazo/debt/{customer_name}?password=1234 clears prazo debt (marks orders as paid with prazo_cleared=True), 2) POST /api/cash/{store}/set-balance sets initial cash balance that persists, 3) GET /api/gestor/chart/daily?store=runner returns filtered daily chart data. Frontend has trash buttons in Prazo tab, pencil button in Vendas tab for cash adjustment, and store filter dropdown in GestorPage Gráfico tab.",
+  "features_verified": {
+    "delete_prazo_debt_endpoint": {
+      "status": "WORKING",
+      "endpoint": "DELETE /api/prazo/debt/{customer_name}?password=1234",
+      "details": "Clears all unpaid prazo orders for customer by marking them as paid with prazo_cleared=True. Requires password=1234."
+    },
+    "set_cash_balance_endpoint": {
+      "status": "WORKING",
+      "endpoint": "POST /api/cash/{store}/set-balance",
+      "details": "Sets initial cash drawer balance. Returns updated drawer status with initial_balance, total_cash_sales, total_withdrawals, current_balance."
+    },
+    "daily_chart_store_filter": {
+      "status": "WORKING",
+      "endpoint": "GET /api/gestor/chart/daily?store=runner|gym-londres",
+      "details": "Returns daily chart data filtered by store. Response includes store_filter field indicating which store is selected."
+    },
+    "frontend_prazo_delete_button": {
+      "status": "WORKING",
+      "location": "KitchenPage > Prazo tab",
+      "details": "Each debt row has a trash button that triggers handleDeletePrazoDebt function with password prompt."
+    },
+    "frontend_cash_balance_adjustment": {
+      "status": "WORKING",
+      "location": "KitchenPage > Vendas tab > Caixa section",
+      "details": "Pencil button opens dialog to adjust initial cash balance. Shows Saldo Inicial, +Vendas, -Retiradas columns."
+    },
+    "frontend_chart_store_filter": {
+      "status": "WORKING",
+      "location": "GestorPage > Gráfico tab",
+      "details": "Store filter dropdown appears when 'Dia' view is selected. Options: Todas Lojas, Runner, GYM Londres."
+    }
+  },
+  "api_endpoints_tested": {
+    "DELETE /api/prazo/debt/{customer_name}?password=1234": "200 OK - Clears debt",
+    "DELETE /api/prazo/debt/{customer_name}?password=wrong": "403 Forbidden - Senha incorreta",
+    "DELETE /api/prazo/debt/{customer_name}": "403 Forbidden - No password",
+    "POST /api/cash/runner/set-balance": "200 OK - Sets initial_balance",
+    "POST /api/cash/gym-londres/set-balance": "200 OK - Sets initial_balance",
+    "GET /api/cash/runner/drawer": "200 OK - Returns drawer status",
+    "GET /api/gestor/chart/daily": "200 OK - All stores",
+    "GET /api/gestor/chart/daily?store=runner": "200 OK - Filtered by Runner",
+    "GET /api/gestor/chart/daily?store=gym-londres": "200 OK - Filtered by GYM Londres",
+    "GET /api/prazo/debts?store=runner": "200 OK - Filtered debts"
+  },
+  "test_credentials": {
+    "manager_login": "gestor / ganoh2024",
+    "prazo_password": "1234"
+  }
+}

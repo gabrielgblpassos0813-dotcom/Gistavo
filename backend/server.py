@@ -1952,8 +1952,8 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
     }
 
 @api_router.get("/gestor/chart/daily")
-async def get_daily_chart_data(date: str = None, username: str = Depends(verify_gestor)):
-    """Get hourly sales data for a specific day"""
+async def get_daily_chart_data(date: str = None, store: str = None, username: str = Depends(verify_gestor)):
+    """Get hourly sales data for a specific day, optionally filtered by store"""
     # Use Brazil timezone (Mogi das Cruzes, SP)
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
@@ -1972,17 +1972,25 @@ async def get_daily_chart_data(date: str = None, username: str = Depends(verify_
     day_start_utc = day_start_brazil.astimezone(pytz.UTC)
     day_end_utc = day_end_brazil.astimezone(pytz.UTC)
     
-    # Get all completed orders this day
-    orders = await db.orders.find({
+    # Build query
+    query = {
         "status": {"$in": ["ready", "delivered", "received"]},
         "created_at": {"$gte": day_start_utc.isoformat(), "$lt": day_end_utc.isoformat()}
-    }, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1}).to_list(10000)
+    }
+    if store and store != "all":
+        query["store"] = store
+    
+    # Get all completed orders this day
+    orders = await db.orders.find(query, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1, "payment_method": 1}).to_list(10000)
     
     # Group by hour (in Brazil timezone)
     hourly_data = {}
     for hour in range(24):
         hour_str = f"{hour:02d}:00"
-        hourly_data[hour] = {"hour": hour_str, "total": 0, "count": 0}
+        hourly_data[hour] = {"hour": hour_str, "total": 0, "count": 0, "runner": 0, "gym_londres": 0}
+    
+    # Payment breakdown
+    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
     
     for order in orders:
         try:
@@ -1990,21 +1998,51 @@ async def get_daily_chart_data(date: str = None, username: str = Depends(verify_
             # Convert to Brazil timezone
             order_time_brazil = order_time.astimezone(brazil_tz)
             brazil_hour = order_time_brazil.hour
-            hourly_data[brazil_hour]["total"] += order.get("total", 0)
+            order_total = order.get("total", 0)
+            order_store = order.get("store", "")
+            payment_method = order.get("payment_method", "cash")
+            
+            hourly_data[brazil_hour]["total"] += order_total
             hourly_data[brazil_hour]["count"] += 1
+            
+            # Separate by store
+            if order_store == "runner":
+                hourly_data[brazil_hour]["runner"] += order_total
+            elif order_store == "gym-londres":
+                hourly_data[brazil_hour]["gym_londres"] += order_total
+            
+            # Payment method
+            by_payment[payment_method] = by_payment.get(payment_method, 0) + order_total
         except:
             pass
     
     # Convert to sorted list
     chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
     
+    # Calculate totals by store
+    total_runner = sum(d["runner"] for d in chart_data)
+    total_gym = sum(d["gym_londres"] for d in chart_data)
+    
     return {
         "date": target_date.strftime("%d/%m/%Y"),
         "date_iso": target_date.strftime("%Y-%m-%d"),
+        "store_filter": store or "all",
         "data": chart_data,
         "total_day": sum(d["total"] for d in chart_data),
         "total_orders": sum(d["count"] for d in chart_data),
-        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "items": len(o.get("items", []))} for o in orders]
+        "by_store": {
+            "runner": {"total": round(total_runner, 2), "orders": sum(1 for o in orders if o.get("store") == "runner")},
+            "gym_londres": {"total": round(total_gym, 2), "orders": sum(1 for o in orders if o.get("store") == "gym-londres")}
+        },
+        "by_payment": {
+            "pix": round(by_payment.get("pix", 0), 2),
+            "debito": round(by_payment.get("debit", 0), 2),
+            "credito": round(by_payment.get("credit", 0), 2),
+            "dinheiro": round(by_payment.get("cash", 0), 2),
+            "prazo": round(by_payment.get("prazo", 0), 2),
+            "voucher": round(by_payment.get("voucher", 0), 2)
+        },
+        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "store": o.get("store", ""), "items": len(o.get("items", []))} for o in orders]
     }
 
 @api_router.get("/gestor/chart/yearly")
@@ -2472,7 +2510,41 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
         {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    return {"success": True, "message": f"{result.modified_count} pedidos pagos", "count": result.modified_count}
+    return {"success": True, "message": f"Todos os débitos de {customer_name} foram quitados", "orders_paid": result.modified_count}
+
+@api_router.delete("/prazo/debt/{customer_name}")
+async def delete_prazo_debt(customer_name: str, password: str = None):
+    """Delete/clear all prazo debts for a customer (marks as paid without recording payment)"""
+    if password != PRAZO_PASSWORD:
+        raise HTTPException(status_code=403, detail="Senha incorreta")
+    
+    # Mark all unpaid prazo orders for this customer as paid (zeroing the debt)
+    result = await db.orders.update_many(
+        {"customer_name": customer_name, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
+        {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat(), "prazo_cleared": True}}
+    )
+    
+    return {
+        "success": True,
+        "message": f"Dívida de {customer_name} zerada",
+        "orders_cleared": result.modified_count
+    }
+
+@api_router.delete("/prazo/debt-order/{order_id}")
+async def delete_single_prazo_debt(order_id: str, password: str = None):
+    """Delete/clear a single prazo debt order"""
+    if password != PRAZO_PASSWORD:
+        raise HTTPException(status_code=403, detail="Senha incorreta")
+    
+    result = await db.orders.update_one(
+        {"id": order_id, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
+        {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat(), "prazo_cleared": True}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado ou já pago")
+    
+    return {"success": True, "message": "Dívida apagada"}
 
 @api_router.post("/prazo/customers/{customer_id}/add-credit")
 async def add_prazo_credit(customer_id: str, credit_data: PrazoCreditAdd):

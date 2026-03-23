@@ -98,6 +98,7 @@ export const GestorPage = () => {
   const [chartSelectedDate, setChartSelectedDate] = useState(new Date());
   const [chartSelectedMonth, setChartSelectedMonth] = useState(new Date().getMonth() + 1);
   const [chartSelectedYear, setChartSelectedYear] = useState(new Date().getFullYear());
+  const [chartStoreFilter, setChartStoreFilter] = useState('all'); // 'all', 'runner', 'gym-londres'
   const [salesByCategory, setSalesByCategory] = useState(null);
   
   // Expenses (Gastos) state
@@ -145,7 +146,15 @@ export const GestorPage = () => {
   const [showAdicionalDialog, setShowAdicionalDialog] = useState(false);
   const [newAdicional, setNewAdicional] = useState({ name: '', price: '' });
   const [editingAdicional, setEditingAdicional] = useState(null);
-  
+
+  // Refetch chart when store filter changes
+  useEffect(() => {
+    if (isAuthenticated && chartPeriod === 'day') {
+      fetchChartData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartStoreFilter]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -202,7 +211,7 @@ export const GestorPage = () => {
       
       if (period === 'day') {
         const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
-        params = { date: dateStr };
+        params = { date: dateStr, store: chartStoreFilter !== 'all' ? chartStoreFilter : null };
         endpoint = `${API}/gestor/chart/daily`;
       } else if (period === 'month') {
         params = { month, year };
@@ -1414,15 +1423,30 @@ export const GestorPage = () => {
                 {/* Period Selectors */}
                 <div className="flex gap-2 mb-4 flex-wrap items-center">
                   {chartPeriod === 'day' && (
-                    <Input 
-                      type="date" 
-                      value={chartSelectedDate instanceof Date ? chartSelectedDate.toISOString().split('T')[0] : chartSelectedDate}
-                      onChange={(e) => {
-                        setChartSelectedDate(e.target.value);
-                        fetchChartData('day', e.target.value);
-                      }}
-                      className="w-auto"
-                    />
+                    <>
+                      <Input 
+                        type="date" 
+                        value={chartSelectedDate instanceof Date ? chartSelectedDate.toISOString().split('T')[0] : chartSelectedDate}
+                        onChange={(e) => {
+                          setChartSelectedDate(e.target.value);
+                          fetchChartData('day', e.target.value);
+                        }}
+                        className="w-auto"
+                      />
+                      <Select 
+                        value={chartStoreFilter} 
+                        onValueChange={setChartStoreFilter}
+                      >
+                        <SelectTrigger className="w-36">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas Lojas</SelectItem>
+                          <SelectItem value="runner">🏃 Runner</SelectItem>
+                          <SelectItem value="gym-londres">🏋️ GYM Londres</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
                   )}
                   {chartPeriod === 'month' && (
                     <>
