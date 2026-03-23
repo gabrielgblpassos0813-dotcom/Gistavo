@@ -1513,12 +1513,12 @@ async def get_today_cash(store: StoreLocation):
     }, {"_id": 0}).to_list(1000)
     
     # Total VALUE by payment method (in R$)
-    by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}
+    by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
     total = 0
     
     # By shift (06:00-14:00 and 14:00-22:00)
-    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}}
-    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}}
+    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}}
+    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}}
     
     for order in orders:
         payment = order.get("payment_method", "cash")
@@ -1602,7 +1602,7 @@ async def get_gestor_dashboard(username: str = Depends(verify_gestor)):
         month_total = sum(o.get("total", 0) for o in month_orders if o.get("status") in ["ready", "delivered"])
         
         # By payment method (today)
-        today_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0}
+        today_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
         for order in today_orders:
             if order.get("status") in ["ready", "delivered"]:
                 pm = order.get("payment_method", "cash")

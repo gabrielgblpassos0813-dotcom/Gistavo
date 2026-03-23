@@ -2708,7 +2708,7 @@ export const GestorPage = () => {
               {/* Receita por Forma de Pagamento */}
               <div className="border rounded-lg p-3">
                 <h4 className="font-semibold text-sm mb-2">Receita por Forma de Pagamento</h4>
-                <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                <div className="grid grid-cols-6 gap-2 text-center text-xs">
                   <div className="bg-blue-50 rounded p-2">
                     <p className="text-muted-foreground">PIX</p>
                     <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.pix?.toFixed(2)}</p>
@@ -2728,6 +2728,10 @@ export const GestorPage = () => {
                   <div className="bg-orange-50 rounded p-2">
                     <p className="text-muted-foreground">Prazo</p>
                     <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.prazo_fiado?.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-pink-50 rounded p-2">
+                    <p className="text-muted-foreground">Voucher</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.voucher?.toFixed(2)}</p>
                   </div>
                 </div>
               </div>

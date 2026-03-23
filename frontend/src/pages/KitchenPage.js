@@ -11,7 +11,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign, Ticket
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Toaster, toast } from 'sonner';
@@ -28,8 +28,8 @@ const STATUS_CONFIG = {
   ready: { label: 'Pronto', color: 'bg-brand-500', bgLight: 'bg-brand-50', borderColor: 'border-l-brand-500' }
 };
 
-const PAYMENT_ICONS = { pix: Smartphone };
-const PAYMENT_LABELS = { pix: 'PIX', debit: 'Déb', credit: 'Créd', cash: 'Din' };
+const PAYMENT_ICONS = { pix: Smartphone, debit: CreditCard, credit: CreditCard, cash: Banknote, prazo: Clock, voucher: Ticket };
+const PAYMENT_LABELS = { pix: 'PIX', debit: 'Déb', credit: 'Créd', cash: 'Din', prazo: 'Prazo', voucher: 'Voucher' };
 
 const formatTime = (isoString) => {
   const date = new Date(isoString);
@@ -1026,7 +1026,7 @@ export const KitchenPage = () => {
                   <p className="text-xs text-muted-foreground">{formatCurrency(morningShift.total || 0)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="grid grid-cols-6 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
                   <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
                   <p className="text-[10px] text-muted-foreground">PIX</p>
@@ -1047,6 +1047,16 @@ export const KitchenPage = () => {
                   <p className="text-[10px] text-muted-foreground">Dinheiro</p>
                   <p className="text-sm font-bold text-green-600">{formatCurrency(morningShift.by_payment?.cash || 0)}</p>
                 </div>
+                <div className="bg-amber-50 rounded-lg p-2">
+                  <Clock className="h-4 w-4 mx-auto text-amber-600" />
+                  <p className="text-[10px] text-muted-foreground">Prazo</p>
+                  <p className="text-sm font-bold text-amber-600">{formatCurrency(morningShift.by_payment?.prazo || 0)}</p>
+                </div>
+                <div className="bg-pink-50 rounded-lg p-2">
+                  <Ticket className="h-4 w-4 mx-auto text-pink-600" />
+                  <p className="text-[10px] text-muted-foreground">Voucher</p>
+                  <p className="text-sm font-bold text-pink-600">{formatCurrency(morningShift.by_payment?.voucher || 0)}</p>
+                </div>
               </div>
             </div>
 
@@ -1060,7 +1070,7 @@ export const KitchenPage = () => {
                   <p className="text-xs text-muted-foreground">{formatCurrency(afternoonShift.total || 0)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="grid grid-cols-6 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
                   <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
                   <p className="text-[10px] text-muted-foreground">PIX</p>
@@ -1080,6 +1090,16 @@ export const KitchenPage = () => {
                   <Banknote className="h-4 w-4 mx-auto text-green-600" />
                   <p className="text-[10px] text-muted-foreground">Dinheiro</p>
                   <p className="text-sm font-bold text-green-600">{formatCurrency(afternoonShift.by_payment?.cash || 0)}</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-2">
+                  <Clock className="h-4 w-4 mx-auto text-amber-600" />
+                  <p className="text-[10px] text-muted-foreground">Prazo</p>
+                  <p className="text-sm font-bold text-amber-600">{formatCurrency(afternoonShift.by_payment?.prazo || 0)}</p>
+                </div>
+                <div className="bg-pink-50 rounded-lg p-2">
+                  <Ticket className="h-4 w-4 mx-auto text-pink-600" />
+                  <p className="text-[10px] text-muted-foreground">Voucher</p>
+                  <p className="text-sm font-bold text-pink-600">{formatCurrency(afternoonShift.by_payment?.voucher || 0)}</p>
                 </div>
               </div>
             </div>
