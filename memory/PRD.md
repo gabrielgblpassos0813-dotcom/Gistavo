@@ -210,6 +210,13 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 
 ## Changelog
 
+### 23/03/2026 - Melhorias no Sistema e Campos Fiscais
+- ✅ **Corrigido**: Adicionar itens ao cardápio nas duas lojas - Campo `store` estava faltando no modelo MenuItem
+- ✅ **Implementado**: UI para campos fiscais (NCM, CSOSN, CFOP, código de barras) no modal de novo item
+- ✅ **Implementado**: IA de gastos agora detecta a loja automaticamente baseado na nota fiscal
+- ✅ **Implementado**: Envio de relatório do contador por email (requer RESEND_API_KEY)
+- ✅ **Corrigido**: Frontend buscando menu de `/menu/{store}` para `/kitchen/menu/{store}`
+
 ### 23/03/2026 - Separação de Prazo por Loja e WhatsApp
 - ✅ **Implementado**: Separação de dívidas Prazo por loja (Runner vs GYM Londres)
 - ✅ **Implementado**: Aba Prazo na cozinha agora mostra apenas débitos da loja atual
