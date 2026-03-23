@@ -1583,6 +1583,10 @@ async def get_today_cash(store: StoreLocation):
 
 # ==================== CASH DRAWER / CAIXA ROUTES ====================
 
+class CashBalanceAdjust(BaseModel):
+    balance: float
+    notes: Optional[str] = None
+
 @api_router.get("/cash/{store}/drawer")
 async def get_cash_drawer(store: StoreLocation):
     """Get current cash drawer status - how much cash is in the register"""
@@ -1591,38 +1595,89 @@ async def get_cash_drawer(store: StoreLocation):
     today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
     today_utc = today_brazil.astimezone(pytz.UTC)
     
-    # Get today's cash orders (dinheiro)
-    cash_orders = await db.orders.find({
+    # Get the initial/base balance for this store (persists forever)
+    drawer_config = await db.cash_drawer_config.find_one({"store": store.value}, {"_id": 0})
+    initial_balance = drawer_config.get("balance", 0) if drawer_config else 0
+    
+    # Get ALL cash orders (dinheiro) - historical, not just today
+    all_cash_orders = await db.orders.find({
         "store": store.value,
         "status": {"$in": ["ready", "delivered"]},
-        "payment_method": "cash",
-        "created_at": {"$gte": today_utc.isoformat()}
-    }, {"_id": 0, "total": 1}).to_list(1000)
+        "payment_method": "cash"
+    }, {"_id": 0, "total": 1, "created_at": 1}).to_list(100000)
     
-    total_cash_in = sum(o.get("total", 0) for o in cash_orders)
+    total_cash_sales = sum(o.get("total", 0) for o in all_cash_orders)
     
-    # Get today's withdrawals
-    withdrawals = await db.cash_withdrawals.find({
-        "store": store.value,
-        "created_at": {"$gte": today_utc.isoformat()}
-    }, {"_id": 0}).to_list(100)
+    # Get ALL withdrawals - historical
+    all_withdrawals = await db.cash_withdrawals.find({
+        "store": store.value
+    }, {"_id": 0}).to_list(10000)
     
-    total_withdrawn = sum(w.get("amount", 0) for w in withdrawals)
+    total_withdrawn = sum(w.get("amount", 0) for w in all_withdrawals)
+    
+    # Today's data for display
+    today_cash_orders = [o for o in all_cash_orders if o.get("created_at", "") >= today_utc.isoformat()]
+    today_cash_in = sum(o.get("total", 0) for o in today_cash_orders)
+    
+    today_withdrawals = [w for w in all_withdrawals if w.get("created_at", "") >= today_utc.isoformat()]
+    today_withdrawn = sum(w.get("amount", 0) for w in today_withdrawals)
+    
+    # Current balance = initial + all sales - all withdrawals
+    current_balance = initial_balance + total_cash_sales - total_withdrawn
     
     return {
         "store": store.value,
         "date": now_brazil.strftime("%d/%m/%Y"),
-        "cash_in": round(total_cash_in, 2),
-        "withdrawals": round(total_withdrawn, 2),
-        "current_balance": round(total_cash_in - total_withdrawn, 2),
-        "withdrawal_history": withdrawals
+        "initial_balance": round(initial_balance, 2),
+        "total_cash_sales": round(total_cash_sales, 2),
+        "total_withdrawals": round(total_withdrawn, 2),
+        "current_balance": round(current_balance, 2),
+        # Today's data
+        "today_cash_in": round(today_cash_in, 2),
+        "today_withdrawals": round(today_withdrawn, 2),
+        "withdrawal_history": today_withdrawals
     }
+
+@api_router.post("/cash/{store}/set-balance")
+async def set_cash_balance(store: StoreLocation, data: CashBalanceAdjust):
+    """Set/adjust the initial cash drawer balance (money already in the drawer)"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    
+    # Get current config
+    existing = await db.cash_drawer_config.find_one({"store": store.value})
+    
+    if existing:
+        await db.cash_drawer_config.update_one(
+            {"store": store.value},
+            {"$set": {
+                "balance": data.balance,
+                "notes": data.notes or "Ajuste de saldo",
+                "updated_at": now_brazil.isoformat()
+            }}
+        )
+    else:
+        await db.cash_drawer_config.insert_one({
+            "store": store.value,
+            "balance": data.balance,
+            "notes": data.notes or "Saldo inicial",
+            "created_at": now_brazil.isoformat(),
+            "updated_at": now_brazil.isoformat()
+        })
+    
+    # Return updated drawer status
+    return await get_cash_drawer(store)
 
 @api_router.post("/cash/{store}/withdraw")
 async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
     """Withdraw cash from the drawer and optionally register as expense"""
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
+    
+    # Check if there's enough balance
+    current_drawer = await get_cash_drawer(store)
+    if withdrawal.amount > current_drawer["current_balance"]:
+        raise HTTPException(status_code=400, detail="Saldo insuficiente no caixa")
     
     # Create withdrawal record
     withdrawal_record = {
@@ -1651,30 +1706,13 @@ async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
         await db.expenses.insert_one({**expense})
     
     # Get updated drawer status
-    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_utc = today_brazil.astimezone(pytz.UTC)
-    
-    cash_orders = await db.orders.find({
-        "store": store.value,
-        "status": {"$in": ["ready", "delivered"]},
-        "payment_method": "cash",
-        "created_at": {"$gte": today_utc.isoformat()}
-    }, {"_id": 0, "total": 1}).to_list(1000)
-    
-    total_cash_in = sum(o.get("total", 0) for o in cash_orders)
-    
-    withdrawals = await db.cash_withdrawals.find({
-        "store": store.value,
-        "created_at": {"$gte": today_utc.isoformat()}
-    }, {"_id": 0}).to_list(100)
-    
-    total_withdrawn = sum(w.get("amount", 0) for w in withdrawals)
+    updated_drawer = await get_cash_drawer(store)
     
     return {
         "success": True,
         "withdrawal": withdrawal_record,
         "expense_created": withdrawal.category == "vt",
-        "current_balance": round(total_cash_in - total_withdrawn, 2)
+        "current_balance": updated_drawer["current_balance"]
     }
 
 # ==================== GESTOR ROUTES (Protected) ====================

@@ -1,0 +1,78 @@
+{
+  "summary": "Completed testing of Initial Cash Balance feature. All 10 backend tests passed. Frontend verified for both Runner and GYM Londres stores - Vendas tab shows Caixa section with Saldo Inicial, +Vendas, -Retiradas columns and pencil button to adjust initial balance.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: 10/10 tests passed",
+    "POST /api/cash/runner/set-balance - Sets initial balance to 150.00",
+    "POST /api/cash/gym-londres/set-balance - Sets initial balance to 200.00",
+    "GET /api/cash/runner/drawer - Returns initial_balance, total_cash_sales, total_withdrawals, current_balance",
+    "GET /api/cash/gym-londres/drawer - Returns initial_balance, total_cash_sales, total_withdrawals, current_balance",
+    "Balance calculation: current_balance = initial_balance + total_cash_sales - total_withdrawals",
+    "Initial balance persists after update",
+    "Initial balance does NOT count as sale (total_cash_sales unchanged)",
+    "Initial balance can be set to zero",
+    "Today's data separate from historical totals",
+    "Withdrawal affects balance correctly",
+    "Frontend Runner: Vendas tab shows Caixa section with Saldo Inicial R$ 150.00, +Vendas +R$ 50.00, -Retiradas -R$ 65.00, Current R$ 135.00",
+    "Frontend Runner: Pencil button triggers prompt 'Ajustar saldo inicial do caixa'",
+    "Frontend GYM Londres: Vendas tab shows Caixa section with Saldo Inicial R$ 200.00, +Vendas +R$ 27.00, -Retiradas -R$ 0.00, Current R$ 227.00",
+    "Frontend GYM Londres: Pencil button present for adjusting initial balance"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_initial_balance.py",
+    "/app/test_reports/pytest/pytest_initial_balance.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_initial_balance.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Used existing initial balance values: Runner=150, GYM Londres=200",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Initial cash balance feature fully working: 1) POST /api/cash/{store}/set-balance sets initial balance that persists forever, 2) GET /api/cash/{store}/drawer returns initial_balance, total_cash_sales, total_withdrawals, current_balance, 3) Balance formula: current = initial + sales - withdrawals, 4) Initial balance does NOT count as revenue/sale, 5) Frontend KitchenPage Vendas tab shows 3 columns in Caixa section: Saldo Inicial, +Vendas, -Retiradas, 6) Pencil button triggers prompt to adjust initial balance with message 'Ajustar saldo inicial do caixa'",
+  "features_verified": {
+    "set_initial_balance_endpoint": {
+      "status": "WORKING",
+      "details": "POST /api/cash/{store}/set-balance sets initial balance that persists and doesn't reset daily"
+    },
+    "get_drawer_endpoint": {
+      "status": "WORKING",
+      "details": "GET /api/cash/{store}/drawer returns initial_balance, total_cash_sales, total_withdrawals, current_balance"
+    },
+    "balance_calculation": {
+      "status": "WORKING",
+      "details": "current_balance = initial_balance + total_cash_sales - total_withdrawals"
+    },
+    "initial_balance_persistence": {
+      "status": "WORKING",
+      "details": "Initial balance persists forever, doesn't reset daily, doesn't count as sale"
+    },
+    "frontend_caixa_section": {
+      "status": "WORKING",
+      "details": "KitchenPage Vendas tab shows Caixa section with 3 columns: Saldo Inicial, +Vendas, -Retiradas"
+    },
+    "frontend_pencil_button": {
+      "status": "WORKING",
+      "details": "Pencil button triggers prompt 'Ajustar saldo inicial do caixa' to adjust initial balance"
+    }
+  },
+  "api_endpoints_tested": {
+    "POST /api/cash/runner/set-balance": "200 OK - Sets initial_balance=150.00",
+    "POST /api/cash/gym-londres/set-balance": "200 OK - Sets initial_balance=200.00",
+    "GET /api/cash/runner/drawer": "200 OK - Returns initial_balance=150.00, total_cash_sales=50.00, total_withdrawals=65.00, current_balance=135.00",
+    "GET /api/cash/gym-londres/drawer": "200 OK - Returns initial_balance=200.00, total_cash_sales=27.00, total_withdrawals=0.00, current_balance=227.00"
+  }
+}

@@ -855,7 +855,34 @@ export const KitchenPage = () => {
         fetchData();
       }
     } catch (error) {
-      toast.error('Erro ao retirar do caixa');
+      toast.error(error.response?.data?.detail || 'Erro ao retirar do caixa');
+    }
+  };
+
+  const handleSetCashBalance = async () => {
+    const currentBalance = cashDrawer.initial_balance || 0;
+    const newBalance = prompt(
+      `Ajustar saldo inicial do caixa\n\nSaldo inicial atual: R$ ${currentBalance.toFixed(2)}\n\nDigite o novo valor que já está no caixa (não conta como venda):`
+    );
+    
+    if (newBalance === null) return; // Cancelled
+    
+    const value = parseFloat(newBalance);
+    if (isNaN(value) || value < 0) {
+      toast.error('Digite um valor válido (maior ou igual a zero)');
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API}/cash/${store}/set-balance`, {
+        balance: value,
+        notes: `Ajustado de R$ ${currentBalance.toFixed(2)} para R$ ${value.toFixed(2)}`
+      });
+      
+      toast.success(`Saldo inicial ajustado para R$ ${value.toFixed(2)}`);
+      setCashDrawer(response.data);
+    } catch (error) {
+      toast.error('Erro ao ajustar saldo');
     }
   };
 
@@ -1173,25 +1200,44 @@ export const KitchenPage = () => {
                   </p>
                   <p className="text-2xl font-bold">{formatCurrency(cashDrawer.current_balance || 0)}</p>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
-                  className="bg-white/20 hover:bg-white/30 text-white border-0"
-                  onClick={() => setShowWithdrawDialog(true)}
-                  disabled={(cashDrawer.current_balance || 0) <= 0}
-                >
-                  <Minus className="h-3 w-3 mr-1" /> Retirar
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-white/20 hover:bg-white/30 text-white border-0"
+                    onClick={handleSetCashBalance}
+                    title="Ajustar saldo inicial"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-white/20 hover:bg-white/30 text-white border-0"
+                    onClick={() => setShowWithdrawDialog(true)}
+                    disabled={(cashDrawer.current_balance || 0) <= 0}
+                  >
+                    <Minus className="h-3 w-3 mr-1" /> Retirar
+                  </Button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-3 gap-2 text-sm">
                 <div className="bg-white/10 rounded p-2">
-                  <p className="text-xs opacity-70">Entradas (Dinheiro)</p>
-                  <p className="font-bold">{formatCurrency(cashDrawer.cash_in || 0)}</p>
+                  <p className="text-xs opacity-70">Saldo Inicial</p>
+                  <p className="font-bold">{formatCurrency(cashDrawer.initial_balance || 0)}</p>
                 </div>
                 <div className="bg-white/10 rounded p-2">
-                  <p className="text-xs opacity-70">Retiradas</p>
-                  <p className="font-bold">{formatCurrency(cashDrawer.withdrawals || 0)}</p>
+                  <p className="text-xs opacity-70">+ Vendas</p>
+                  <p className="font-bold text-green-200">+{formatCurrency(cashDrawer.total_cash_sales || 0)}</p>
                 </div>
+                <div className="bg-white/10 rounded p-2">
+                  <p className="text-xs opacity-70">- Retiradas</p>
+                  <p className="font-bold text-red-200">-{formatCurrency(cashDrawer.total_withdrawals || 0)}</p>
+                </div>
+              </div>
+              {/* Today summary */}
+              <div className="mt-2 pt-2 border-t border-white/20 text-xs opacity-70">
+                <span>Hoje: +{formatCurrency(cashDrawer.today_cash_in || 0)} entradas, -{formatCurrency(cashDrawer.today_withdrawals || 0)} retiradas</span>
               </div>
               {/* Histórico de retiradas */}
               {cashDrawer.withdrawal_history?.length > 0 && (
