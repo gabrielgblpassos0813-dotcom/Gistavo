@@ -55,18 +55,21 @@ Sistema de múltiplas contas para isolar dados entre usuários.
   - Verifica destino (saudavelmente/GANOH)
   - Auto-aprova se dados estiverem corretos
 
-### ✅ WhatsApp Bot (Baileys)
-- Bot conectado via QR Code no painel do gestor
+### ✅ WhatsApp Bot (Green API)
+- Integração com Green API para envio de mensagens
+- **Grupos separados por loja**:
+  - Runner: `5511974449533-1572969909@g.us`
+  - GYM Londres: `120363424613813278@g.us`
 - Notificações automáticas quando PIX é aprovado
-- **Envia foto do comprovante junto com a mensagem**
-- Número de notificação: 5511970731504
-- Porta: 8002 (gerenciado pelo supervisor)
+- **Envia foto do comprovante junto com a mensagem** (apenas se aprovado pela IA)
+- **Verificação de comprovante antes de enviar** - só notifica se valor e destinatário estiverem corretos
 
-### ✅ Sistema Prazo (Crédito/Fiado) - AMBAS AS LOJAS
+### ✅ Sistema Prazo (Crédito/Fiado) - SEPARADO POR LOJA
 - Cadastro de clientes de crédito pelo gestor
-- Rastreamento de débitos pendentes
+- Rastreamento de débitos pendentes **separados por loja** (Runner vs GYM Londres)
 - Quitação de débitos na cozinha (senha: 1234)
-- **Botão de WhatsApp para cobrança** (link direto wa.me)
+- **Cobrança via WhatsApp para o número do cliente** (não para grupo)
+- Botão "Cobrar Todos" envia mensagens para todos os clientes com débito
 - **ESCONDIDO**: Opção Prazo só aparece após alternar o botão de agendamento 5 vezes seguidas
 
 ### ✅ Sistema de Gastos com IA (NOVO!)
@@ -207,6 +210,15 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 
 ## Changelog
 
+### 23/03/2026 - Separação de Prazo por Loja e WhatsApp
+- ✅ **Implementado**: Separação de dívidas Prazo por loja (Runner vs GYM Londres)
+- ✅ **Implementado**: Aba Prazo na cozinha agora mostra apenas débitos da loja atual
+- ✅ **Implementado**: Cobrança WhatsApp agora envia para o número do cliente individual (não para grupo)
+- ✅ **Configurado**: Grupos WhatsApp separados por loja:
+  - Runner: `5511974449533-1572969909@g.us`
+  - GYM Londres: `120363424613813278@g.us`
+- ✅ **Verificado**: PIX só envia notificação WhatsApp se comprovante for validado pela IA
+
 ### 12/03/2026 - Correção de Gráficos e Verificação PIX
 - ✅ **Corrigido**: Gráficos de vendas e gastos não renderizavam barras (problema de CSS com `height: %` em flex containers)
 - ✅ **Melhorado**: UI de verificação PIX na cozinha agora mostra contador de tempo e timeout para verificação manual
@@ -214,4 +226,4 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 
 ---
 
-## Atualizado em: 12 de Março de 2026
+## Atualizado em: 23 de Março de 2026
