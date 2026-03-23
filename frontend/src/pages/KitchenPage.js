@@ -11,7 +11,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Toaster, toast } from 'sonner';
@@ -636,17 +636,6 @@ export const KitchenPage = () => {
     }
   };
 
-  const handleSendWhatsApp = async (customerName) => {
-    try {
-      const response = await axios.get(`${API}/prazo/whatsapp-link/${encodeURIComponent(customerName)}`);
-      window.open(response.data.url, '_blank');
-      toast.success('Abrindo WhatsApp...');
-    } catch (error) {
-      const message = error.response?.data?.detail || 'Erro ao gerar link do WhatsApp';
-      toast.error(message);
-    }
-  };
-
   const handleStockUpdate = async (menuItemId, quantity) => {
     try {
       await axios.put(`${API}/stock/${store}/${menuItemId}`, { quantity });
@@ -764,6 +753,53 @@ export const KitchenPage = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao remover');
+    }
+  };
+
+  // WhatsApp charge functions
+  const handleSendWhatsApp = async (customerName) => {
+    try {
+      toast.loading('Enviando cobrança...', { id: 'whatsapp' });
+      const response = await axios.post(`${API}/prazo/charge-customer/${encodeURIComponent(customerName)}`);
+      if (response.data.success) {
+        toast.success(`Cobrança enviada para ${customerName}!`, { id: 'whatsapp' });
+      } else {
+        toast.error(response.data.message || 'Erro ao enviar', { id: 'whatsapp' });
+      }
+    } catch (error) {
+      toast.error('Erro ao enviar cobrança', { id: 'whatsapp' });
+    }
+  };
+
+  const handleChargeAllPrazo = async () => {
+    try {
+      toast.loading('Enviando cobranças...', { id: 'charge-all' });
+      const response = await axios.post(`${API}/prazo/charge-all-whatsapp`);
+      if (response.data.success) {
+        toast.success(`${response.data.messages_sent} cobrança(s) enviada(s)!`, { id: 'charge-all' });
+        if (response.data.failed?.length > 0) {
+          toast.warning(`Falha em: ${response.data.failed.join(', ')}`);
+        }
+      } else {
+        toast.error('Erro ao enviar cobranças', { id: 'charge-all' });
+      }
+    } catch (error) {
+      toast.error('Erro ao enviar cobranças', { id: 'charge-all' });
+    }
+  };
+
+  const handleAddCredit = async (customer) => {
+    const amount = prompt(`Adicionar crédito para ${customer.name}:\nValor atual: R$ ${(customer.credit || 0).toFixed(2)}\n\nDigite o valor a adicionar:`);
+    if (!amount || isNaN(parseFloat(amount))) return;
+    
+    try {
+      const response = await axios.post(`${API}/prazo/customers/${customer.id}/add-credit`, {
+        amount: parseFloat(amount)
+      });
+      toast.success(response.data.message);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao adicionar crédito');
     }
   };
 
@@ -1055,12 +1091,17 @@ export const KitchenPage = () => {
 
           {/* PRAZO TAB - For all stores */}
           <TabsContent value="prazo" className="mt-2 space-y-3">
-            {/* Header with button */}
-            <div className="flex justify-between items-center">
+            {/* Header with buttons */}
+            <div className="flex justify-between items-center flex-wrap gap-2">
               <h3 className="font-semibold text-sm">Clientes no Prazo</h3>
-              <Button size="sm" variant="outline" onClick={() => setShowPrazoCustomerDialog(true)}>
-                <UserPlus className="h-3 w-3 mr-1" /> Novo Cliente
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={handleChargeAllPrazo}>
+                  <MessageCircle className="h-3 w-3 mr-1" /> Cobrar Todos
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowPrazoCustomerDialog(true)}>
+                  <UserPlus className="h-3 w-3 mr-1" /> Novo Cliente
+                </Button>
+              </div>
             </div>
             
             {/* Total Prazo */}
@@ -1077,9 +1118,38 @@ export const KitchenPage = () => {
               </div>
             </div>
 
+            {/* Clientes cadastrados com crédito */}
+            {prazoCustomers.length > 0 && (
+              <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+                <h4 className="font-semibold text-sm text-blue-800 mb-2 flex items-center gap-1">
+                  <DollarSign className="h-4 w-4" /> Clientes com Crédito na Casa
+                </h4>
+                <div className="space-y-2">
+                  {prazoCustomers.filter(c => (c.credit || 0) > 0).map(customer => (
+                    <div key={customer.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                      <div>
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        <p className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-green-600">R$ {(customer.credit || 0).toFixed(2)}</span>
+                        <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => handleAddCredit(customer)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {prazoCustomers.filter(c => (c.credit || 0) > 0).length === 0 && (
+                    <p className="text-xs text-blue-600 text-center py-2">Nenhum cliente com crédito</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Lista de devedores */}
             {prazoDebts.debts?.length > 0 ? (
               <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-amber-700">Débitos Pendentes</h4>
                 {prazoDebts.debts.map((debt, idx) => (
                   <div key={idx} className="bg-white rounded-lg p-3 border shadow-sm">
                     <div className="flex items-center justify-between">

@@ -118,6 +118,11 @@ export const GestorPage = () => {
   const [expensesSelectedYear, setExpensesSelectedYear] = useState(new Date().getFullYear());
   const [expensesSelectedDate, setExpensesSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expenseStoreFilter, setExpenseStoreFilter] = useState('all');
+  // Contador export modal
+  const [showContadorModal, setShowContadorModal] = useState(false);
+  const [contadorEmail, setContadorEmail] = useState('');
+  const [contadorExportData, setContadorExportData] = useState(null);
+  const [isExportingContador, setIsExportingContador] = useState(false);
   
   // AI Chat for expenses
   const [showExpenseChat, setShowExpenseChat] = useState(false);
@@ -962,7 +967,9 @@ export const GestorPage = () => {
       }
       const [user, pass] = atob(auth).split(':');
       
-      toast.loading('Gerando relatório para contador...', { id: 'export' });
+      setIsExportingContador(true);
+      toast.loading('Buscando dados...', { id: 'export' });
+      
       const response = await axios.get(`${API}/expenses/export-contador`, {
         params: {
           month: expensesSelectedMonth,
@@ -972,27 +979,40 @@ export const GestorPage = () => {
         auth: { username: user, password: pass }
       });
       
-      // Create downloadable JSON
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio_contador_${response.data.periodo.mes_nome}_${response.data.periodo.ano}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast.success(`Relatório de ${response.data.periodo.mes_nome}/${response.data.periodo.ano} gerado!`, { id: 'export' });
-      
-      // Show summary
-      toast.info(`Receita: R$${response.data.resumo.receita_total.toFixed(2)} | Despesas: R$${response.data.resumo.despesas_total.toFixed(2)} | Lucro: R$${response.data.resumo.lucro_bruto.toFixed(2)}`, {
-        duration: 5000
-      });
+      setContadorExportData(response.data);
+      setShowContadorModal(true);
+      toast.dismiss('export');
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Erro ao gerar relatório', { id: 'export' });
+      toast.error('Erro ao buscar dados', { id: 'export' });
+    } finally {
+      setIsExportingContador(false);
     }
+  };
+
+  const handleDownloadContadorReport = () => {
+    if (!contadorExportData) return;
+    
+    const blob = new Blob([JSON.stringify(contadorExportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_contador_${contadorExportData.periodo.mes_nome}_${contadorExportData.periodo.ano}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Relatório baixado!');
+  };
+
+  const handleSendContadorEmail = async () => {
+    if (!contadorEmail) {
+      toast.error('Digite o e-mail do contador');
+      return;
+    }
+    // For now, just download and show a message to send manually
+    handleDownloadContadorReport();
+    toast.info(`Envie o arquivo para: ${contadorEmail}`, { duration: 5000 });
   };
 
   useEffect(() => {
@@ -1130,12 +1150,6 @@ export const GestorPage = () => {
             </TabsTrigger>
             <TabsTrigger value="prazo" className="flex items-center gap-1 text-xs">
               <CalendarClock className="h-3 w-3" /> Prazo
-            </TabsTrigger>
-            <TabsTrigger value="menu" className="flex items-center gap-1 text-xs">
-              <UtensilsCrossed className="h-3 w-3" /> Cardápio
-            </TabsTrigger>
-            <TabsTrigger value="adicionais" className="flex items-center gap-1 text-xs">
-              <PlusCircle className="h-3 w-3" /> Adicionais
             </TabsTrigger>
             <TabsTrigger value="whatsapp" className="flex items-center gap-1 text-xs">
               <MessageCircle className="h-3 w-3" /> WhatsApp
@@ -1487,7 +1501,7 @@ export const GestorPage = () => {
                         })}
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-center">
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                       <div className="bg-brand-50 rounded-lg p-3">
                         <p className="text-xs text-muted-foreground">
                           Total {chartPeriod === 'day' ? 'do Dia' : chartPeriod === 'month' ? 'do Mês' : 'do Ano'}
@@ -1502,6 +1516,33 @@ export const GestorPage = () => {
                         <p className="text-xs text-muted-foreground">Total de Pedidos</p>
                         <p className="text-xl font-bold text-blue-600">{chartData.total_orders}</p>
                       </div>
+                      {/* Separação por loja */}
+                      {chartData.by_store && (
+                        <>
+                          <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                              <span>🏃</span> Runner
+                            </p>
+                            <p className="text-lg font-bold text-purple-600">
+                              {formatPrice(chartData.by_store.runner?.total || 0)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {chartData.by_store.runner?.orders || 0} pedidos
+                            </p>
+                          </div>
+                          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                              <span>🏋️</span> GYM Londres
+                            </p>
+                            <p className="text-lg font-bold text-orange-600">
+                              {formatPrice(chartData.by_store.gym_londres?.total || 0)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {chartData.by_store.gym_londres?.orders || 0} pedidos
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -2555,6 +2596,151 @@ export const GestorPage = () => {
           <DialogFooter className="mt-2">
             <Button variant="outline" className="w-full" onClick={closeExpenseChat}>
               {awaitingCategory ? 'Cancelar' : 'Fechar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contador Export Modal */}
+      <Dialog open={showContadorModal} onOpenChange={setShowContadorModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <DollarSign className="h-6 w-6 text-green-600" />
+              Relatório para Contador
+            </DialogTitle>
+          </DialogHeader>
+          
+          {contadorExportData && (
+            <div className="space-y-4">
+              {/* Período e Resumo */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border">
+                <h3 className="font-bold text-lg mb-2">{contadorExportData.titulo}</h3>
+                <p className="text-sm text-muted-foreground">
+                  Período: {contadorExportData.periodo.mes_nome}/{contadorExportData.periodo.ano}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {contadorExportData.periodo.data_inicio} a {contadorExportData.periodo.data_fim}
+                </p>
+              </div>
+
+              {/* Resumo Geral */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-green-100 rounded-lg p-3 text-center">
+                  <p className="text-xs text-green-700">Receita Total</p>
+                  <p className="text-xl font-bold text-green-700">
+                    R$ {contadorExportData.resumo_geral.receita_total.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-red-100 rounded-lg p-3 text-center">
+                  <p className="text-xs text-red-700">Despesas Total</p>
+                  <p className="text-xl font-bold text-red-700">
+                    R$ {contadorExportData.resumo_geral.despesas_total.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-blue-100 rounded-lg p-3 text-center">
+                  <p className="text-xs text-blue-700">Lucro Bruto</p>
+                  <p className="text-xl font-bold text-blue-700">
+                    R$ {contadorExportData.resumo_geral.lucro_bruto.toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-blue-600">
+                    Margem: {contadorExportData.resumo_geral.margem_lucro_percentual}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumo por Loja */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-1 mb-2">
+                    <span>🏃</span> Runner
+                  </h4>
+                  <p className="text-lg font-bold text-purple-600">
+                    R$ {contadorExportData.resumo_por_loja?.runner?.receita?.toFixed(2) || '0.00'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {contadorExportData.resumo_por_loja?.runner?.pedidos || 0} pedidos
+                  </p>
+                </div>
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-1 mb-2">
+                    <span>🏋️</span> GYM Londres
+                  </h4>
+                  <p className="text-lg font-bold text-orange-600">
+                    R$ {contadorExportData.resumo_por_loja?.gym_londres?.receita?.toFixed(2) || '0.00'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {contadorExportData.resumo_por_loja?.gym_londres?.pedidos || 0} pedidos
+                  </p>
+                </div>
+              </div>
+
+              {/* Receita por Forma de Pagamento */}
+              <div className="border rounded-lg p-3">
+                <h4 className="font-semibold text-sm mb-2">Receita por Forma de Pagamento</h4>
+                <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                  <div className="bg-blue-50 rounded p-2">
+                    <p className="text-muted-foreground">PIX</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.pix?.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded p-2">
+                    <p className="text-muted-foreground">Débito</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.debito?.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-purple-50 rounded p-2">
+                    <p className="text-muted-foreground">Crédito</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.credito?.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-yellow-50 rounded p-2">
+                    <p className="text-muted-foreground">Dinheiro</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.dinheiro?.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded p-2">
+                    <p className="text-muted-foreground">Prazo</p>
+                    <p className="font-bold">R$ {contadorExportData.receita_por_forma_pagamento_consolidado?.prazo_fiado?.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Observações Fiscais */}
+              <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                <h4 className="font-semibold text-sm mb-2 text-yellow-800">Informações Fiscais</h4>
+                <div className="text-xs space-y-1 text-yellow-700">
+                  <p><strong>Regime:</strong> {contadorExportData.observacoes_fiscais?.regime_tributario}</p>
+                  <p><strong>NCM Padrão:</strong> {contadorExportData.observacoes_fiscais?.ncm_padrao_alimentos}</p>
+                  <p><strong>CSOSN:</strong> {contadorExportData.observacoes_fiscais?.csosn_padrao}</p>
+                  <p><strong>CFOP:</strong> {contadorExportData.observacoes_fiscais?.cfop_venda_interna}</p>
+                </div>
+              </div>
+
+              {/* Email do Contador */}
+              <div className="border rounded-lg p-3">
+                <Label className="text-sm font-semibold">E-mail do Contador (opcional)</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    type="email"
+                    placeholder="contador@email.com"
+                    value={contadorEmail}
+                    onChange={(e) => setContadorEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button variant="outline" onClick={handleSendContadorEmail} disabled={!contadorEmail}>
+                    Preparar Envio
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O relatório será baixado para você enviar manualmente por e-mail
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowContadorModal(false)}>
+              Fechar
+            </Button>
+            <Button onClick={handleDownloadContadorReport} className="bg-green-600 hover:bg-green-700">
+              <DollarSign className="h-4 w-4 mr-1" /> Baixar Relatório JSON
             </Button>
           </DialogFooter>
         </DialogContent>

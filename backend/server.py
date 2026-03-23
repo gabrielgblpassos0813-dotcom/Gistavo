@@ -228,6 +228,7 @@ class PaymentMethod(str, Enum):
     CREDIT = "credit"
     CASH = "cash"
     PRAZO = "prazo"  # Credit/Tab - pay later
+    VOUCHER = "voucher"  # Meal voucher (VR, VA, etc)
 
 # PIX Configuration (same for both stores)
 PIX_CONFIG = {
@@ -1724,12 +1725,21 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
     import calendar
     days_in_month = calendar.monthrange(target_year, target_month)[1]
     
-    # Group by day (in Brazil timezone)
+    # Group by day (in Brazil timezone) - with store separation
     daily_data = {}
     for i in range(days_in_month):
         day_date = month_start_brazil + timedelta(days=i)
         day_str = day_date.strftime("%Y-%m-%d")
-        daily_data[day_str] = {"date": day_str, "day": i + 1, "total": 0, "count": 0}
+        daily_data[day_str] = {
+            "date": day_str, 
+            "day": i + 1, 
+            "total": 0, 
+            "count": 0,
+            "runner": 0,
+            "runner_count": 0,
+            "gym_londres": 0,
+            "gym_londres_count": 0
+        }
     
     for order in orders:
         try:
@@ -1737,9 +1747,20 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
             # Convert to Brazil timezone to get correct day
             order_time_brazil = order_time.astimezone(brazil_tz)
             date = order_time_brazil.strftime("%Y-%m-%d")
+            store = order.get("store", "")
+            order_total = order.get("total", 0)
+            
             if date in daily_data:
-                daily_data[date]["total"] += order.get("total", 0)
+                daily_data[date]["total"] += order_total
                 daily_data[date]["count"] += 1
+                
+                # Separate by store
+                if store == "runner":
+                    daily_data[date]["runner"] += order_total
+                    daily_data[date]["runner_count"] += 1
+                elif store == "gym-londres":
+                    daily_data[date]["gym_londres"] += order_total
+                    daily_data[date]["gym_londres_count"] += 1
         except:
             pass
     
@@ -1749,13 +1770,21 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
     month_names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
                    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     
+    # Calculate totals by store
+    total_runner = sum(d["runner"] for d in chart_data)
+    total_gym = sum(d["gym_londres"] for d in chart_data)
+    
     return {
         "month": f"{month_names[target_month]} {target_year}",
         "month_num": target_month,
         "year": target_year,
         "data": chart_data,
         "total_month": sum(d["total"] for d in chart_data),
-        "total_orders": sum(d["count"] for d in chart_data)
+        "total_orders": sum(d["count"] for d in chart_data),
+        "by_store": {
+            "runner": {"total": total_runner, "orders": sum(d["runner_count"] for d in chart_data)},
+            "gym_londres": {"total": total_gym, "orders": sum(d["gym_londres_count"] for d in chart_data)}
+        }
     }
 
 @api_router.get("/gestor/chart/daily")
@@ -2082,10 +2111,14 @@ class PrazoCustomerCreate(BaseModel):
     name: str
     phone: str = ""
     notes: str = ""
+    credit: float = 0.0  # Crédito na casa (valor adiantado)
 
 class PrazoPayment(BaseModel):
     amount: float
     password: str
+
+class PrazoCreditAdd(BaseModel):
+    amount: float  # Valor a adicionar ao crédito
 
 # ==================== KITCHEN MANAGEMENT ENDPOINTS (No auth required) ====================
 # These endpoints allow the kitchen to manage adicionais, menu items, and prazo
@@ -2269,6 +2302,210 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
     
     return {"success": True, "message": f"{result.modified_count} pedidos pagos", "count": result.modified_count}
 
+@api_router.post("/prazo/customers/{customer_id}/add-credit")
+async def add_prazo_credit(customer_id: str, credit_data: PrazoCreditAdd):
+    """Add credit to a prazo customer's account"""
+    customer = await db.prazo_customers.find_one({"id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    current_credit = customer.get("credit", 0)
+    new_credit = current_credit + credit_data.amount
+    
+    await db.prazo_customers.update_one(
+        {"id": customer_id},
+        {"$set": {"credit": new_credit}}
+    )
+    
+    return {
+        "success": True, 
+        "message": f"Crédito adicionado! Saldo: R$ {new_credit:.2f}",
+        "previous_credit": current_credit,
+        "added": credit_data.amount,
+        "new_credit": new_credit
+    }
+
+@api_router.post("/prazo/customers/{customer_id}/use-credit")
+async def use_prazo_credit(customer_id: str, credit_data: PrazoCreditAdd):
+    """Use credit from a prazo customer's account"""
+    customer = await db.prazo_customers.find_one({"id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    current_credit = customer.get("credit", 0)
+    if credit_data.amount > current_credit:
+        raise HTTPException(status_code=400, detail=f"Crédito insuficiente. Saldo: R$ {current_credit:.2f}")
+    
+    new_credit = current_credit - credit_data.amount
+    
+    await db.prazo_customers.update_one(
+        {"id": customer_id},
+        {"$set": {"credit": new_credit}}
+    )
+    
+    return {
+        "success": True, 
+        "message": f"Crédito utilizado! Novo saldo: R$ {new_credit:.2f}",
+        "previous_credit": current_credit,
+        "used": credit_data.amount,
+        "new_credit": new_credit
+    }
+
+@api_router.post("/prazo/charge-all-whatsapp")
+async def charge_all_prazo_via_whatsapp():
+    """Send WhatsApp messages to all prazo customers with pending debts"""
+    # Get all prazo debts
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brazil_tz)
+    
+    # Get all unpaid prazo orders grouped by customer
+    prazo_orders = await db.orders.find({
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Group by customer
+    debts_by_customer = {}
+    for order in prazo_orders:
+        customer = order.get("customer_name", "")
+        if customer not in debts_by_customer:
+            debts_by_customer[customer] = {"total": 0, "orders": [], "phone": ""}
+        debts_by_customer[customer]["total"] += order.get("total", 0)
+        debts_by_customer[customer]["orders"].append(order)
+    
+    # Get customer phones
+    customers = await db.prazo_customers.find({}, {"_id": 0}).to_list(500)
+    customer_phones = {c.get("name"): c.get("phone", "") for c in customers}
+    
+    messages_sent = 0
+    failed = []
+    
+    for customer_name, debt_info in debts_by_customer.items():
+        if debt_info["total"] <= 0:
+            continue
+            
+        phone = customer_phones.get(customer_name, "")
+        
+        # Build nice message
+        message = f"""☕ *GANOH Café Bistrô*
+
+Olá, {customer_name}! 👋
+
+Passando para lembrar que você tem um saldo em aberto conosco:
+
+💰 *Valor Total: R$ {debt_info['total']:.2f}*
+
+📋 *Resumo:*
+{len(debt_info['orders'])} pedido(s) no prazo
+
+Quando puder regularizar, estamos à disposição! 😊
+
+Formas de pagamento:
+• PIX
+• Cartão de débito/crédito
+• Dinheiro
+
+Agradecemos a preferência! 🙏
+
+_Mensagem automática - {now.strftime('%d/%m/%Y')}_"""
+
+        # Send to WhatsApp group (since we may not have individual numbers)
+        try:
+            # Determine which store this customer mostly uses
+            stores_count = {}
+            for order in debt_info["orders"]:
+                store = order.get("store", "gym-londres")
+                stores_count[store] = stores_count.get(store, 0) + 1
+            
+            primary_store = max(stores_count, key=stores_count.get) if stores_count else "gym-londres"
+            target_group = WHATSAPP_GROUP_RUNNER if primary_store == "runner" else WHATSAPP_GROUP_ID
+            
+            result = await send_whatsapp_message(message, target_group)
+            if result.get("success"):
+                messages_sent += 1
+            else:
+                failed.append(customer_name)
+        except Exception as e:
+            logger.error(f"Failed to send WhatsApp to {customer_name}: {e}")
+            failed.append(customer_name)
+    
+    return {
+        "success": True,
+        "messages_sent": messages_sent,
+        "failed": failed,
+        "total_customers": len(debts_by_customer),
+        "message": f"Cobrança enviada para {messages_sent} cliente(s)"
+    }
+
+@api_router.post("/prazo/charge-customer/{customer_name}")
+async def charge_single_prazo_customer(customer_name: str):
+    """Send WhatsApp message to a single prazo customer"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brazil_tz)
+    
+    # Get customer's unpaid orders
+    prazo_orders = await db.orders.find({
+        "customer_name": customer_name,
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).to_list(1000)
+    
+    if not prazo_orders:
+        return {"success": False, "message": "Cliente não tem débitos pendentes"}
+    
+    total = sum(o.get("total", 0) for o in prazo_orders)
+    
+    # Get customer info
+    customer = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer_name}$", "$options": "i"}})
+    credit = customer.get("credit", 0) if customer else 0
+    
+    # Build message
+    items_detail = []
+    for order in prazo_orders[-5:]:  # Show last 5 orders
+        order_date = order.get("created_at", "")[:10]
+        items_detail.append(f"  • {order_date}: R$ {order.get('total', 0):.2f}")
+    
+    if len(prazo_orders) > 5:
+        items_detail.append(f"  ... e mais {len(prazo_orders) - 5} pedido(s)")
+    
+    credit_info = f"\n💳 *Crédito disponível: R$ {credit:.2f}*" if credit > 0 else ""
+    net_debt = max(0, total - credit)
+    
+    message = f"""☕ *GANOH Café Bistrô*
+
+Olá, {customer_name}! 👋
+
+Segue seu extrato de consumo no prazo:
+
+💰 *Total em Aberto: R$ {total:.2f}*{credit_info}
+{'🔵 *Valor a Pagar: R$ ' + f'{net_debt:.2f}*' if credit > 0 else ''}
+
+📋 *Últimos pedidos:*
+{chr(10).join(items_detail)}
+
+Quando puder regularizar, estamos à disposição! 😊
+
+_Mensagem automática - {now.strftime('%d/%m/%Y %H:%M')}_"""
+
+    # Determine store
+    stores_count = {}
+    for order in prazo_orders:
+        store = order.get("store", "gym-londres")
+        stores_count[store] = stores_count.get(store, 0) + 1
+    
+    primary_store = max(stores_count, key=stores_count.get) if stores_count else "gym-londres"
+    target_group = WHATSAPP_GROUP_RUNNER if primary_store == "runner" else WHATSAPP_GROUP_ID
+    
+    result = await send_whatsapp_message(message, target_group)
+    
+    return {
+        "success": result.get("success", False),
+        "message": f"Cobrança enviada para {customer_name}" if result.get("success") else "Falha ao enviar",
+        "total_debt": total,
+        "credit": credit,
+        "net_debt": net_debt
+    }
+
 # ==================== EXPENSES (GASTOS) MANAGEMENT ====================
 from emergentintegrations.llm.openai import LlmChat, ImageContent
 from emergentintegrations.llm.chat import UserMessage
@@ -2437,6 +2674,12 @@ async def export_expenses_for_accountant(
     total_sales = sum(o.get("total", 0) for o in orders)
     profit = total_sales - total_expenses
     
+    # Sales by store
+    sales_runner = sum(o.get("total", 0) for o in orders if o.get("store") == "runner")
+    sales_gym = sum(o.get("total", 0) for o in orders if o.get("store") == "gym-londres")
+    orders_runner = len([o for o in orders if o.get("store") == "runner"])
+    orders_gym = len([o for o in orders if o.get("store") == "gym-londres"])
+    
     # Group expenses by category
     expenses_by_category = {}
     for exp in expenses:
@@ -2446,68 +2689,162 @@ async def export_expenses_for_accountant(
         expenses_by_category[cat]["total"] += exp.get("amount", 0)
         expenses_by_category[cat]["count"] += 1
         expenses_by_category[cat]["items"].append({
-            "date": exp.get("created_at", "")[:10],
-            "description": exp.get("description", ""),
-            "amount": exp.get("amount", 0),
-            "store": exp.get("store", "all"),
-            "notes": exp.get("notes", "")
+            "data": exp.get("created_at", "")[:10],
+            "descricao": exp.get("description", ""),
+            "valor": exp.get("amount", 0),
+            "loja": "Runner" if exp.get("store") == "runner" else "GYM Londres" if exp.get("store") == "gym-londres" else "Todas",
+            "observacoes": exp.get("notes", "")
         })
     
-    # Group sales by payment method
-    sales_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0}
+    # Group sales by payment method and store
+    sales_by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
+    sales_by_payment_runner = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
+    sales_by_payment_gym = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
+    
     for order in orders:
         pm = order.get("payment_method", "cash")
-        sales_by_payment[pm] = sales_by_payment.get(pm, 0) + order.get("total", 0)
+        total = order.get("total", 0)
+        store_order = order.get("store", "")
+        
+        sales_by_payment[pm] = sales_by_payment.get(pm, 0) + total
+        
+        if store_order == "runner":
+            sales_by_payment_runner[pm] = sales_by_payment_runner.get(pm, 0) + total
+        elif store_order == "gym-londres":
+            sales_by_payment_gym[pm] = sales_by_payment_gym.get(pm, 0) + total
     
-    # Products with fiscal info
+    # Count items sold
+    items_sold = {}
+    for order in orders:
+        for item in order.get("items", []):
+            item_name = item.get("name", "Item")
+            item_qty = item.get("quantity", 1)
+            item_price = item.get("price", 0)
+            
+            if item_name not in items_sold:
+                items_sold[item_name] = {"quantidade": 0, "valor_unitario": item_price, "total": 0}
+            items_sold[item_name]["quantidade"] += item_qty
+            items_sold[item_name]["total"] += item_price * item_qty
+    
+    # Products with fiscal info - ALL products
     products_fiscal = []
     for item in menu_items:
-        if item.get("ncm") or item.get("csosn"):
-            products_fiscal.append({
-                "id": item.get("id"),
-                "codigo": item.get("codigo"),
-                "name": item.get("name"),
-                "price": item.get("price"),
-                "valor_custo": item.get("valor_custo", 0),
-                "ncm": item.get("ncm"),
-                "cst": item.get("cst"),
-                "csosn": item.get("csosn"),
-                "cfop": item.get("cfop"),
-                "cest": item.get("cest"),
-                "icms_aliquota": item.get("icms_aliquota"),
-                "pis_cst": item.get("pis_cst"),
-                "cofins_cst": item.get("cofins_cst")
-            })
+        products_fiscal.append({
+            "id": item.get("id"),
+            "codigo": item.get("codigo", ""),
+            "codigo_externo": item.get("codigo_externo", ""),
+            "nome": item.get("name"),
+            "preco_venda": item.get("price", 0),
+            "valor_custo": item.get("valor_custo", 0),
+            "unidade": item.get("unidade", "UN"),
+            "categoria": item.get("category", ""),
+            "codigo_barras": item.get("codigo_barras", ""),
+            "ncm": item.get("ncm", "21069090"),  # NCM padrão para alimentos
+            "cst": item.get("cst", ""),
+            "csosn": item.get("csosn", "0102"),  # CSOSN padrão Simples Nacional
+            "cfop": item.get("cfop", "5102"),  # CFOP padrão venda mercadoria
+            "cest": item.get("cest", ""),
+            "icms_aliquota": item.get("icms_aliquota", 0),
+            "icms_tipo": item.get("icms_tipo", "isento"),
+            "pis_cst": item.get("pis_cst", "49"),
+            "pis_aliquota": item.get("pis_aliquota", 0),
+            "cofins_cst": item.get("cofins_cst", "49"),
+            "cofins_aliquota": item.get("cofins_aliquota", 0)
+        })
+    
+    month_names = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     
     return {
+        "titulo": "RELATÓRIO FINANCEIRO PARA CONTADOR",
+        "empresa": {
+            "nome": "GANOH Café Bistrô",
+            "cnpj": "",  # User should fill
+            "endereco": "Mogi das Cruzes, SP"
+        },
         "periodo": {
             "mes": target_month,
             "ano": target_year,
-            "mes_nome": ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][target_month - 1]
+            "mes_nome": month_names[target_month - 1],
+            "data_inicio": month_start.strftime("%d/%m/%Y"),
+            "data_fim": (month_end - timedelta(days=1)).strftime("%d/%m/%Y")
         },
-        "loja": store or "todas",
-        "resumo": {
-            "receita_total": total_sales,
-            "despesas_total": total_expenses,
-            "lucro_bruto": profit,
+        "resumo_geral": {
+            "receita_total": round(total_sales, 2),
+            "despesas_total": round(total_expenses, 2),
+            "lucro_bruto": round(profit, 2),
             "total_pedidos": len(orders),
-            "total_gastos": len(expenses)
+            "total_registros_despesas": len(expenses),
+            "margem_lucro_percentual": round((profit / total_sales * 100) if total_sales > 0 else 0, 2)
         },
-        "receita_por_forma_pagamento": sales_by_payment,
-        "despesas_por_categoria": expenses_by_category,
-        "despesas_detalhadas": expenses,
-        "vendas_detalhadas": [{
-            "id": o.get("id"),
-            "date": o.get("created_at", "")[:10],
-            "customer": o.get("customer_name"),
-            "total": o.get("total"),
-            "payment_method": o.get("payment_method"),
-            "store": o.get("store"),
-            "items": o.get("items", [])
-        } for o in orders],
-        "produtos_com_info_fiscal": products_fiscal,
-        "gerado_em": now.isoformat()
+        "resumo_por_loja": {
+            "runner": {
+                "nome": "GANOH Café Bistrô - Runner",
+                "receita": round(sales_runner, 2),
+                "pedidos": orders_runner,
+                "ticket_medio": round(sales_runner / orders_runner, 2) if orders_runner > 0 else 0,
+                "receita_por_forma_pagamento": sales_by_payment_runner
+            },
+            "gym_londres": {
+                "nome": "GANOH Café Bistrô - GYM Londres",
+                "receita": round(sales_gym, 2),
+                "pedidos": orders_gym,
+                "ticket_medio": round(sales_gym / orders_gym, 2) if orders_gym > 0 else 0,
+                "receita_por_forma_pagamento": sales_by_payment_gym
+            }
+        },
+        "receita_por_forma_pagamento_consolidado": {
+            "pix": round(sales_by_payment["pix"], 2),
+            "debito": round(sales_by_payment["debit"], 2),
+            "credito": round(sales_by_payment["credit"], 2),
+            "dinheiro": round(sales_by_payment["cash"], 2),
+            "prazo_fiado": round(sales_by_payment["prazo"], 2),
+            "voucher": round(sales_by_payment["voucher"], 2)
+        },
+        "despesas_por_categoria": {
+            cat: {
+                "total": round(data["total"], 2),
+                "quantidade": data["count"],
+                "itens": data["items"]
+            } for cat, data in expenses_by_category.items()
+        },
+        "produtos_vendidos": [
+            {
+                "produto": name,
+                "quantidade_vendida": data["quantidade"],
+                "valor_unitario": round(data["valor_unitario"], 2),
+                "total_vendido": round(data["total"], 2)
+            } for name, data in sorted(items_sold.items(), key=lambda x: x[1]["total"], reverse=True)
+        ],
+        "vendas_detalhadas": [
+            {
+                "id": o.get("id"),
+                "data": o.get("created_at", "")[:10],
+                "hora": o.get("created_at", "")[11:16] if len(o.get("created_at", "")) > 11 else "",
+                "cliente": o.get("customer_name"),
+                "valor": round(o.get("total", 0), 2),
+                "forma_pagamento": o.get("payment_method"),
+                "loja": "Runner" if o.get("store") == "runner" else "GYM Londres",
+                "itens": [
+                    {
+                        "produto": item.get("name"),
+                        "quantidade": item.get("quantity", 1),
+                        "valor_unitario": round(item.get("price", 0), 2),
+                        "subtotal": round(item.get("price", 0) * item.get("quantity", 1), 2)
+                    } for item in o.get("items", [])
+                ]
+            } for o in sorted(orders, key=lambda x: x.get("created_at", ""))
+        ],
+        "cadastro_produtos_fiscal": products_fiscal,
+        "observacoes_fiscais": {
+            "regime_tributario": "Simples Nacional (presumido)",
+            "ncm_padrao_alimentos": "21069090 - Preparações alimentícias diversas",
+            "csosn_padrao": "0102 - Tributada pelo Simples Nacional sem permissão de crédito",
+            "cfop_venda_interna": "5102 - Venda de mercadoria adquirida",
+            "pis_cofins": "Não incidência (Simples Nacional)"
+        },
+        "gerado_em": now.strftime("%d/%m/%Y %H:%M:%S"),
+        "gerado_por": username
     }
 
 @api_router.post("/expenses/analyze-image")
