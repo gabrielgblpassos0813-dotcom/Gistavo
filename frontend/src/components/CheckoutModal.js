@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Switch } from '../components/ui/switch';
 import { useCart } from '../context/CartContext';
-import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock, WifiOff } from 'lucide-react';
+import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock, WifiOff, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { createOrder, isOnline, getOfflineOrders, syncOfflineOrders } from '../services/offlineService';
@@ -350,27 +350,49 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                   Forma de Pagamento
                 </Label>
                 <RadioGroup value={paymentMethod} onValueChange={(v) => { setPaymentMethod(v); if (v !== 'prazo') setSelectedPrazoCustomer(''); }} className="grid grid-cols-2 gap-2">
-                  {availablePaymentMethods.map((method) => {
+                  {availablePaymentMethods.filter(m => m.id !== 'prazo').map((method) => {
                     const Icon = method.icon;
                     return (
                       <label
                         key={method.id}
                         className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
                           paymentMethod === method.id
-                            ? method.id === 'prazo' ? 'border-amber-500 bg-amber-50' : 'border-brand-500 bg-brand-50'
+                            ? 'border-brand-500 bg-brand-50'
                             : 'border-border hover:border-brand-200'
                         }`}
                         data-testid={`payment-${method.id}`}
                       >
                         <RadioGroupItem value={method.id} className="sr-only" />
-                        <Icon className={`h-4 w-4 ${paymentMethod === method.id ? (method.id === 'prazo' ? 'text-amber-600' : 'text-brand-600') : 'text-muted-foreground'}`} />
-                        <span className={`text-sm font-medium ${paymentMethod === method.id ? (method.id === 'prazo' ? 'text-amber-700' : 'text-brand-700') : 'text-foreground'}`}>
+                        <Icon className={`h-4 w-4 ${paymentMethod === method.id ? 'text-brand-600' : 'text-muted-foreground'}`} />
+                        <span className={`text-sm font-medium ${paymentMethod === method.id ? 'text-brand-700' : 'text-foreground'}`}>
                           {method.label}
                         </span>
                       </label>
                     );
                   })}
                 </RadioGroup>
+                
+                {/* Prazo - Destacado separadamente */}
+                <div 
+                  onClick={() => { setPaymentMethod('prazo'); setSelectedPrazoCustomer(''); }}
+                  className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    paymentMethod === 'prazo'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-amber-200 bg-amber-50/30 hover:border-amber-400'
+                  }`}
+                  data-testid="payment-prazo"
+                >
+                  <CalendarClock className={`h-5 w-5 ${paymentMethod === 'prazo' ? 'text-amber-600' : 'text-amber-500'}`} />
+                  <div className="flex-1">
+                    <span className={`text-sm font-bold ${paymentMethod === 'prazo' ? 'text-amber-700' : 'text-amber-600'}`}>
+                      Prazo (Fiado)
+                    </span>
+                    <p className="text-xs text-amber-600/70">Pagar depois</p>
+                  </div>
+                  {paymentMethod === 'prazo' && (
+                    <Check className="h-5 w-5 text-amber-600" />
+                  )}
+                </div>
               </div>
 
               {paymentMethod === 'pix' && (
