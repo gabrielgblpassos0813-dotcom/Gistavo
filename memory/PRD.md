@@ -210,6 +210,13 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 
 ## Changelog
 
+### 23/03/2026 - Sistema de Caixa e Gerenciamento de Prazo
+- ✅ **Implementado**: Sistema de caixa (dinheiro em espécie) separado por loja
+- ✅ **Implementado**: Retiradas de caixa com categorias VT (Vale Transporte) e Outros
+- ✅ **Implementado**: VT registra automaticamente como gasto na aba Gastos
+- ✅ **Implementado**: Gerenciamento completo de clientes Prazo na cozinha (cadastrar, deletar, adicionar saldo)
+- ✅ **Verificado**: Comprovantes PIX enviados para grupos WhatsApp corretos por loja
+
 ### 23/03/2026 - Voucher nas Vendas e Gráficos
 - ✅ **Implementado**: Método de pagamento "Voucher" agora aparece nas vendas e gráficos
 - ✅ **Backend**: Adicionado "voucher" e "prazo" em todos os endpoints de vendas (`/cash/{store}/today`, `/gestor/dashboard`)
