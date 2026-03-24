@@ -766,11 +766,13 @@ async def get_pending_pix_orders(store: StoreLocation):
             should_verify = False
             
             if proof_at:
-                from datetime import datetime, timezone
-                proof_time = datetime.fromisoformat(proof_at.replace('Z', '+00:00'))
-                seconds_since = (datetime.now(timezone.utc) - proof_time).total_seconds()
-                # If more than 30 seconds old and no analysis, trigger background verification
-                if seconds_since > 30:
+                try:
+                    proof_time = datetime.fromisoformat(proof_at.replace('Z', '+00:00'))
+                    seconds_since = (datetime.now(timezone.utc) - proof_time).total_seconds()
+                    # If more than 30 seconds old and no analysis, trigger background verification
+                    if seconds_since > 30:
+                        should_verify = True
+                except Exception:
                     should_verify = True
             else:
                 # Legacy order without pix_proof_at - trigger verification
