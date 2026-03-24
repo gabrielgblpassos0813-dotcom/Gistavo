@@ -446,6 +446,15 @@ export const KitchenPage = () => {
   // Cash balance adjustment state
   const [showCashBalanceDialog, setShowCashBalanceDialog] = useState(false);
   const [newCashBalance, setNewCashBalance] = useState('');
+  // PIX manual adjustments state
+  const [pixAdjustments, setPixAdjustments] = useState({ adjustments: [], total_added: 0 });
+  const [showPixAdjustDialog, setShowPixAdjustDialog] = useState(false);
+  const [pixAdjustAmount, setPixAdjustAmount] = useState('');
+  const [pixAdjustDescription, setPixAdjustDescription] = useState('');
+  // Add credit dialog state
+  const [showAddCreditDialog, setShowAddCreditDialog] = useState(false);
+  const [creditCustomer, setCreditCustomer] = useState(null);
+  const [creditAmount, setCreditAmount] = useState('');
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -500,12 +509,13 @@ export const KitchenPage = () => {
         axios.get(`${API}/prazo/debts?store=${store}`),  // Fetch prazo debts for this store only
         axios.get(`${API}/kitchen/adicionais`),  // Fetch adicionais
         axios.get(`${API}/kitchen/menu/${store}`),  // Fetch menu items for this store
-        axios.get(`${API}/prazo/customers`),  // Fetch prazo customers
-        axios.get(`${API}/cash/${store}/drawer`)  // Fetch cash drawer status
+        axios.get(`${API}/prazo/customers?store=${store}`),  // Fetch prazo customers for this store
+        axios.get(`${API}/cash/${store}/drawer`),  // Fetch cash drawer status
+        axios.get(`${API}/pix-adjustments/${store}`)  // Fetch PIX manual adjustments
       ];
       
       const results = await Promise.all(requests);
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes, cashDrawerRes] = results;
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes, cashDrawerRes, pixAdjRes] = results;
       
       const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
       
@@ -547,6 +557,11 @@ export const KitchenPage = () => {
       // Set cash drawer
       if (cashDrawerRes) {
         setCashDrawer(cashDrawerRes.data);
+      }
+      
+      // Set PIX adjustments
+      if (pixAdjRes) {
+        setPixAdjustments(pixAdjRes.data);
       }
       
       if (showToast) toast.success('Atualizado');
@@ -761,7 +776,10 @@ export const KitchenPage = () => {
       return;
     }
     try {
-      await axios.post(`${API}/kitchen/prazo/customers`, newPrazoCustomer);
+      await axios.post(`${API}/kitchen/prazo/customers`, {
+        ...newPrazoCustomer,
+        store: store  // Include the current store
+      });
       toast.success('Cliente cadastrado!');
       setShowPrazoCustomerDialog(false);
       setNewPrazoCustomer({ name: '', phone: '', notes: '' });
@@ -813,15 +831,26 @@ export const KitchenPage = () => {
     }
   };
 
-  const handleAddCredit = async (customer) => {
-    const amount = prompt(`Adicionar crédito para ${customer.name}:\nValor atual: R$ ${(customer.credit || 0).toFixed(2)}\n\nDigite o valor a adicionar:`);
-    if (!amount || isNaN(parseFloat(amount))) return;
+  const handleAddCredit = (customer) => {
+    setCreditCustomer(customer);
+    setCreditAmount('');
+    setShowAddCreditDialog(true);
+  };
+
+  const handleConfirmAddCredit = async () => {
+    if (!creditAmount || isNaN(parseFloat(creditAmount)) || parseFloat(creditAmount) <= 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
     
     try {
-      const response = await axios.post(`${API}/prazo/customers/${customer.id}/add-credit`, {
-        amount: parseFloat(amount)
+      const response = await axios.post(`${API}/prazo/customers/${creditCustomer.id}/add-credit`, {
+        amount: parseFloat(creditAmount)
       });
       toast.success(response.data.message);
+      setShowAddCreditDialog(false);
+      setCreditCustomer(null);
+      setCreditAmount('');
       fetchData();
     } catch (error) {
       toast.error('Erro ao adicionar crédito');
@@ -904,6 +933,39 @@ export const KitchenPage = () => {
       setNewCashBalance('');
     } catch (error) {
       toast.error('Erro ao ajustar saldo');
+    }
+  };
+
+  // PIX Manual Adjustment functions
+  const handleAddPixAdjustment = async () => {
+    if (!pixAdjustAmount || isNaN(parseFloat(pixAdjustAmount)) || parseFloat(pixAdjustAmount) === 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
+    
+    try {
+      await axios.post(`${API}/pix-adjustments/add`, {
+        store: store,
+        amount: parseFloat(pixAdjustAmount),
+        description: pixAdjustDescription || 'Ajuste manual PIX'
+      });
+      toast.success(`Ajuste de PIX de R$ ${parseFloat(pixAdjustAmount).toFixed(2)} adicionado!`);
+      setShowPixAdjustDialog(false);
+      setPixAdjustAmount('');
+      setPixAdjustDescription('');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao adicionar ajuste de PIX');
+    }
+  };
+
+  const handleRemovePixAdjustment = async (adjustmentId) => {
+    try {
+      await axios.delete(`${API}/pix-adjustments/${adjustmentId}`);
+      toast.success('Ajuste de PIX removido!');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao remover ajuste de PIX');
     }
   };
 
@@ -1120,7 +1182,7 @@ export const KitchenPage = () => {
                   <p className="text-xs text-muted-foreground">{formatCurrency(morningShift.total || 0)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-6 gap-2 text-center">
+              <div className="grid grid-cols-5 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
                   <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
                   <p className="text-[10px] text-muted-foreground">PIX</p>
@@ -1141,11 +1203,6 @@ export const KitchenPage = () => {
                   <p className="text-[10px] text-muted-foreground">Dinheiro</p>
                   <p className="text-sm font-bold text-green-600">{formatCurrency(morningShift.by_payment?.cash || 0)}</p>
                 </div>
-                <div className="bg-amber-50 rounded-lg p-2">
-                  <Clock className="h-4 w-4 mx-auto text-amber-600" />
-                  <p className="text-[10px] text-muted-foreground">Prazo</p>
-                  <p className="text-sm font-bold text-amber-600">{formatCurrency(morningShift.by_payment?.prazo || 0)}</p>
-                </div>
                 <div className="bg-pink-50 rounded-lg p-2">
                   <Ticket className="h-4 w-4 mx-auto text-pink-600" />
                   <p className="text-[10px] text-muted-foreground">Voucher</p>
@@ -1164,7 +1221,7 @@ export const KitchenPage = () => {
                   <p className="text-xs text-muted-foreground">{formatCurrency(afternoonShift.total || 0)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-6 gap-2 text-center">
+              <div className="grid grid-cols-5 gap-2 text-center">
                 <div className="bg-brand-50 rounded-lg p-2">
                   <Smartphone className="h-4 w-4 mx-auto text-brand-600" />
                   <p className="text-[10px] text-muted-foreground">PIX</p>
@@ -1184,11 +1241,6 @@ export const KitchenPage = () => {
                   <Banknote className="h-4 w-4 mx-auto text-green-600" />
                   <p className="text-[10px] text-muted-foreground">Dinheiro</p>
                   <p className="text-sm font-bold text-green-600">{formatCurrency(afternoonShift.by_payment?.cash || 0)}</p>
-                </div>
-                <div className="bg-amber-50 rounded-lg p-2">
-                  <Clock className="h-4 w-4 mx-auto text-amber-600" />
-                  <p className="text-[10px] text-muted-foreground">Prazo</p>
-                  <p className="text-sm font-bold text-amber-600">{formatCurrency(afternoonShift.by_payment?.prazo || 0)}</p>
                 </div>
                 <div className="bg-pink-50 rounded-lg p-2">
                   <Ticket className="h-4 w-4 mx-auto text-pink-600" />
@@ -1275,6 +1327,51 @@ export const KitchenPage = () => {
                 </div>
               )}
             </div>
+
+            {/* PIX Manual Adjustments */}
+            <div className="bg-blue-600 text-white rounded-xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <p className="text-sm opacity-80 flex items-center gap-1">
+                    <Smartphone className="h-4 w-4" /> Ajustes Manuais PIX
+                  </p>
+                  <p className="text-2xl font-bold">{formatCurrency(pixAdjustments.total_added || 0)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-white/20 hover:bg-white/30 text-white border-0"
+                    onClick={() => setShowPixAdjustDialog(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs opacity-70 mb-2">Valores PIX recebidos fora de vendas (transferências, etc.)</p>
+              {/* Lista de ajustes */}
+              {pixAdjustments.adjustments?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <p className="text-xs opacity-70 mb-2">Ajustes de hoje:</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {pixAdjustments.adjustments.map((adj, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-xs bg-white/10 rounded px-2 py-1">
+                        <span className="truncate flex-1">{adj.description}</span>
+                        <span className="font-bold mx-2">+{formatCurrency(adj.amount)}</span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-5 w-5 p-0 text-white/70 hover:text-white hover:bg-white/20"
+                          onClick={() => handleRemovePixAdjustment(adj.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* PRAZO TAB - For all stores */}
@@ -1321,12 +1418,12 @@ export const KitchenPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         {(customer.credit || 0) > 0 && (
-                          <span className="font-bold text-green-600 text-sm">+R$ {(customer.credit || 0).toFixed(2)}</span>
+                          <span className="font-bold text-green-600 text-sm bg-green-50 px-2 py-1 rounded">R$ {(customer.credit || 0).toFixed(2)}</span>
                         )}
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-green-600" onClick={() => handleAddCredit(customer)} title="Adicionar crédito">
-                          <Plus className="h-3 w-3" />
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-green-600 border-green-600 hover:bg-green-50" onClick={() => handleAddCredit(customer)} title="Adicionar crédito">
+                          <Plus className="h-3 w-3 mr-1" /> Crédito
                         </Button>
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-red-600" onClick={() => handleDeletePrazoCustomer(customer.id)} title="Excluir cliente">
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleDeletePrazoCustomer(customer.id)} title="Excluir cliente">
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -2001,6 +2098,123 @@ export const KitchenPage = () => {
                 disabled={!newCashBalance || parseFloat(newCashBalance) < 0}
               >
                 Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Credit Dialog */}
+      <Dialog open={showAddCreditDialog} onOpenChange={setShowAddCreditDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              Adicionar Crédito
+            </DialogTitle>
+          </DialogHeader>
+          {creditCustomer && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="font-medium">{creditCustomer.name}</p>
+                <p className="text-xs text-muted-foreground">{creditCustomer.phone || 'Sem telefone'}</p>
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                  <p className="text-xs text-muted-foreground">Crédito atual</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(creditCustomer.credit || 0)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm">Valor a adicionar (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="h-10 text-lg"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                  setShowAddCreditDialog(false);
+                  setCreditCustomer(null);
+                  setCreditAmount('');
+                }}>
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-green-600 hover:bg-green-700" 
+                  onClick={handleConfirmAddCredit}
+                  disabled={!creditAmount || parseFloat(creditAmount) <= 0}
+                >
+                  Adicionar Crédito
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* PIX Adjustment Dialog */}
+      <Dialog open={showPixAdjustDialog} onOpenChange={setShowPixAdjustDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-blue-600" />
+              Ajuste Manual de PIX
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">
+                Adicione valores PIX recebidos fora de vendas (transferências diretas, pagamentos externos, etc.)
+              </p>
+            </div>
+            
+            <div>
+              <Label className="text-sm">Valor (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={pixAdjustAmount}
+                onChange={(e) => setPixAdjustAmount(e.target.value)}
+                placeholder="0.00"
+                className="h-10 text-lg"
+                autoFocus
+              />
+            </div>
+            
+            <div>
+              <Label className="text-sm">Descrição (opcional)</Label>
+              <Input
+                type="text"
+                value={pixAdjustDescription}
+                onChange={(e) => setPixAdjustDescription(e.target.value)}
+                placeholder="Ex: Transferência cliente X"
+                className="h-10"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                setShowPixAdjustDialog(false);
+                setPixAdjustAmount('');
+                setPixAdjustDescription('');
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-blue-600 hover:bg-blue-700" 
+                onClick={handleAddPixAdjustment}
+                disabled={!pixAdjustAmount || parseFloat(pixAdjustAmount) === 0}
+              >
+                Adicionar
               </Button>
             </div>
           </div>

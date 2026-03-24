@@ -1,0 +1,98 @@
+{
+  "summary": "Completed testing of 4 new features: 1) Prazo NOT in sales totals, 2) Manual PIX adjustments added to totals, 3) Prazo customers filtered by store, 4) Add credit to prazo customers. All 14 backend tests passed. Frontend UI verified for Vendas tab (Ajustes Manuais PIX section) and Prazo tab (Clientes Cadastrados with + Crédito button).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: 14/14 tests passed",
+    "TestPrazoNotInTotals::test_prazo_order_not_in_cash_today_total - Prazo orders NOT added to total",
+    "TestPrazoNotInTotals::test_pix_order_is_in_cash_today_total - PIX orders flow tested",
+    "TestPixManualAdjustments::test_add_pix_adjustment - Manual PIX adjustment created",
+    "TestPixManualAdjustments::test_pix_adjustment_in_cash_today - PIX adjustments correctly added to totals",
+    "TestPixManualAdjustments::test_get_pix_adjustments_by_store - Get adjustments filtered by store",
+    "TestPixManualAdjustments::test_remove_pix_adjustment - Remove PIX adjustment works",
+    "TestPrazoCustomersByStore::test_create_prazo_customer_with_store - Create customer with store",
+    "TestPrazoCustomersByStore::test_get_prazo_customers_filtered_by_store - Customers filtered by store",
+    "TestPrazoCustomersByStore::test_get_all_prazo_customers - Get all customers",
+    "TestAddCreditToPrazoCustomer::test_add_credit_to_customer - Add credit works",
+    "TestAddCreditToPrazoCustomer::test_add_credit_cumulative - Credit accumulates correctly",
+    "TestAddCreditToPrazoCustomer::test_add_credit_nonexistent_customer - Returns 404 for non-existent",
+    "TestPrazoDebtsFilteredByStore::test_get_prazo_debts_by_store - Debts filtered by store",
+    "TestPrazoDebtsFilteredByStore::test_get_all_prazo_debts - Get all debts",
+    "Frontend: Vendas tab shows 'Ajustes Manuais PIX' section with '+ Adicionar' button",
+    "Frontend: Vendas tab shows 'Caixa (Dinheiro)' with Saldo Inicial, + Vendas, - Retiradas",
+    "Frontend: Prazo tab shows 'Total a Receber (Prazo)' section",
+    "Frontend: Prazo tab shows 'Clientes Cadastrados' section with '+ Crédito' button",
+    "Frontend: Prazo tab shows 'Débitos Pendentes' section with Pagar and delete buttons",
+    "Frontend: 'Novo Cliente' button opens registration dialog"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_prazo_pix_features.py",
+    "/app/test_reports/pytest/pytest_prazo_pix.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_prazo_pix_features.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Created test prazo customers and orders for testing, cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 requested features are working: 1) Prazo orders are NOT included in sales totals (GET /api/cash/{store}/today excludes payment_method='prazo'), 2) Manual PIX adjustments ARE added to totals (POST /api/pix-adjustments/add creates adjustment, GET /api/cash/{store}/today includes pix_manual_adjustments in total), 3) Prazo customers are filtered by store (GET /api/prazo/customers?store=runner), 4) Add credit to prazo customers works (POST /api/prazo/customers/{id}/add-credit). Frontend has 'Ajustes Manuais PIX' section in Vendas tab and 'Clientes Cadastrados' with '+ Crédito' button in Prazo tab.",
+  "features_verified": {
+    "prazo_not_in_totals": {
+      "status": "WORKING",
+      "endpoint": "GET /api/cash/{store}/today",
+      "details": "Prazo orders are excluded from total and shift totals. Prazo is tracked separately in by_payment_method."
+    },
+    "pix_manual_adjustments": {
+      "status": "WORKING",
+      "endpoints": ["POST /api/pix-adjustments/add", "GET /api/pix-adjustments/{store}", "DELETE /api/pix-adjustments/{id}"],
+      "details": "Manual PIX adjustments are added to pix total and overall total in /api/cash/{store}/today. Response includes pix_manual_adjustments field."
+    },
+    "prazo_customers_by_store": {
+      "status": "WORKING",
+      "endpoint": "GET /api/prazo/customers?store=runner",
+      "details": "Prazo customers are filtered by store. Each customer has a store field."
+    },
+    "add_credit_to_customer": {
+      "status": "WORKING",
+      "endpoint": "POST /api/prazo/customers/{customer_id}/add-credit",
+      "details": "Adds credit to customer account. Returns previous_credit, added, and new_credit."
+    },
+    "frontend_pix_adjustments_section": {
+      "status": "WORKING",
+      "location": "KitchenPage > Vendas tab",
+      "details": "Blue section showing 'Ajustes Manuais PIX' with total and '+ Adicionar' button."
+    },
+    "frontend_prazo_customers_section": {
+      "status": "WORKING",
+      "location": "KitchenPage > Prazo tab",
+      "details": "Shows 'Clientes Cadastrados' section with '+ Crédito' button for each customer."
+    }
+  },
+  "api_endpoints_tested": {
+    "GET /api/cash/runner/today": "200 OK - Returns total excluding prazo, includes pix_manual_adjustments",
+    "POST /api/pix-adjustments/add": "200 OK - Creates manual PIX adjustment",
+    "GET /api/pix-adjustments/runner": "200 OK - Returns adjustments for store",
+    "DELETE /api/pix-adjustments/{id}": "200 OK - Removes adjustment",
+    "GET /api/prazo/customers?store=runner": "200 OK - Returns customers filtered by store",
+    "POST /api/kitchen/prazo/customers": "200 OK - Creates customer with store",
+    "POST /api/prazo/customers/{id}/add-credit": "200 OK - Adds credit to customer",
+    "GET /api/prazo/debts?store=runner": "200 OK - Returns debts filtered by store"
+  },
+  "test_credentials": {
+    "manager_login": "gestor / ganoh2024",
+    "prazo_password": "1234"
+  }
+}

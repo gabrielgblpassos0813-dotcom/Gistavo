@@ -1525,19 +1525,30 @@ async def get_today_cash(store: StoreLocation):
         "created_at": {"$gte": today_utc.isoformat()}
     }, {"_id": 0}).to_list(1000)
     
+    # Get manual PIX adjustments for today
+    pix_adjustments = await db.pix_adjustments.find({
+        "store": store.value,
+        "removed": {"$ne": True},
+        "created_at": {"$gte": today_brazil.isoformat()}
+    }, {"_id": 0}).to_list(1000)
+    pix_manual_total = sum(a.get("amount", 0) for a in pix_adjustments)
+    
     # Total VALUE by payment method (in R$)
     by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
     total = 0
     
     # By shift (06:00-14:00 and 14:00-22:00)
-    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}}
-    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}}
+    shift_morning = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "voucher": 0}}
+    shift_afternoon = {"total": 0, "count": 0, "by_payment": {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "voucher": 0}}
     
     for order in orders:
         payment = order.get("payment_method", "cash")
         amount = order.get("total", 0)
-        by_payment_value[payment] = by_payment_value.get(payment, 0) + amount  # Value in R$
-        total += amount
+        
+        # Prazo não soma no total de vendas
+        if payment != "prazo":
+            by_payment_value[payment] = by_payment_value.get(payment, 0) + amount
+            total += amount
         
         # Determine shift based on order time in Brazil timezone
         created_at = order.get("created_at", "")
@@ -1551,24 +1562,32 @@ async def get_today_cash(store: StoreLocation):
             order_time_brazil = order_time.astimezone(brazil_tz)
             brazil_hour = order_time_brazil.hour
             
-            if 6 <= brazil_hour < 14:
-                shift_morning["total"] += amount
-                shift_morning["count"] += 1
-                shift_morning["by_payment"][payment] += amount  # Value in R$
-            else:
+            # Prazo não soma no total dos turnos
+            if payment != "prazo":
+                if 6 <= brazil_hour < 14:
+                    shift_morning["total"] += amount
+                    shift_morning["count"] += 1
+                    shift_morning["by_payment"][payment] += amount
+                else:
+                    shift_afternoon["total"] += amount
+                    shift_afternoon["count"] += 1
+                    shift_afternoon["by_payment"][payment] += amount
+        except Exception:
+            if payment != "prazo":
                 shift_afternoon["total"] += amount
                 shift_afternoon["count"] += 1
-                shift_afternoon["by_payment"][payment] += amount  # Value in R$
-        except Exception:
-            shift_afternoon["total"] += amount
-            shift_afternoon["count"] += 1
-            shift_afternoon["by_payment"][payment] += amount  # Value in R$
+                shift_afternoon["by_payment"][payment] += amount
+    
+    # Add manual PIX adjustments to PIX total and overall total
+    by_payment_value["pix"] += pix_manual_total
+    total += pix_manual_total
     
     return {
         "date": today_brazil.strftime("%Y-%m-%d"),
         "total": total,
         "by_payment_method": by_payment_value,
         "order_count": len(orders),
+        "pix_manual_adjustments": round(pix_manual_total, 2),
         "shifts": {
             "morning": {
                 "label": "06:00 - 14:00",
@@ -1714,6 +1733,67 @@ async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
         "expense_created": withdrawal.category == "vt",
         "current_balance": updated_drawer["current_balance"]
     }
+
+# ==================== PIX MANUAL ADJUSTMENTS ====================
+
+class PixAdjustment(BaseModel):
+    amount: float
+    description: str = ""
+    store: str
+
+@api_router.get("/pix-adjustments/{store}")
+async def get_pix_adjustments(store: str):
+    """Get all manual PIX adjustments for a store"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all adjustments for this store (today) that are not removed
+    adjustments = await db.pix_adjustments.find({
+        "store": store,
+        "removed": {"$ne": True},
+        "created_at": {"$gte": today_brazil.isoformat()}
+    }, {"_id": 0}).to_list(1000)
+    
+    total_added = sum(a.get("amount", 0) for a in adjustments)
+    
+    return {
+        "store": store,
+        "adjustments": adjustments,
+        "total_added": round(total_added, 2)
+    }
+
+@api_router.post("/pix-adjustments/add")
+async def add_pix_adjustment(adjustment: PixAdjustment):
+    """Add a manual PIX value (not from sales)"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    
+    new_adjustment = {
+        "id": str(uuid.uuid4()),
+        "store": adjustment.store,
+        "amount": adjustment.amount,
+        "description": adjustment.description or "Ajuste manual PIX",
+        "removed": False,
+        "created_at": now_brazil.isoformat()
+    }
+    
+    await db.pix_adjustments.insert_one({**new_adjustment})
+    
+    return {"success": True, "adjustment": new_adjustment}
+
+@api_router.delete("/pix-adjustments/{adjustment_id}")
+async def remove_pix_adjustment(adjustment_id: str):
+    """Remove a manual PIX adjustment (mark as removed)"""
+    result = await db.pix_adjustments.update_one(
+        {"id": adjustment_id},
+        {"$set": {"removed": True, "removed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ajuste não encontrado")
+    
+    return {"success": True, "message": "Ajuste removido"}
 
 # ==================== GESTOR ROUTES (Protected) ====================
 
@@ -1874,8 +1954,40 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
     import calendar
     days_in_month = calendar.monthrange(target_year, target_month)[1]
     
-    # Payment methods breakdown
-    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
+    # Payment methods breakdown (sem prazo)
+    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "voucher": 0}
+    
+    # Get manual PIX adjustments for this month
+    pix_adjustments = await db.pix_adjustments.find({
+        "removed": {"$ne": True},
+        "created_at": {"$gte": month_start_brazil.isoformat(), "$lt": month_end_brazil.isoformat()}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Group PIX adjustments by day and store
+    pix_by_day = {}
+    pix_total_runner = 0
+    pix_total_gym = 0
+    for adj in pix_adjustments:
+        try:
+            adj_time = datetime.fromisoformat(adj.get("created_at", "").replace("Z", "+00:00"))
+            adj_date = adj_time.strftime("%Y-%m-%d")
+            adj_store = adj.get("store", "")
+            adj_amount = adj.get("amount", 0)
+            
+            if adj_date not in pix_by_day:
+                pix_by_day[adj_date] = {"total": 0, "runner": 0, "gym_londres": 0}
+            pix_by_day[adj_date]["total"] += adj_amount
+            
+            if adj_store == "runner":
+                pix_by_day[adj_date]["runner"] += adj_amount
+                pix_total_runner += adj_amount
+            elif adj_store == "gym-londres":
+                pix_by_day[adj_date]["gym_londres"] += adj_amount
+                pix_total_gym += adj_amount
+                
+            by_payment["pix"] += adj_amount
+        except:
+            pass
     
     # Group by day (in Brazil timezone) - with store separation
     daily_data = {}
@@ -1903,6 +2015,10 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
             order_total = order.get("total", 0)
             payment_method = order.get("payment_method", "cash")
             
+            # Prazo não soma nas vendas/gráficos
+            if payment_method == "prazo":
+                continue
+            
             # Count by payment method
             by_payment[payment_method] = by_payment.get(payment_method, 0) + order_total
             
@@ -1920,13 +2036,20 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
         except:
             pass
     
+    # Add PIX adjustments to daily totals
+    for day_str, pix_data in pix_by_day.items():
+        if day_str in daily_data:
+            daily_data[day_str]["total"] += pix_data["total"]
+            daily_data[day_str]["runner"] += pix_data["runner"]
+            daily_data[day_str]["gym_londres"] += pix_data["gym_londres"]
+    
     # Convert to sorted list
     chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
     
     month_names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
                    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     
-    # Calculate totals by store
+    # Calculate totals by store (including PIX adjustments)
     total_runner = sum(d["runner"] for d in chart_data)
     total_gym = sum(d["gym_londres"] for d in chart_data)
     
@@ -1946,7 +2069,6 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
             "debito": round(by_payment.get("debit", 0), 2),
             "credito": round(by_payment.get("credit", 0), 2),
             "dinheiro": round(by_payment.get("cash", 0), 2),
-            "prazo": round(by_payment.get("prazo", 0), 2),
             "voucher": round(by_payment.get("voucher", 0), 2)
         }
     }
@@ -1983,14 +2105,26 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
     # Get all completed orders this day
     orders = await db.orders.find(query, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1, "payment_method": 1}).to_list(10000)
     
+    # Get manual PIX adjustments for this day
+    pix_adj_query = {
+        "removed": {"$ne": True},
+        "created_at": {"$gte": day_start_brazil.isoformat(), "$lt": day_end_brazil.isoformat()}
+    }
+    if store and store != "all":
+        pix_adj_query["store"] = store
+    pix_adjustments = await db.pix_adjustments.find(pix_adj_query, {"_id": 0}).to_list(1000)
+    pix_manual_total = sum(a.get("amount", 0) for a in pix_adjustments)
+    pix_manual_runner = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "runner")
+    pix_manual_gym = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "gym-londres")
+    
     # Group by hour (in Brazil timezone)
     hourly_data = {}
     for hour in range(24):
         hour_str = f"{hour:02d}:00"
         hourly_data[hour] = {"hour": hour_str, "total": 0, "count": 0, "runner": 0, "gym_londres": 0}
     
-    # Payment breakdown
-    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
+    # Payment breakdown (sem prazo)
+    by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "voucher": 0}
     
     for order in orders:
         try:
@@ -2001,6 +2135,10 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
             order_total = order.get("total", 0)
             order_store = order.get("store", "")
             payment_method = order.get("payment_method", "cash")
+            
+            # Prazo não soma nas vendas/gráficos
+            if payment_method == "prazo":
+                continue
             
             hourly_data[brazil_hour]["total"] += order_total
             hourly_data[brazil_hour]["count"] += 1
@@ -2016,33 +2154,36 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
         except:
             pass
     
+    # Add manual PIX to payment breakdown
+    by_payment["pix"] += pix_manual_total
+    
     # Convert to sorted list
     chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
     
-    # Calculate totals by store
-    total_runner = sum(d["runner"] for d in chart_data)
-    total_gym = sum(d["gym_londres"] for d in chart_data)
+    # Calculate totals by store (including PIX adjustments)
+    total_runner = sum(d["runner"] for d in chart_data) + pix_manual_runner
+    total_gym = sum(d["gym_londres"] for d in chart_data) + pix_manual_gym
     
     return {
         "date": target_date.strftime("%d/%m/%Y"),
         "date_iso": target_date.strftime("%Y-%m-%d"),
         "store_filter": store or "all",
         "data": chart_data,
-        "total_day": sum(d["total"] for d in chart_data),
+        "total_day": sum(d["total"] for d in chart_data) + pix_manual_total,
         "total_orders": sum(d["count"] for d in chart_data),
+        "pix_manual_adjustments": round(pix_manual_total, 2),
         "by_store": {
-            "runner": {"total": round(total_runner, 2), "orders": sum(1 for o in orders if o.get("store") == "runner")},
-            "gym_londres": {"total": round(total_gym, 2), "orders": sum(1 for o in orders if o.get("store") == "gym-londres")}
+            "runner": {"total": round(total_runner, 2), "orders": sum(1 for o in orders if o.get("store") == "runner" and o.get("payment_method") != "prazo")},
+            "gym_londres": {"total": round(total_gym, 2), "orders": sum(1 for o in orders if o.get("store") == "gym-londres" and o.get("payment_method") != "prazo")}
         },
         "by_payment": {
             "pix": round(by_payment.get("pix", 0), 2),
             "debito": round(by_payment.get("debit", 0), 2),
             "credito": round(by_payment.get("credit", 0), 2),
             "dinheiro": round(by_payment.get("cash", 0), 2),
-            "prazo": round(by_payment.get("prazo", 0), 2),
             "voucher": round(by_payment.get("voucher", 0), 2)
         },
-        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "store": o.get("store", ""), "items": len(o.get("items", []))} for o in orders]
+        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "store": o.get("store", ""), "items": len(o.get("items", []))} for o in orders if o.get("payment_method") != "prazo"]
     }
 
 @api_router.get("/gestor/chart/yearly")
@@ -2314,6 +2455,7 @@ class PrazoCustomerCreate(BaseModel):
     phone: str = ""
     notes: str = ""
     credit: float = 0.0  # Crédito na casa (valor adiantado)
+    store: str = ""  # Loja onde o cliente foi cadastrado
 
 class PrazoPayment(BaseModel):
     amount: float
@@ -2388,15 +2530,21 @@ async def delete_menu_item_kitchen(item_id: str):
 @api_router.post("/kitchen/prazo/customers")
 async def create_prazo_customer_kitchen(customer: PrazoCustomerCreate):
     """Register a new prazo customer from kitchen"""
-    existing = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer.name}$", "$options": "i"}})
+    # Verificar por nome E loja
+    existing = await db.prazo_customers.find_one({
+        "name": {"$regex": f"^{customer.name}$", "$options": "i"},
+        "store": customer.store
+    })
     if existing:
-        raise HTTPException(status_code=400, detail="Cliente já cadastrado")
+        raise HTTPException(status_code=400, detail="Cliente já cadastrado nesta loja")
     
     new_customer = {
         "id": str(uuid.uuid4()),
         "name": customer.name,
         "phone": customer.phone,
         "notes": customer.notes,
+        "store": customer.store,
+        "credit": customer.credit,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.prazo_customers.insert_one(new_customer)
@@ -2409,9 +2557,12 @@ async def delete_prazo_customer_kitchen(customer_id: str):
     return {"success": True, "message": "Cliente removido"}
 
 @api_router.get("/prazo/customers")
-async def get_prazo_customers():
-    """Get all registered prazo customers"""
-    customers = await db.prazo_customers.find({}, {"_id": 0}).to_list(500)
+async def get_prazo_customers(store: str = None):
+    """Get all registered prazo customers, optionally filtered by store"""
+    query = {}
+    if store:
+        query["store"] = store
+    customers = await db.prazo_customers.find(query, {"_id": 0}).to_list(500)
     return {"customers": customers}
 
 @api_router.post("/prazo/customers")

@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ganoh-manager.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://prazo-accounting.preview.emergentagent.com').rstrip('/')
 
 class TestVoucherPaymentMethod:
     """Tests for voucher payment method in backend APIs"""

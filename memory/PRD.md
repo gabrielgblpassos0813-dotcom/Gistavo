@@ -244,6 +244,15 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 - ✅ **Melhorado**: UI de verificação PIX na cozinha agora mostra contador de tempo e timeout para verificação manual
 - ✅ **Melhorado**: Exibição do horário da transação PIX extraído pela IA
 
+### 24/03/2026 - Ajustes Contábeis e Sistema Prazo
+- ✅ **Implementado**: Prazo NÃO soma mais nas vendas/gráficos (é tratado como sistema separado de crédito/fiado)
+- ✅ **Implementado**: Clientes Prazo agora são separados por loja (Runner vs GYM Londres)
+- ✅ **Implementado**: Sistema de ajustes manuais de PIX na aba Vendas (para transferências fora de vendas)
+- ✅ **Implementado**: Ajustes PIX são somados nos totais de vendas e nos gráficos
+- ✅ **Corrigido**: Botão "Adicionar Crédito" para clientes Prazo funcionando com dialog completo
+- ✅ **Backend**: Novos endpoints `/api/pix-adjustments/{store}`, `/api/pix-adjustments/add`, `DELETE /api/pix-adjustments/{id}`
+- ✅ **Frontend**: Nova seção "Ajustes Manuais PIX" na aba Vendas com botão adicionar e lista de ajustes removíveis
+
 ---
 
-## Atualizado em: 23 de Março de 2026
+## Atualizado em: 24 de Março de 2026
