@@ -81,13 +81,21 @@ async def send_whatsapp_notification(
     items: list,
     auto_approved: bool = False,
     group_id: str = None,
-    pix_proof_image: str = None
+    pix_proof_image: str = None,
+    order_id: str = None
 ) -> dict:
     """Send PIX payment notification to WhatsApp group via Green API - ONLY if approved"""
     
     # Only send notification if auto_approved
     if not auto_approved:
         return {"success": False, "reason": "Not auto-approved, notification not sent"}
+    
+    # Check if already notified (prevent duplicates)
+    if order_id:
+        existing = await db.orders.find_one({"id": order_id, "whatsapp_notified": True})
+        if existing:
+            logger.info(f"WhatsApp already sent for order {order_id}, skipping duplicate")
+            return {"success": False, "reason": "Already notified"}
     
     # Select the correct group based on store (Runner or GYM Londres)
     # IMPORTANT: Use exact store value to select group
@@ -124,6 +132,8 @@ async def send_whatsapp_notification(
 
 ✅ APROVADO AUTOMATICAMENTE"""
     
+    result = None
+    
     # If we have a PIX proof image, send it with the message
     if pix_proof_image and pix_proof_image.startswith("data:"):
         try:
@@ -143,12 +153,23 @@ async def send_whatsapp_notification(
                     }
                 )
                 if response.status_code == 200:
-                    return {"success": True, "data": response.json(), "with_image": True}
+                    result = {"success": True, "data": response.json(), "with_image": True}
         except Exception as e:
             logging.warning(f"Could not send image, sending text only: {e}")
     
     # Fallback: send text message only
-    return await send_whatsapp_message(message, target)
+    if not result:
+        result = await send_whatsapp_message(message, target)
+    
+    # Mark as notified to prevent duplicates
+    if result.get("success") and order_id:
+        await db.orders.update_one(
+            {"id": order_id},
+            {"$set": {"whatsapp_notified": True, "whatsapp_notified_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        logger.info(f"Marked order {order_id} as WhatsApp notified")
+    
+    return result
 
 # ==================== MULTI-TENANT SYSTEM ====================
 # Maximum 2 accounts allowed
@@ -737,28 +758,34 @@ async def get_pending_pix_orders(store: StoreLocation):
     }, {"_id": 0}).sort("created_at", 1).to_list(100)
     
     # Auto-trigger verification for orders that have proof but no analysis (30+ seconds old)
+    # Only trigger once per order (check verification_triggered flag)
     for order in orders:
-        if order.get("pix_proof") and not order.get("pix_analysis"):
+        order_id = order.get("id")
+        if order.get("pix_proof") and not order.get("pix_analysis") and not order.get("verification_triggered"):
             proof_at = order.get("pix_proof_at")
+            should_verify = False
+            
             if proof_at:
                 from datetime import datetime, timezone
                 proof_time = datetime.fromisoformat(proof_at.replace('Z', '+00:00'))
                 seconds_since = (datetime.now(timezone.utc) - proof_time).total_seconds()
                 # If more than 30 seconds old and no analysis, trigger background verification
                 if seconds_since > 30:
-                    import asyncio
-                    asyncio.create_task(auto_verify_pix_background(
-                        store, 
-                        order.get("id"), 
-                        order.get("pix_proof"), 
-                        order.get("total", 0)
-                    ))
+                    should_verify = True
             else:
                 # Legacy order without pix_proof_at - trigger verification
+                should_verify = True
+            
+            if should_verify:
+                # Mark as verification triggered to avoid duplicate triggers
+                await db.orders.update_one(
+                    {"id": order_id},
+                    {"$set": {"verification_triggered": True, "verification_triggered_at": datetime.now(timezone.utc).isoformat()}}
+                )
                 import asyncio
                 asyncio.create_task(auto_verify_pix_background(
                     store, 
-                    order.get("id"), 
+                    order_id, 
                     order.get("pix_proof"), 
                     order.get("total", 0)
                 ))
@@ -973,7 +1000,8 @@ Responda APENAS em formato JSON:
                     order_number=order.get("order_number", order_id[:8]),
                     items=order.get("items", []),
                     auto_approved=True,
-                    pix_proof_image=pix_proof
+                    pix_proof_image=pix_proof,
+                    order_id=order_id
                 )
             except Exception as e:
                 logger.warning(f"Could not send WhatsApp notification: {e}")
@@ -1113,7 +1141,8 @@ Responda APENAS em formato JSON:
                     order_number=order.get("order_number", order_id[:8]),
                     items=order.get("items", []),
                     auto_approved=True,
-                    pix_proof_image=pix_proof
+                    pix_proof_image=pix_proof,
+                    order_id=order_id
                 )
             except Exception as e:
                 logger.warning(f"Could not send WhatsApp notification: {e}")
@@ -1303,7 +1332,8 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
                 order_number=order.get("order_number", order_id[:8]),
                 items=order.get("items", []),
                 auto_approved=True,  # Manual approval also triggers notification
-                pix_proof_image=pix_proof
+                pix_proof_image=pix_proof,
+                order_id=order_id
             )
         except Exception as e:
             logger.warning(f"Could not send WhatsApp notification: {e}")
