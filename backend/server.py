@@ -1565,6 +1565,21 @@ async def get_today_cash(store: StoreLocation):
     }, {"_id": 0}).to_list(1000)
     pix_manual_total = sum(a.get("amount", 0) for a in pix_adjustments)
     
+    # Separate PIX adjustments by shift
+    pix_manual_morning = 0
+    pix_manual_afternoon = 0
+    for adj in pix_adjustments:
+        try:
+            adj_time = datetime.fromisoformat(adj.get("created_at", "").replace("Z", "+00:00"))
+            adj_time_brazil = adj_time.astimezone(brazil_tz)
+            adj_hour = adj_time_brazil.hour
+            if 6 <= adj_hour < 14:
+                pix_manual_morning += adj.get("amount", 0)
+            else:
+                pix_manual_afternoon += adj.get("amount", 0)
+        except:
+            pix_manual_afternoon += adj.get("amount", 0)
+    
     # Total VALUE by payment method (in R$)
     by_payment_value = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "prazo": 0, "voucher": 0}
     total = 0
@@ -1614,12 +1629,20 @@ async def get_today_cash(store: StoreLocation):
     by_payment_value["pix"] += pix_manual_total
     total += pix_manual_total
     
+    # Add manual PIX to shifts
+    shift_morning["by_payment"]["pix"] += pix_manual_morning
+    shift_morning["total"] += pix_manual_morning
+    shift_afternoon["by_payment"]["pix"] += pix_manual_afternoon
+    shift_afternoon["total"] += pix_manual_afternoon
+    
     return {
         "date": today_brazil.strftime("%Y-%m-%d"),
         "total": total,
         "by_payment_method": by_payment_value,
         "order_count": len(orders),
         "pix_manual_adjustments": round(pix_manual_total, 2),
+        "pix_manual_morning": round(pix_manual_morning, 2),
+        "pix_manual_afternoon": round(pix_manual_afternoon, 2),
         "shifts": {
             "morning": {
                 "label": "06:00 - 14:00",
