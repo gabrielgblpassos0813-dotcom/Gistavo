@@ -2833,27 +2833,31 @@ async def charge_all_prazo_via_whatsapp(store: Optional[str] = None):
         phone_id = f"{phone_clean}@c.us"
         
         # Build nice message
-        message = f"""☕ *GANOH Café Bistrô*
+        message = f"""━━━━━━━━━━━━━━━━━━
+☕ *GANOH Café Bistrô*
+━━━━━━━━━━━━━━━━━━
 
-Olá, {customer_name}! 👋
+Olá, *{customer_name}*! 👋
 
-Passando para lembrar que você tem um saldo em aberto conosco:
+Esperamos que esteja tudo bem!
 
-💰 *Valor Total: R$ {debt_info['total']:.2f}*
+Passando para lembrar do seu *saldo em aberto*:
 
-📋 *Resumo:*
-{len(debt_info['orders'])} pedido(s) no prazo
+┌─────────────────────
+│ 💰 *Total: R$ {debt_info['total']:.2f}*
+│ 📦 {len(debt_info['orders'])} pedido(s)
+└─────────────────────
 
-Quando puder regularizar, estamos à disposição! 😊
+━━━━━━━━━━━━━━━━━━
 
-Formas de pagamento:
-• PIX
-• Cartão de débito/crédito
-• Dinheiro
+✅ *Formas de pagamento:*
+• PIX 📱
+• Cartão (débito/crédito) 💳
+• Dinheiro 💵
 
-Agradecemos a preferência! 🙏
+Quando puder, passe aqui! 😊🙏
 
-_Mensagem automática - {now.strftime('%d/%m/%Y')}_"""
+_Mensagem automática - {now.strftime('%d/%m/%Y às %H:%M')}_"""
 
         # Send to customer's phone number
         try:
@@ -2923,21 +2927,34 @@ async def charge_single_prazo_customer(customer_name: str):
     credit_info = f"\n💳 *Crédito disponível: R$ {credit:.2f}*" if credit > 0 else ""
     net_debt = max(0, total - credit)
     
-    message = f"""☕ *GANOH Café Bistrô*
+    message = f"""━━━━━━━━━━━━━━━━━━
+☕ *GANOH Café Bistrô*
+━━━━━━━━━━━━━━━━━━
 
-Olá, {customer_name}! 👋
+Olá, *{customer_name}*! 👋
 
-Segue seu extrato de consumo no prazo:
+Esperamos que esteja tudo bem com você! 
 
-💰 *Total em Aberto: R$ {total:.2f}*{credit_info}
-{'🔵 *Valor a Pagar: R$ ' + f'{net_debt:.2f}*' if credit > 0 else ''}
+Passando para enviar seu *extrato de consumo*:
 
-📋 *Últimos pedidos:*
+┌─────────────────────
+│ 💰 *Total: R$ {total:.2f}*{credit_info}
+│ {'🔵 *A Pagar: R$ ' + f'{net_debt:.2f}*' if credit > 0 else ''}
+└─────────────────────
+
+📋 *Histórico de pedidos:*
 {chr(10).join(items_detail)}
 
-Quando puder regularizar, estamos à disposição! 😊
+━━━━━━━━━━━━━━━━━━
 
-_Mensagem automática - {now.strftime('%d/%m/%Y %H:%M')}_"""
+✅ *Formas de pagamento:*
+• PIX 📱
+• Cartão (débito/crédito) 💳
+• Dinheiro 💵
+
+Aguardamos você! 😊🙏
+
+_Mensagem automática - {now.strftime('%d/%m/%Y às %H:%M')}_"""
 
     # Send to customer's phone number
     result = await send_whatsapp_message(message, phone_id)

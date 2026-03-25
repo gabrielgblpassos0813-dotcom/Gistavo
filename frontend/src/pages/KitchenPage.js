@@ -11,7 +11,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign, Ticket
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign, Ticket, RotateCcw
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Toaster, toast } from 'sonner';
@@ -936,6 +936,32 @@ export const KitchenPage = () => {
     }
   };
 
+  const handleZeroCash = async () => {
+    if (!window.confirm('Tem certeza que deseja ZERAR o caixa? Isso irá retirar todo o dinheiro.')) {
+      return;
+    }
+    
+    try {
+      const currentBalance = cashDrawer.current_balance || 0;
+      if (currentBalance <= 0) {
+        toast.error('O caixa já está zerado');
+        return;
+      }
+      
+      // Withdraw all cash
+      const response = await axios.post(`${API}/cash/${store}/withdraw`, {
+        amount: currentBalance,
+        category: 'outros',
+        description: `Fechamento de caixa - Zerado R$ ${currentBalance.toFixed(2)}`
+      });
+      
+      toast.success(`Caixa zerado! Retirado R$ ${currentBalance.toFixed(2)}`);
+      setCashDrawer(response.data);
+    } catch (error) {
+      toast.error('Erro ao zerar o caixa');
+    }
+  };
+
   // PIX Manual Adjustment functions
   const handleAddPixAdjustment = async () => {
     if (!pixAdjustAmount || isNaN(parseFloat(pixAdjustAmount)) || parseFloat(pixAdjustAmount) === 0) {
@@ -1291,6 +1317,16 @@ export const KitchenPage = () => {
                     disabled={(cashDrawer.current_balance || 0) <= 0}
                   >
                     <Minus className="h-3 w-3 mr-1" /> Retirar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-red-500/80 hover:bg-red-600 text-white border-0"
+                    onClick={handleZeroCash}
+                    disabled={(cashDrawer.current_balance || 0) <= 0}
+                    title="Zerar caixa"
+                  >
+                    <RotateCcw className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
