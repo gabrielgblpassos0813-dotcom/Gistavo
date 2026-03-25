@@ -804,17 +804,19 @@ export const KitchenPage = () => {
     try {
       toast.loading('Gerando mensagem...', { id: 'whatsapp' });
       const response = await axios.get(`${API}/prazo/charge-message/${encodeURIComponent(customerName)}`);
-      if (response.data.success) {
-        toast.dismiss('whatsapp');
-        // Open WhatsApp with pre-filled message
-        const whatsappUrl = response.data.whatsapp_url;
-        window.open(whatsappUrl, '_blank');
-        toast.success('WhatsApp aberto com a mensagem!');
-      } else {
-        toast.error(response.data.message || 'Erro ao gerar mensagem', { id: 'whatsapp' });
-      }
+      toast.dismiss('whatsapp');
+      // Open WhatsApp with pre-filled message
+      const whatsappUrl = response.data.whatsapp_url;
+      window.open(whatsappUrl, '_blank');
+      toast.success('WhatsApp aberto com a mensagem!');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao gerar mensagem', { id: 'whatsapp' });
+      toast.dismiss('whatsapp');
+      const errorMsg = error.response?.data?.detail || 'Erro ao gerar mensagem';
+      if (errorMsg.includes('telefone')) {
+        toast.error(`${customerName}: Sem telefone cadastrado! Cadastre na aba Prazo.`);
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 

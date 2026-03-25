@@ -1650,11 +1650,12 @@ async def get_cash_drawer(store: StoreLocation):
     drawer_config = await db.cash_drawer_config.find_one({"store": store.value}, {"_id": 0})
     initial_balance = drawer_config.get("balance", 0) if drawer_config else 0
     
-    # Get ALL cash orders (dinheiro) - historical, not just today
+    # Get ALL cash orders (dinheiro) that haven't been cleared - historical, not just today
     all_cash_orders = await db.orders.find({
         "store": store.value,
         "status": {"$in": ["ready", "delivered"]},
-        "payment_method": "cash"
+        "payment_method": "cash",
+        "cash_cleared": {"$ne": True}  # Only count orders not cleared
     }, {"_id": 0, "total": 1, "created_at": 1}).to_list(100000)
     
     total_cash_sales = sum(o.get("total", 0) for o in all_cash_orders)
@@ -1721,7 +1722,7 @@ async def set_cash_balance(store: StoreLocation, data: CashBalanceAdjust):
 
 @api_router.post("/cash/{store}/reset")
 async def reset_cash_drawer(store: StoreLocation):
-    """Reset the entire cash drawer - zero balance and clear withdrawal history"""
+    """Reset the entire cash drawer completely - zero EVERYTHING"""
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
     today_str = now_brazil.strftime("%Y-%m-%d")
@@ -1731,17 +1732,27 @@ async def reset_cash_drawer(store: StoreLocation):
         {"store": store.value},
         {"$set": {
             "balance": 0,
-            "notes": f"Caixa zerado em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
+            "notes": f"Caixa zerado completamente em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
             "updated_at": now_brazil.isoformat()
         }},
         upsert=True
     )
     
-    # Delete today's withdrawals for this store
+    # Delete ALL withdrawals for this store (not just today)
     await db.cash_withdrawals.delete_many({
-        "store": store.value,
-        "created_at": {"$regex": f"^{today_str}"}
+        "store": store.value
     })
+    
+    # Mark all cash orders for this store as "cash_cleared" so they don't count in the drawer
+    # This effectively zeros the "vendas em dinheiro" for the cash drawer calculation
+    await db.orders.update_many(
+        {
+            "store": store.value,
+            "payment_method": "cash",
+            "cash_cleared": {"$ne": True}
+        },
+        {"$set": {"cash_cleared": True, "cash_cleared_at": now_brazil.isoformat()}}
+    )
     
     # Return updated drawer status
     return await get_cash_drawer(store)
