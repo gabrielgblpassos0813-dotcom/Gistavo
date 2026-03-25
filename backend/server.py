@@ -1667,50 +1667,45 @@ async def get_cash_drawer(store: StoreLocation):
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
     today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Convert to UTC for database query (same as /cash/{store}/today)
     today_utc = today_brazil.astimezone(pytz.UTC)
     
     # Get the initial/base balance for this store (persists forever)
     drawer_config = await db.cash_drawer_config.find_one({"store": store.value}, {"_id": 0})
     initial_balance = drawer_config.get("balance", 0) if drawer_config else 0
     
-    # Get ALL cash orders (dinheiro) that haven't been cleared - historical, not just today
-    all_cash_orders = await db.orders.find({
+    # Get today's cash orders (dinheiro) - SAME QUERY as /cash/{store}/today
+    today_cash_orders = await db.orders.find({
         "store": store.value,
         "status": {"$in": ["ready", "delivered"]},
         "payment_method": "cash",
-        "cash_cleared": {"$ne": True}  # Only count orders not cleared
-    }, {"_id": 0, "total": 1, "created_at": 1}).to_list(100000)
+        "created_at": {"$gte": today_utc.isoformat()}
+    }, {"_id": 0, "total": 1, "created_at": 1}).to_list(10000)
     
-    total_cash_sales = sum(o.get("total", 0) for o in all_cash_orders)
-    
-    # Get ALL withdrawals - historical
-    all_withdrawals = await db.cash_withdrawals.find({
-        "store": store.value
-    }, {"_id": 0}).to_list(10000)
-    
-    total_withdrawn = sum(w.get("amount", 0) for w in all_withdrawals)
-    
-    # Today's data for display
-    today_cash_orders = [o for o in all_cash_orders if o.get("created_at", "") >= today_utc.isoformat()]
     today_cash_in = sum(o.get("total", 0) for o in today_cash_orders)
     
-    today_withdrawals = [w for w in all_withdrawals if w.get("created_at", "") >= today_utc.isoformat()]
-    today_withdrawn = sum(w.get("amount", 0) for w in today_withdrawals)
+    # Get today's withdrawals (use Brazil timezone for withdrawals since they're stored that way)
+    today_withdrawals_list = await db.cash_withdrawals.find({
+        "store": store.value,
+        "created_at": {"$gte": today_brazil.isoformat()}
+    }, {"_id": 0}).to_list(10000)
     
-    # Current balance = initial + all sales - all withdrawals
-    current_balance = initial_balance + total_cash_sales - total_withdrawn
+    today_withdrawn = sum(w.get("amount", 0) for w in today_withdrawals_list)
+    
+    # Current balance = initial + today's cash sales - today's withdrawals
+    current_balance = initial_balance + today_cash_in - today_withdrawn
     
     return {
         "store": store.value,
         "date": now_brazil.strftime("%d/%m/%Y"),
         "initial_balance": round(initial_balance, 2),
-        "total_cash_sales": round(total_cash_sales, 2),
-        "total_withdrawals": round(total_withdrawn, 2),
+        "total_cash_sales": round(today_cash_in, 2),
+        "total_withdrawals": round(today_withdrawn, 2),
         "current_balance": round(current_balance, 2),
         # Today's data
         "today_cash_in": round(today_cash_in, 2),
         "today_withdrawals": round(today_withdrawn, 2),
-        "withdrawal_history": today_withdrawals
+        "withdrawal_history": today_withdrawals_list
     }
 
 @api_router.post("/cash/{store}/set-balance")
@@ -1745,40 +1740,43 @@ async def set_cash_balance(store: StoreLocation, data: CashBalanceAdjust):
 
 @api_router.post("/cash/{store}/reset")
 async def reset_cash_drawer(store: StoreLocation):
-    """Reset the entire cash drawer completely - zero EVERYTHING"""
+    """Reset the cash drawer for today - zero initial balance and clear today's withdrawals"""
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
-    today_str = now_brazil.strftime("%Y-%m-%d")
+    today_brazil = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Reset the cash drawer config to zero
     await db.cash_drawer_config.update_one(
         {"store": store.value},
         {"$set": {
             "balance": 0,
-            "notes": f"Caixa zerado completamente em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
+            "notes": f"Caixa zerado em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
             "updated_at": now_brazil.isoformat()
         }},
         upsert=True
     )
     
-    # Delete ALL withdrawals for this store (not just today)
+    # Delete today's withdrawals for this store
     await db.cash_withdrawals.delete_many({
-        "store": store.value
+        "store": store.value,
+        "created_at": {"$gte": today_brazil.isoformat()}
     })
-    
-    # Mark all cash orders for this store as "cash_cleared" so they don't count in the drawer
-    # This effectively zeros the "vendas em dinheiro" for the cash drawer calculation
-    await db.orders.update_many(
-        {
-            "store": store.value,
-            "payment_method": "cash",
-            "cash_cleared": {"$ne": True}
-        },
-        {"$set": {"cash_cleared": True, "cash_cleared_at": now_brazil.isoformat()}}
-    )
     
     # Return updated drawer status
     return await get_cash_drawer(store)
+
+@api_router.post("/cash/{store}/fix-cleared")
+async def fix_cash_cleared_orders(store: StoreLocation):
+    """Remove the cash_cleared flag from all orders (one-time fix)"""
+    result = await db.orders.update_many(
+        {"store": store.value, "cash_cleared": True},
+        {"$unset": {"cash_cleared": "", "cash_cleared_at": ""}}
+    )
+    return {
+        "success": True,
+        "fixed_count": result.modified_count,
+        "message": f"{result.modified_count} pedidos corrigidos"
+    }
 
 @api_router.post("/cash/{store}/withdraw")
 async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
