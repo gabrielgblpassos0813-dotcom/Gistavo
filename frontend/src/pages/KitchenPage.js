@@ -802,32 +802,50 @@ export const KitchenPage = () => {
   // WhatsApp charge functions
   const handleSendWhatsApp = async (customerName) => {
     try {
-      toast.loading('Enviando cobrança...', { id: 'whatsapp' });
-      const response = await axios.post(`${API}/prazo/charge-customer/${encodeURIComponent(customerName)}`);
+      toast.loading('Gerando mensagem...', { id: 'whatsapp' });
+      const response = await axios.get(`${API}/prazo/charge-message/${encodeURIComponent(customerName)}`);
       if (response.data.success) {
-        toast.success(`Cobrança enviada para ${customerName}!`, { id: 'whatsapp' });
+        toast.dismiss('whatsapp');
+        // Open WhatsApp with pre-filled message
+        const whatsappUrl = response.data.whatsapp_url;
+        window.open(whatsappUrl, '_blank');
+        toast.success('WhatsApp aberto com a mensagem!');
       } else {
-        toast.error(response.data.message || 'Erro ao enviar', { id: 'whatsapp' });
+        toast.error(response.data.message || 'Erro ao gerar mensagem', { id: 'whatsapp' });
       }
     } catch (error) {
-      toast.error('Erro ao enviar cobrança', { id: 'whatsapp' });
+      toast.error(error.response?.data?.detail || 'Erro ao gerar mensagem', { id: 'whatsapp' });
     }
   };
 
   const handleChargeAllPrazo = async () => {
     try {
-      toast.loading('Enviando cobranças...', { id: 'charge-all' });
-      const response = await axios.post(`${API}/prazo/charge-all-whatsapp?store=${store}`);
-      if (response.data.success) {
-        toast.success(`${response.data.messages_sent} cobrança(s) enviada(s)!`, { id: 'charge-all' });
-        if (response.data.failed?.length > 0) {
-          toast.warning(`Falha em: ${response.data.failed.join(', ')}`);
+      toast.loading('Gerando mensagens...', { id: 'charge-all' });
+      const response = await axios.get(`${API}/prazo/charge-messages?store=${store}`);
+      toast.dismiss('charge-all');
+      
+      if (response.data.success && response.data.customers?.length > 0) {
+        // Open WhatsApp for each customer with a small delay
+        for (let i = 0; i < response.data.customers.length; i++) {
+          const customer = response.data.customers[i];
+          if (customer.whatsapp_url) {
+            window.open(customer.whatsapp_url, '_blank');
+            if (i < response.data.customers.length - 1) {
+              await new Promise(r => setTimeout(r, 500)); // Small delay between opens
+            }
+          }
         }
+        toast.success(`${response.data.customers.length} conversa(s) do WhatsApp abertas!`);
+        if (response.data.no_phone?.length > 0) {
+          toast.warning(`${response.data.no_phone.length} cliente(s) sem telefone`);
+        }
+      } else if (response.data.no_phone?.length > 0) {
+        toast.error(`Todos os ${response.data.no_phone.length} cliente(s) estão sem telefone cadastrado`);
       } else {
-        toast.error('Erro ao enviar cobranças', { id: 'charge-all' });
+        toast.info('Nenhum cliente para cobrar');
       }
     } catch (error) {
-      toast.error('Erro ao enviar cobranças', { id: 'charge-all' });
+      toast.error('Erro ao gerar mensagens', { id: 'charge-all' });
     }
   };
 
@@ -937,25 +955,15 @@ export const KitchenPage = () => {
   };
 
   const handleZeroCash = async () => {
-    if (!window.confirm('Tem certeza que deseja ZERAR o caixa? Isso irá retirar todo o dinheiro.')) {
+    if (!window.confirm('Tem certeza que deseja ZERAR o caixa completamente?\n\nIsso irá:\n• Zerar o saldo inicial\n• Limpar histórico de retiradas')) {
       return;
     }
     
     try {
-      const currentBalance = cashDrawer.current_balance || 0;
-      if (currentBalance <= 0) {
-        toast.error('O caixa já está zerado');
-        return;
-      }
+      // Reset entire cash drawer - set balance to 0 and clear history
+      const response = await axios.post(`${API}/cash/${store}/reset`);
       
-      // Withdraw all cash
-      const response = await axios.post(`${API}/cash/${store}/withdraw`, {
-        amount: currentBalance,
-        category: 'outros',
-        description: `Fechamento de caixa - Zerado R$ ${currentBalance.toFixed(2)}`
-      });
-      
-      toast.success(`Caixa zerado! Retirado R$ ${currentBalance.toFixed(2)}`);
+      toast.success('Caixa zerado completamente!');
       setCashDrawer(response.data);
     } catch (error) {
       toast.error('Erro ao zerar o caixa');

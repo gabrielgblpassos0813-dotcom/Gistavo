@@ -1719,6 +1719,33 @@ async def set_cash_balance(store: StoreLocation, data: CashBalanceAdjust):
     # Return updated drawer status
     return await get_cash_drawer(store)
 
+@api_router.post("/cash/{store}/reset")
+async def reset_cash_drawer(store: StoreLocation):
+    """Reset the entire cash drawer - zero balance and clear withdrawal history"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    today_str = now_brazil.strftime("%Y-%m-%d")
+    
+    # Reset the cash drawer config to zero
+    await db.cash_drawer_config.update_one(
+        {"store": store.value},
+        {"$set": {
+            "balance": 0,
+            "notes": f"Caixa zerado em {now_brazil.strftime('%d/%m/%Y %H:%M')}",
+            "updated_at": now_brazil.isoformat()
+        }},
+        upsert=True
+    )
+    
+    # Delete today's withdrawals for this store
+    await db.cash_withdrawals.delete_many({
+        "store": store.value,
+        "created_at": {"$regex": f"^{today_str}"}
+    })
+    
+    # Return updated drawer status
+    return await get_cash_drawer(store)
+
 @api_router.post("/cash/{store}/withdraw")
 async def withdraw_cash(store: StoreLocation, withdrawal: CashWithdrawal):
     """Withdraw cash from the drawer and optionally register as expense"""
@@ -2966,6 +2993,171 @@ _Mensagem automática - {now.strftime('%d/%m/%Y às %H:%M')}_"""
         "credit": credit,
         "net_debt": net_debt,
         "phone": phone
+    }
+
+@api_router.get("/prazo/charge-message/{customer_name}")
+async def get_prazo_charge_message(customer_name: str):
+    """Generate WhatsApp URL with pre-filled message for a single prazo customer"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brazil_tz)
+    
+    # Get customer's unpaid orders
+    prazo_orders = await db.orders.find({
+        "customer_name": customer_name,
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).to_list(1000)
+    
+    if not prazo_orders:
+        raise HTTPException(status_code=404, detail="Cliente não tem débitos pendentes")
+    
+    total = sum(o.get("total", 0) for o in prazo_orders)
+    
+    # Get customer info
+    customer = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer_name}$", "$options": "i"}})
+    credit = customer.get("credit", 0) if customer else 0
+    phone = customer.get("phone", "") if customer else ""
+    
+    if not phone:
+        raise HTTPException(status_code=400, detail="Cliente não tem telefone cadastrado")
+    
+    # Format phone for WhatsApp
+    phone_clean = ''.join(filter(str.isdigit, phone))
+    if len(phone_clean) == 11:
+        phone_clean = "55" + phone_clean
+    elif len(phone_clean) == 10:
+        phone_clean = "55" + phone_clean
+    
+    # Build message
+    items_detail = []
+    for order in prazo_orders[-5:]:
+        order_date = order.get("created_at", "")[:10]
+        items_detail.append(f"  • {order_date}: R$ {order.get('total', 0):.2f}")
+    
+    if len(prazo_orders) > 5:
+        items_detail.append(f"  ... e mais {len(prazo_orders) - 5} pedido(s)")
+    
+    credit_info = f"\n💳 Crédito disponível: R$ {credit:.2f}" if credit > 0 else ""
+    net_debt = max(0, total - credit)
+    
+    # Simple message for WhatsApp URL (no special chars that break URL)
+    message = f"""☕ GANOH Café Bistrô
+
+Olá, {customer_name}! 👋
+
+Passando para enviar seu extrato:
+
+💰 Total: R$ {total:.2f}{credit_info}
+{'🔵 A Pagar: R$ ' + f'{net_debt:.2f}' if credit > 0 else ''}
+
+📋 Últimos pedidos:
+{chr(10).join(items_detail)}
+
+✅ Formas de pagamento:
+• PIX 📱
+• Cartão 💳
+• Dinheiro 💵
+
+Aguardamos você! 😊"""
+
+    # URL encode the message
+    import urllib.parse
+    encoded_message = urllib.parse.quote(message)
+    whatsapp_url = f"https://wa.me/{phone_clean}?text={encoded_message}"
+    
+    return {
+        "success": True,
+        "customer_name": customer_name,
+        "phone": phone,
+        "total_debt": total,
+        "credit": credit,
+        "net_debt": net_debt,
+        "message": message,
+        "whatsapp_url": whatsapp_url
+    }
+
+@api_router.get("/prazo/charge-messages")
+async def get_prazo_charge_messages(store: Optional[str] = None):
+    """Generate WhatsApp URLs with pre-filled messages for all prazo customers"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brazil_tz)
+    
+    # Build query for prazo orders
+    query = {
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }
+    if store:
+        query["store"] = store
+    
+    # Get all unpaid prazo orders
+    prazo_orders = await db.orders.find(query, {"_id": 0}).to_list(10000)
+    
+    if not prazo_orders:
+        return {"success": True, "customers": [], "no_phone": [], "message": "Nenhum débito pendente"}
+    
+    # Group by customer
+    debts_by_customer = {}
+    for order in prazo_orders:
+        name = order.get("customer_name", "Desconhecido")
+        if name not in debts_by_customer:
+            debts_by_customer[name] = {"total": 0, "orders": []}
+        debts_by_customer[name]["total"] += order.get("total", 0)
+        debts_by_customer[name]["orders"].append(order)
+    
+    customers_with_url = []
+    no_phone = []
+    
+    for customer_name, debt_info in debts_by_customer.items():
+        # Get customer info
+        customer = await db.prazo_customers.find_one({"name": {"$regex": f"^{customer_name}$", "$options": "i"}})
+        phone = customer.get("phone", "") if customer else ""
+        
+        if not phone:
+            no_phone.append(customer_name)
+            continue
+        
+        # Format phone
+        phone_clean = ''.join(filter(str.isdigit, phone))
+        if len(phone_clean) == 11:
+            phone_clean = "55" + phone_clean
+        elif len(phone_clean) == 10:
+            phone_clean = "55" + phone_clean
+        
+        # Build simple message
+        message = f"""☕ GANOH Café Bistrô
+
+Olá, {customer_name}! 👋
+
+Passando para lembrar do seu saldo em aberto:
+
+💰 Total: R$ {debt_info['total']:.2f}
+📦 {len(debt_info['orders'])} pedido(s)
+
+✅ Formas de pagamento:
+• PIX 📱
+• Cartão 💳
+• Dinheiro 💵
+
+Quando puder, passe aqui! 😊"""
+
+        import urllib.parse
+        encoded_message = urllib.parse.quote(message)
+        whatsapp_url = f"https://wa.me/{phone_clean}?text={encoded_message}"
+        
+        customers_with_url.append({
+            "name": customer_name,
+            "phone": phone,
+            "total": debt_info["total"],
+            "order_count": len(debt_info["orders"]),
+            "whatsapp_url": whatsapp_url
+        })
+    
+    return {
+        "success": True,
+        "customers": customers_with_url,
+        "no_phone": no_phone,
+        "message": f"{len(customers_with_url)} cliente(s) com telefone, {len(no_phone)} sem telefone"
     }
 
 # ==================== EXPENSES (GASTOS) MANAGEMENT ====================
