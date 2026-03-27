@@ -52,7 +52,7 @@ export function WhatsAppTab({
             <p className="text-sm font-medium mb-4">Escaneie o QR Code com seu WhatsApp:</p>
             <div className="inline-block p-4 bg-white border rounded-lg">
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(whatsappQR)}`}
+                src={`data:image/png;base64,${whatsappQR}`}
                 alt="WhatsApp QR Code"
                 className="w-48 h-48"
               />
@@ -62,6 +62,22 @@ export function WhatsAppTab({
               2. Vá em Configurações → Aparelhos Conectados<br/>
               3. Escaneie o código acima
             </p>
+          </div>
+        )}
+
+        {/* Show "Get QR Code" button when not connected and no QR */}
+        {!whatsappQR && whatsappStatus !== 'connected' && whatsappStatus !== 'offline' && (
+          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center">
+            <p className="text-yellow-700 font-medium mb-3">📱 WhatsApp não conectado</p>
+            <p className="text-sm text-yellow-600 mb-4">
+              Clique no botão abaixo para gerar o QR Code e reconectar.
+            </p>
+            <Button 
+              onClick={onRefreshStatus}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" /> Gerar QR Code
+            </Button>
           </div>
         )}
 

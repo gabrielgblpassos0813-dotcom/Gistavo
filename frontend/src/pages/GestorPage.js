@@ -397,14 +397,25 @@ export const GestorPage = () => {
 
   const fetchWhatsAppStatus = async () => {
     try {
-      const response = await axios.get(`${API}/whatsapp/status`, { timeout: 3000 });
+      const response = await axios.get(`${API}/whatsapp/status`, { timeout: 5000 });
       setWhatsappStatus(response.data.status);
-      setWhatsappQR(response.data.qrCode);
+      
+      // If not connected, fetch QR code
+      if (response.data.status !== 'connected' && response.data.status !== 'offline') {
+        try {
+          const qrResponse = await axios.get(`${API}/whatsapp/qr`, { timeout: 10000 });
+          setWhatsappQR(qrResponse.data.qrCode);
+        } catch (e) {
+          console.log('Could not fetch QR code');
+        }
+      } else {
+        setWhatsappQR(null);
+      }
       
       // Fetch groups if connected
       if (response.data.status === 'connected') {
         try {
-          const groupsResponse = await axios.get(`${API}/whatsapp/groups`, { timeout: 3000 });
+          const groupsResponse = await axios.get(`${API}/whatsapp/groups`, { timeout: 5000 });
           setWhatsappGroups(groupsResponse.data.groups || []);
           setWhatsappTarget(groupsResponse.data.currentTarget || '');
         } catch (e) {
