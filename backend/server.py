@@ -2654,6 +2654,32 @@ async def delete_prazo_customer_kitchen(customer_id: str):
     result = await db.prazo_customers.delete_one({"id": customer_id})
     return {"success": True, "message": "Cliente removido"}
 
+@api_router.put("/kitchen/prazo/customers/{customer_id}")
+async def update_prazo_customer(customer_id: str, data: dict):
+    """Update prazo customer information"""
+    update_data = {}
+    if "name" in data and data["name"]:
+        update_data["name"] = data["name"]
+    if "phone" in data:
+        update_data["phone"] = data["phone"]
+    if "notes" in data:
+        update_data["notes"] = data["notes"]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.prazo_customers.update_one(
+        {"id": customer_id},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    return {"success": True, "message": "Cliente atualizado"}
+
 @api_router.get("/prazo/customers")
 async def get_prazo_customers(store: str = None):
     """Get all registered prazo customers, optionally filtered by store"""

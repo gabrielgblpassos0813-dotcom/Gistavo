@@ -455,6 +455,10 @@ export const KitchenPage = () => {
   const [showAddCreditDialog, setShowAddCreditDialog] = useState(false);
   const [creditCustomer, setCreditCustomer] = useState(null);
   const [creditAmount, setCreditAmount] = useState('');
+  // Edit customer dialog state
+  const [showEditCustomerDialog, setShowEditCustomerDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [editCustomerData, setEditCustomerData] = useState({ name: '', phone: '', notes: '' });
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -796,6 +800,32 @@ export const KitchenPage = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao remover');
+    }
+  };
+
+  const handleEditCustomer = (customer) => {
+    setEditingCustomer(customer);
+    setEditCustomerData({
+      name: customer.name || '',
+      phone: customer.phone || '',
+      notes: customer.notes || ''
+    });
+    setShowEditCustomerDialog(true);
+  };
+
+  const handleSaveEditCustomer = async () => {
+    if (!editCustomerData.name) {
+      toast.error('Nome é obrigatório');
+      return;
+    }
+    try {
+      await axios.put(`${API}/kitchen/prazo/customers/${editingCustomer.id}`, editCustomerData);
+      toast.success('Cliente atualizado!');
+      setShowEditCustomerDialog(false);
+      setEditingCustomer(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao atualizar');
     }
   };
 
@@ -1462,14 +1492,17 @@ export const KitchenPage = () => {
                         <p className="font-medium text-sm">{customer.name}</p>
                         <p className="text-xs text-muted-foreground">{customer.phone || 'Sem telefone'}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {(customer.credit || 0) > 0 && (
-                          <span className="font-bold text-green-600 text-sm bg-green-50 px-2 py-1 rounded">R$ {(customer.credit || 0).toFixed(2)}</span>
+                          <span className="font-bold text-green-600 text-xs bg-green-50 px-2 py-1 rounded">R$ {(customer.credit || 0).toFixed(2)}</span>
                         )}
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-green-600 border-green-600 hover:bg-green-50" onClick={() => handleAddCredit(customer)} title="Adicionar crédito">
-                          <Plus className="h-3 w-3 mr-1" /> Crédito
+                        <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-blue-600 border-blue-600 hover:bg-blue-50" onClick={() => handleEditCustomer(customer)} title="Editar cliente">
+                          <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleDeletePrazoCustomer(customer.id)} title="Excluir cliente">
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-green-600 border-green-600 hover:bg-green-50" onClick={() => handleAddCredit(customer)} title="Adicionar crédito">
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleDeletePrazoCustomer(customer.id)} title="Excluir cliente">
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -2261,6 +2294,70 @@ export const KitchenPage = () => {
                 disabled={!pixAdjustAmount || parseFloat(pixAdjustAmount) === 0}
               >
                 Adicionar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={showEditCustomerDialog} onOpenChange={setShowEditCustomerDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-blue-600" />
+              Editar Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm">Nome do Cliente *</Label>
+              <Input
+                type="text"
+                value={editCustomerData.name}
+                onChange={(e) => setEditCustomerData({...editCustomerData, name: e.target.value})}
+                placeholder="Nome completo"
+                className="h-10"
+                autoFocus
+              />
+            </div>
+            
+            <div>
+              <Label className="text-sm">Telefone (WhatsApp)</Label>
+              <Input
+                type="tel"
+                value={editCustomerData.phone}
+                onChange={(e) => setEditCustomerData({...editCustomerData, phone: e.target.value})}
+                placeholder="11999999999"
+                className="h-10"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-sm">Observações</Label>
+              <Input
+                type="text"
+                value={editCustomerData.notes}
+                onChange={(e) => setEditCustomerData({...editCustomerData, notes: e.target.value})}
+                placeholder="Observações sobre o cliente"
+                className="h-10"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                setShowEditCustomerDialog(false);
+                setEditingCustomer(null);
+              }}>
+                Cancelar
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 bg-blue-600 hover:bg-blue-700" 
+                onClick={handleSaveEditCustomer}
+                disabled={!editCustomerData.name}
+              >
+                Salvar
               </Button>
             </div>
           </div>
