@@ -1,0 +1,97 @@
+{
+  "summary": "Completed testing of Prazo Abater (Partial Payment) feature. All 12 backend tests passed. Frontend UI verified - Abater button, dialog, form submission, and debt update all working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Abater Dialog",
+        "issues": ["Minor: Console warning about missing Description or aria-describedby for DialogContent - accessibility improvement recommended"]
+      }
+    ]
+  },
+  "passed_tests": [
+    "Backend: 12/12 tests passed",
+    "TestAbaterPrazoEndpoint::test_abater_partial_payment_success - Partial payment reduces debt correctly",
+    "TestAbaterPrazoEndpoint::test_abater_updates_debt_correctly - GET /api/prazo/debts shows updated debt",
+    "TestAbaterPrazoEndpoint::test_abater_pays_off_order_completely - Full order payment marks order as paid",
+    "TestAbaterPrazoEndpoint::test_abater_wrong_password - Returns 403 for wrong password",
+    "TestAbaterPrazoEndpoint::test_abater_amount_greater_than_debt - Returns 400 when amount > debt",
+    "TestAbaterPrazoEndpoint::test_abater_zero_amount - Returns 400 for zero amount",
+    "TestAbaterPrazoEndpoint::test_abater_negative_amount - Returns 400 for negative amount",
+    "TestAbaterPrazoEndpoint::test_abater_nonexistent_customer - Returns 404 for customer with no debts",
+    "TestPrazoDebtsWithPartialPayments::test_debts_shows_remaining_after_partial_payment - partial_paid field considered",
+    "TestPrazoDebtsWithPartialPayments::test_debts_excludes_fully_paid_orders - Fully paid orders excluded",
+    "TestExistingTestCustomers::test_existing_test_runner_prazo_customer - TEST_Runner_Prazo found with R$ 41.00",
+    "TestExistingTestCustomers::test_existing_test_prazo_chart_customer - TEST_Prazo_Chart_Customer found with R$ 25.50 (now R$ 20.50 after test)",
+    "Frontend: Prazo tab shows 'Débitos Pendentes' with Abater button for each customer",
+    "Frontend: Abater button opens 'Pagamento Parcial (Abater)' dialog",
+    "Frontend: Dialog shows customer name, pending orders count, and current debt",
+    "Frontend: 'Valor a abater' input with data-testid='abater-amount-input'",
+    "Frontend: 'Senha de confirmação' input with data-testid='abater-password-input'",
+    "Frontend: 'Nova dívida' calculation updates dynamically as amount is entered",
+    "Frontend: Confirmar Pagamento button submits form and shows success toast",
+    "Frontend: Debt amount updates immediately after successful submission",
+    "Frontend: Total Prazo amount updates after successful submission"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_abater_prazo.py",
+    "/app/test_reports/pytest/pytest_abater.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_abater_prazo.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "Created test prazo orders for testing, cleaned up after tests. Used existing TEST_Runner_Prazo (R$ 41.00) and TEST_Prazo_Chart_Customer (R$ 25.50 -> R$ 20.50 after test)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Prazo Abater (Partial Payment) feature is fully working. POST /api/prazo/abater/{customer_name} endpoint accepts {amount, password} and reduces customer debt. GET /api/prazo/debts now considers partial_paid field in orders. Frontend has Abater button in Prazo tab that opens dialog with amount/password inputs and shows 'Nova dívida' calculation. Test customers: TEST_Runner_Prazo (R$ 41.00), TEST_Prazo_Chart_Customer (R$ 20.50 after R$ 5 abatimento during test).",
+  "features_verified": {
+    "abater_endpoint": {
+      "status": "WORKING",
+      "endpoint": "POST /api/prazo/abater/{customer_name}",
+      "request_body": {"amount": "float", "password": "string"},
+      "response": {"success": true, "message": "string", "previous_debt": "float", "paid": "float", "new_debt": "float", "orders_updated": "int", "orders_paid_off": "int"},
+      "details": "Applies partial payment to oldest orders first. Marks orders as prazo_paid when fully paid. Records payment in prazo_partial_payments collection."
+    },
+    "prazo_debts_with_partial_paid": {
+      "status": "WORKING",
+      "endpoint": "GET /api/prazo/debts",
+      "details": "Now considers partial_paid field in orders. Returns remaining debt (total - partial_paid). Excludes orders where remaining <= 0."
+    },
+    "frontend_abater_dialog": {
+      "status": "WORKING",
+      "location": "KitchenPage > Prazo tab > Débitos Pendentes",
+      "elements": [
+        "Abater button for each customer with debt",
+        "Dialog with title 'Pagamento Parcial (Abater)'",
+        "Customer name and pending orders count",
+        "Current debt amount displayed",
+        "Amount input (data-testid='abater-amount-input')",
+        "Password input (data-testid='abater-password-input')",
+        "'Nova dívida' calculation shown dynamically",
+        "Cancelar and Confirmar Pagamento buttons"
+      ]
+    }
+  },
+  "api_endpoints_tested": {
+    "POST /api/prazo/abater/{customer_name}": "200 OK - Partial payment successful",
+    "POST /api/prazo/abater/{customer_name} (wrong password)": "403 Forbidden - Senha incorreta",
+    "POST /api/prazo/abater/{customer_name} (amount > debt)": "400 Bad Request - Valor maior que a dívida total",
+    "POST /api/prazo/abater/{customer_name} (zero amount)": "400 Bad Request - Valor deve ser maior que zero",
+    "POST /api/prazo/abater/{customer_name} (nonexistent)": "404 Not Found - Cliente não tem dívidas no prazo",
+    "GET /api/prazo/debts?store=runner": "200 OK - Returns debts with partial_paid considered"
+  },
+  "test_credentials": {
+    "prazo_password": "1234"
+  }
+}

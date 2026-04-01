@@ -459,6 +459,10 @@ export const KitchenPage = () => {
   const [showEditCustomerDialog, setShowEditCustomerDialog] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editCustomerData, setEditCustomerData] = useState({ name: '', phone: '', notes: '' });
+  // Partial payment (abater) dialog state
+  const [showAbaterDialog, setShowAbaterDialog] = useState(false);
+  const [abaterCustomer, setAbaterCustomer] = useState(null);
+  const [abaterAmount, setAbaterAmount] = useState('');
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -920,6 +924,47 @@ export const KitchenPage = () => {
         toast.error('Senha incorreta');
       } else {
         toast.error('Erro ao apagar dívida');
+      }
+    }
+  };
+
+  // Handler for partial payment (Abater)
+  const [abaterPassword, setAbaterPassword] = useState('');
+  
+  const handleConfirmAbater = async () => {
+    if (!abaterCustomer || !abaterAmount || parseFloat(abaterAmount) <= 0) {
+      toast.error('Digite um valor válido');
+      return;
+    }
+    
+    if (!abaterPassword) {
+      toast.error('Digite a senha');
+      return;
+    }
+    
+    if (parseFloat(abaterAmount) > abaterCustomer.total) {
+      toast.error(`Valor maior que a dívida total (${formatCurrency(abaterCustomer.total)})`);
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API}/prazo/abater/${encodeURIComponent(abaterCustomer.name)}`, {
+        amount: parseFloat(abaterAmount),
+        password: abaterPassword
+      });
+      toast.success(response.data.message);
+      setShowAbaterDialog(false);
+      setAbaterCustomer(null);
+      setAbaterAmount('');
+      setAbaterPassword('');
+      fetchData();
+    } catch (error) {
+      if (error.response?.status === 403) {
+        toast.error('Senha incorreta');
+      } else if (error.response?.data?.detail) {
+        toast.error(error.response.data.detail);
+      } else {
+        toast.error('Erro ao processar pagamento parcial');
       }
     }
   };
@@ -1537,12 +1582,25 @@ export const KitchenPage = () => {
                         <Button 
                           size="sm" 
                           variant="outline"
+                          className="text-amber-600 border-amber-600 hover:bg-amber-50 h-8 px-2"
+                          onClick={() => {
+                            setAbaterCustomer(debt);
+                            setAbaterAmount('');
+                            setShowAbaterDialog(true);
+                          }}
+                          title="Abater valor parcial"
+                        >
+                          <Minus className="h-4 w-4 mr-1" /> Abater
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
                           className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
                           onClick={() => {
                             setSelectedPrazoCustomer(debt);
                             setShowPrazoPayDialog(true);
                           }}
-                          title="Registrar pagamento"
+                          title="Registrar pagamento total"
                         >
                           <Check className="h-4 w-4 mr-1" /> Pagar
                         </Button>
@@ -2361,6 +2419,90 @@ export const KitchenPage = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Abater (Partial Payment) Dialog */}
+      <Dialog open={showAbaterDialog} onOpenChange={(open) => {
+        setShowAbaterDialog(open);
+        if (!open) {
+          setAbaterCustomer(null);
+          setAbaterAmount('');
+          setAbaterPassword('');
+        }
+      }}>
+        <DialogContent className="max-w-[90vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Minus className="h-4 w-4 text-amber-600" />
+              Pagamento Parcial (Abater)
+            </DialogTitle>
+          </DialogHeader>
+          {abaterCustomer && (
+            <div className="space-y-4">
+              <div className="bg-amber-50 rounded-lg p-3">
+                <p className="font-medium">{abaterCustomer.name}</p>
+                <p className="text-xs text-muted-foreground">{abaterCustomer.order_count} pedido(s) pendente(s)</p>
+                <div className="mt-2 pt-2 border-t border-amber-200">
+                  <p className="text-xs text-muted-foreground">Dívida atual</p>
+                  <p className="text-2xl font-bold text-amber-600">{formatCurrency(abaterCustomer.total)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm">Valor a abater (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={abaterCustomer.total}
+                  value={abaterAmount}
+                  onChange={(e) => setAbaterAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="h-10 text-lg"
+                  autoFocus
+                  data-testid="abater-amount-input"
+                />
+                {abaterAmount && parseFloat(abaterAmount) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nova dívida: {formatCurrency(abaterCustomer.total - parseFloat(abaterAmount))}
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <Label className="text-sm">Senha de confirmação</Label>
+                <Input
+                  type="password"
+                  value={abaterPassword}
+                  onChange={(e) => setAbaterPassword(e.target.value)}
+                  placeholder="Senha (1234)"
+                  className="h-10"
+                  data-testid="abater-password-input"
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => {
+                  setShowAbaterDialog(false);
+                  setAbaterCustomer(null);
+                  setAbaterAmount('');
+                  setAbaterPassword('');
+                }}>
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-amber-600 hover:bg-amber-700" 
+                  onClick={handleConfirmAbater}
+                  disabled={!abaterAmount || parseFloat(abaterAmount) <= 0 || !abaterPassword}
+                  data-testid="abater-confirm-btn"
+                >
+                  Confirmar Pagamento
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

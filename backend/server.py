@@ -2562,6 +2562,10 @@ class PrazoPayment(BaseModel):
 class PrazoCreditAdd(BaseModel):
     amount: float  # Valor a adicionar ao crédito
 
+class PrazoAbaterRequest(BaseModel):
+    amount: float  # Valor a abater da dívida
+    password: str  # Senha de confirmação
+
 # ==================== KITCHEN MANAGEMENT ENDPOINTS (No auth required) ====================
 # These endpoints allow the kitchen to manage adicionais, menu items, and prazo
 
@@ -2735,13 +2739,22 @@ async def get_prazo_debts(store: Optional[str] = None):
     for order in prazo_orders:
         name = order.get("customer_name", "Desconhecido")
         order_store = order.get("store", "")
+        order_total = order.get("total", 0)
+        partial_paid = order.get("partial_paid", 0)  # Consider partial payments
+        remaining = order_total - partial_paid
+        
+        if remaining <= 0:
+            continue  # Skip fully paid orders
+        
         if name not in debts_by_customer:
             debts_by_customer[name] = {"name": name, "total": 0, "orders": [], "order_count": 0, "store": order_store}
-        debts_by_customer[name]["total"] += order.get("total", 0)
+        debts_by_customer[name]["total"] += remaining  # Use remaining amount
         debts_by_customer[name]["order_count"] += 1
         debts_by_customer[name]["orders"].append({
             "id": order.get("id"),
-            "total": order.get("total"),
+            "total": order_total,
+            "partial_paid": partial_paid,
+            "remaining": remaining,
             "date": order.get("created_at"),
             "items": order.get("items", []),
             "store": order_store
@@ -2868,6 +2881,99 @@ async def use_prazo_credit(customer_id: str, credit_data: PrazoCreditAdd):
         "previous_credit": current_credit,
         "used": credit_data.amount,
         "new_credit": new_credit
+    }
+
+@api_router.post("/prazo/abater/{customer_name}")
+async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest):
+    """
+    Abater (partial payment) on a prazo customer's debt.
+    This reduces the total debt by the specified amount.
+    The partial payment is recorded as a payment applied to the oldest orders first.
+    """
+    if abater_data.password != PRAZO_PASSWORD:
+        raise HTTPException(status_code=403, detail="Senha incorreta")
+    
+    # Get unpaid prazo orders for this customer
+    prazo_orders = await db.orders.find({
+        "customer_name": {"$regex": f"^{customer_name}$", "$options": "i"},
+        "payment_method": "prazo",
+        "prazo_paid": {"$ne": True}
+    }, {"_id": 0}).sort("created_at", 1).to_list(1000)  # Oldest first
+    
+    if not prazo_orders:
+        raise HTTPException(status_code=404, detail="Cliente não tem dívidas no prazo")
+    
+    # Calculate total debt
+    total_debt = sum(o.get("total", 0) - o.get("partial_paid", 0) for o in prazo_orders)
+    
+    if abater_data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Valor deve ser maior que zero")
+    
+    if abater_data.amount > total_debt:
+        raise HTTPException(status_code=400, detail=f"Valor maior que a dívida total (R$ {total_debt:.2f})")
+    
+    # Apply payment to orders, oldest first
+    remaining_payment = abater_data.amount
+    orders_updated = 0
+    orders_paid_off = 0
+    
+    for order in prazo_orders:
+        if remaining_payment <= 0:
+            break
+            
+        order_id = order.get("id")
+        order_total = order.get("total", 0)
+        already_paid = order.get("partial_paid", 0)
+        order_remaining = order_total - already_paid
+        
+        if order_remaining <= 0:
+            continue
+        
+        if remaining_payment >= order_remaining:
+            # Pay off this order completely
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {
+                    "prazo_paid": True,
+                    "prazo_paid_at": datetime.now(timezone.utc).isoformat(),
+                    "prazo_paid_amount": order_total,
+                    "partial_paid": order_total
+                }}
+            )
+            remaining_payment -= order_remaining
+            orders_paid_off += 1
+        else:
+            # Partial payment on this order
+            new_partial = already_paid + remaining_payment
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {"partial_paid": new_partial}}
+            )
+            remaining_payment = 0
+        
+        orders_updated += 1
+    
+    # Log the partial payment
+    payment_record = {
+        "id": str(uuid.uuid4()),
+        "customer_name": customer_name,
+        "amount": abater_data.amount,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "orders_updated": orders_updated,
+        "orders_paid_off": orders_paid_off
+    }
+    await db.prazo_partial_payments.insert_one(payment_record)
+    
+    new_debt = total_debt - abater_data.amount
+    
+    return {
+        "success": True,
+        "message": f"Pagamento de R$ {abater_data.amount:.2f} registrado!",
+        "previous_debt": total_debt,
+        "paid": abater_data.amount,
+        "new_debt": new_debt,
+        "orders_updated": orders_updated,
+        "orders_paid_off": orders_paid_off
     }
 
 @api_router.post("/prazo/charge-all-whatsapp")
