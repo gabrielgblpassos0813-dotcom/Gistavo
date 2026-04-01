@@ -4515,9 +4515,38 @@ logger = logging.getLogger(__name__)
 # Timezone for Brazil
 BRAZIL_TZ = pytz.timezone('America/Sao_Paulo')
 LOW_STOCK_THRESHOLD = 2
+AUTO_READY_MINUTES = 4  # Minutes after which orders are automatically marked as ready
 
 # Scheduler instance
 scheduler = AsyncIOScheduler(timezone=BRAZIL_TZ)
+
+async def auto_mark_orders_ready():
+    """Automatically mark orders as 'ready' after AUTO_READY_MINUTES minutes"""
+    try:
+        now = datetime.now(timezone.utc)
+        cutoff_time = now - timedelta(minutes=AUTO_READY_MINUTES)
+        cutoff_iso = cutoff_time.isoformat()
+        
+        # Find orders that are "received" and older than 4 minutes
+        result = await db.orders.update_many(
+            {
+                "status": "received",
+                "created_at": {"$lte": cutoff_iso}
+            },
+            {
+                "$set": {
+                    "status": "ready",
+                    "auto_ready": True,
+                    "ready_at": now.isoformat(),
+                    "updated_at": now.isoformat()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Auto-marked {result.modified_count} orders as ready (after {AUTO_READY_MINUTES} min)")
+    except Exception as e:
+        logger.error(f"Error in auto_mark_orders_ready: {e}")
 
 async def check_and_save_low_stock_items():
     """Check stock and save items with quantity <= 2 to low_stock_list collection"""
@@ -4691,6 +4720,9 @@ async def startup_db_client():
     """Initialize database, scheduler and default tenant"""
     await ensure_default_tenant()
     
+    # Schedule auto-ready check every minute
+    scheduler.add_job(auto_mark_orders_ready, 'interval', minutes=1, id='auto_ready_orders')
+    
     # Schedule low stock check every hour
     scheduler.add_job(check_and_save_low_stock_items, 'interval', hours=1, id='check_low_stock')
     
@@ -4703,7 +4735,7 @@ async def startup_db_client():
     
     scheduler.start()
     logger.info("Database initialized, default tenant ensured")
-    logger.info("Scheduler started - Low stock check every hour, report at 22:00")
+    logger.info("Scheduler started - Auto-ready every 1 min, Low stock check every hour, report at 22:00")
     
     # Run initial low stock check
     await check_and_save_low_stock_items()
