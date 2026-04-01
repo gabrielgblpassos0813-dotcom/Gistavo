@@ -1566,16 +1566,20 @@ export const KitchenPage = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{debt.name}</p>
-                        <p className="text-xs text-muted-foreground">{debt.order_count} pedido(s)</p>
+                        <p className="text-xs text-muted-foreground">
+                          {debt.order_count} pedido(s)
+                          {!debt.phone && <span className="text-red-500 ml-1">(sem telefone)</span>}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-amber-600 mr-1">{formatCurrency(debt.total)}</span>
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="text-green-600 border-green-600 hover:bg-green-50 h-8 px-2"
-                          onClick={() => handleSendWhatsApp(debt.name)}
-                          title="Enviar cobrança por WhatsApp"
+                          className={`h-8 px-2 ${debt.phone ? 'text-green-600 border-green-600 hover:bg-green-50' : 'text-gray-400 border-gray-300 cursor-not-allowed'}`}
+                          onClick={() => debt.phone && handleSendWhatsApp(debt.name)}
+                          disabled={!debt.phone}
+                          title={debt.phone ? "Enviar cobrança por WhatsApp" : "Cadastre o telefone na aba Prazo"}
                         >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
