@@ -47,7 +47,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
   const [online, setOnline] = useState(navigator.onLine);
   const [offlineCount, setOfflineCount] = useState(0);
   const fileInputRef = useRef(null);
-  const { items, total, itemCount } = useCart();
+  const { items, total, itemCount, finalTotal, customTotal } = useCart();
 
   // Track online/offline status
   useEffect(() => {
@@ -214,7 +214,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
     
     if (customerName.trim() && paymentMethod) {
       const finalPickupTime = wantsSchedule && pickupTime ? pickupTime : null;
-      onSubmit(customerName.trim(), finalPickupTime, paymentMethod, pixProof);
+      onSubmit(customerName.trim(), finalPickupTime, paymentMethod, pixProof, finalTotal);
     }
   };
 
@@ -283,8 +283,15 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total</span>
-                  <span className="text-xl font-bold text-brand-600">{formatPrice(total)}</span>
+                  <span className={`text-xl font-bold ${customTotal !== null && customTotal !== total ? 'text-amber-600' : 'text-brand-600'}`}>
+                    {formatPrice(finalTotal)}
+                  </span>
                 </div>
+                {customTotal !== null && customTotal !== total && (
+                  <p className="text-xs text-amber-600 text-right">
+                    Valor original: {formatPrice(total)} | Desconto: {formatPrice(total - customTotal)}
+                  </p>
+                )}
               </div>
 
               {/* Customer Name */}
@@ -434,8 +441,11 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                 {/* Amount */}
                 <div className="bg-brand-50 rounded-xl p-4 text-center">
                   <p className="text-sm text-muted-foreground mb-1">Valor a pagar</p>
-                  <p className="text-3xl font-bold text-brand-600">{formatPrice(total)}</p>
+                  <p className={`text-3xl font-bold ${customTotal !== null && customTotal !== total ? 'text-amber-600' : 'text-brand-600'}`}>{formatPrice(finalTotal)}</p>
                   <p className="text-xs text-muted-foreground mt-1">{customerName}</p>
+                  {customTotal !== null && customTotal !== total && (
+                    <p className="text-xs text-amber-600 mt-1">Valor com desconto</p>
+                  )}
                 </div>
 
                 {/* QR Code do PIX */}

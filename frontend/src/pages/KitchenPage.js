@@ -11,7 +11,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Clock, ChefHat, CheckCircle2, RefreshCw, Trash2, Package, 
   Home, Smartphone, Plus, Minus, Banknote, CreditCard,
-  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign, Ticket, RotateCcw
+  AlertTriangle, Coffee, Droplets, Image, X, Check, History, Sun, Moon, Volume2, VolumeX, CalendarClock, MessageCircle, Loader2, Pencil, UtensilsCrossed, UserPlus, DollarSign, Ticket, RotateCcw, Search
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Toaster, toast } from 'sonner';
@@ -466,6 +466,7 @@ export const KitchenPage = () => {
   // Payment method state for prazo payments
   const [prazoPaymentMethod, setPrazoPaymentMethod] = useState('cash');
   const [abaterPaymentMethod, setAbaterPaymentMethod] = useState('cash');
+  const [prazoSearchTerm, setPrazoSearchTerm] = useState(''); // Search term for prazo customers
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -1518,6 +1519,29 @@ export const KitchenPage = () => {
               </div>
             </div>
             
+            {/* Search bar for prazo customers */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar cliente..."
+                value={prazoSearchTerm}
+                onChange={(e) => setPrazoSearchTerm(e.target.value)}
+                className="pl-10 h-10"
+                data-testid="prazo-search-input"
+              />
+              {prazoSearchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                  onClick={() => setPrazoSearchTerm('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
             {/* Total Prazo */}
             <div className="bg-amber-600 text-white rounded-xl p-4">
               <div className="flex justify-between items-center">
@@ -1536,10 +1560,19 @@ export const KitchenPage = () => {
             {prazoCustomers.length > 0 && (
               <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
                 <h4 className="font-semibold text-sm text-blue-800 mb-2 flex items-center gap-1">
-                  <DollarSign className="h-4 w-4" /> Clientes Cadastrados ({prazoCustomers.length})
+                  <DollarSign className="h-4 w-4" /> Clientes Cadastrados 
+                  {prazoSearchTerm ? (
+                    <span className="font-normal">
+                      ({prazoCustomers.filter(c => c.name.toLowerCase().includes(prazoSearchTerm.toLowerCase())).length} de {prazoCustomers.length})
+                    </span>
+                  ) : (
+                    <span className="font-normal">({prazoCustomers.length})</span>
+                  )}
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {prazoCustomers.map(customer => (
+                  {prazoCustomers
+                    .filter(customer => customer.name.toLowerCase().includes(prazoSearchTerm.toLowerCase()))
+                    .map(customer => (
                     <div key={customer.id} className="flex items-center justify-between bg-white p-2 rounded border">
                       <div>
                         <p className="font-medium text-sm">{customer.name}</p>
@@ -1568,8 +1601,17 @@ export const KitchenPage = () => {
             {/* Lista de devedores */}
             {prazoDebts.debts?.length > 0 ? (
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-amber-700">Débitos Pendentes</h4>
-                {prazoDebts.debts.map((debt, idx) => (
+                <h4 className="font-semibold text-sm text-amber-700">
+                  Débitos Pendentes
+                  {prazoSearchTerm && (
+                    <span className="text-xs font-normal ml-2">
+                      (mostrando {prazoDebts.debts.filter(d => d.name.toLowerCase().includes(prazoSearchTerm.toLowerCase())).length} de {prazoDebts.debts.length})
+                    </span>
+                  )}
+                </h4>
+                {prazoDebts.debts
+                  .filter(debt => debt.name.toLowerCase().includes(prazoSearchTerm.toLowerCase()))
+                  .map((debt, idx) => (
                   <div key={idx} className="bg-white rounded-lg p-3 border shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>

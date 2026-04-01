@@ -153,14 +153,18 @@ export const MenuPage = () => {
     setShowCheckout(true);
   };
 
-  const handleSubmitOrder = async (customerName, pickupTime, paymentMethod, pixProof = null) => {
+  const handleSubmitOrder = async (customerName, pickupTime, paymentMethod, pixProof = null, customTotal = null) => {
     setIsSubmitting(true);
+    // Use the custom total if provided, otherwise use the calculated total
+    const orderTotal = customTotal !== null ? customTotal : total;
+    
     try {
       const orderData = {
         store: store,
         customer_name: customerName,
         items: items,
-        total: total,
+        total: orderTotal,
+        original_total: total, // Keep track of original total
         payment_method: paymentMethod,
         pickup_time: pickupTime,
         pix_proof: pixProof
@@ -197,7 +201,8 @@ export const MenuPage = () => {
           store: store,
           customer_name: customerName,
           items: items,
-          total: total,
+          total: orderTotal,
+          original_total: total,
           payment_method: paymentMethod,
           pickup_time: pickupTime,
           pix_proof: pixProof

@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '../components/ui/sheet';
 import { Button } from '../components/ui/button';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Minus, Plus, Trash2, ShoppingBag, Pencil, Check } from 'lucide-react';
 
 export const CartDrawer = ({ onCheckout }) => {
-  const { items, isOpen, setIsOpen, total, updateQuantity, removeItem, itemCount } = useCart();
+  const { items, isOpen, setIsOpen, total, updateQuantity, removeItem, itemCount, setCustomTotal, customTotal } = useCart();
+  const [isEditingTotal, setIsEditingTotal] = useState(false);
+  const [editedTotal, setEditedTotal] = useState('');
+
+  // Reset edited total when cart changes
+  useEffect(() => {
+    if (!isEditingTotal) {
+      setEditedTotal(total.toFixed(2));
+    }
+  }, [total, isEditingTotal]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -14,6 +24,26 @@ export const CartDrawer = ({ onCheckout }) => {
       currency: 'BRL'
     }).format(price);
   };
+
+  const handleEditTotal = () => {
+    setEditedTotal((customTotal || total).toFixed(2));
+    setIsEditingTotal(true);
+  };
+
+  const handleSaveTotal = () => {
+    const newTotal = parseFloat(editedTotal);
+    if (!isNaN(newTotal) && newTotal >= 0) {
+      setCustomTotal(newTotal);
+    }
+    setIsEditingTotal(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingTotal(false);
+    setEditedTotal(total.toFixed(2));
+  };
+
+  const displayTotal = customTotal !== null ? customTotal : total;
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -90,10 +120,54 @@ export const CartDrawer = ({ onCheckout }) => {
                   <span className="text-lg text-muted-foreground">
                     {itemCount} {itemCount === 1 ? 'item' : 'itens'}
                   </span>
-                  <span className="text-2xl font-bold text-foreground">
-                    {formatPrice(total)}
-                  </span>
+                  
+                  {isEditingTotal ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">R$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editedTotal}
+                        onChange={(e) => setEditedTotal(e.target.value)}
+                        className="w-24 h-10 text-lg font-bold text-right"
+                        autoFocus
+                        data-testid="edit-total-input"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-green-600"
+                        onClick={handleSaveTotal}
+                      >
+                        <Check className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-2xl font-bold ${customTotal !== null && customTotal !== total ? 'text-amber-600' : 'text-foreground'}`}>
+                        {formatPrice(displayTotal)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-brand-600"
+                        onClick={handleEditTotal}
+                        title="Editar valor total"
+                        data-testid="edit-total-btn"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
+                
+                {customTotal !== null && customTotal !== total && (
+                  <p className="text-xs text-amber-600 text-right">
+                    Valor original: {formatPrice(total)} | Desconto: {formatPrice(total - customTotal)}
+                  </p>
+                )}
+                
                 <Button 
                   className="w-full h-14 text-lg font-semibold bg-brand-600 hover:bg-brand-700"
                   onClick={onCheckout}
