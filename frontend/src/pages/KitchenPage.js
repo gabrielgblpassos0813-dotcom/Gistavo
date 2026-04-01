@@ -463,6 +463,9 @@ export const KitchenPage = () => {
   const [showAbaterDialog, setShowAbaterDialog] = useState(false);
   const [abaterCustomer, setAbaterCustomer] = useState(null);
   const [abaterAmount, setAbaterAmount] = useState('');
+  // Payment method state for prazo payments
+  const [prazoPaymentMethod, setPrazoPaymentMethod] = useState('cash');
+  const [abaterPaymentMethod, setAbaterPaymentMethod] = useState('cash');
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -664,12 +667,14 @@ export const KitchenPage = () => {
     try {
       await axios.post(`${API}/prazo/pay-all/${encodeURIComponent(selectedPrazoCustomer.name)}`, {
         amount: selectedPrazoCustomer.total,
-        password: prazoPassword
+        password: prazoPassword,
+        payment_method: prazoPaymentMethod
       });
-      toast.success(`Pagamento de ${selectedPrazoCustomer.name} registrado!`);
+      toast.success(`Pagamento de ${selectedPrazoCustomer.name} registrado! (${prazoPaymentMethod === 'cash' ? 'Dinheiro' : prazoPaymentMethod === 'pix' ? 'PIX' : prazoPaymentMethod === 'debit' ? 'Débito' : 'Crédito'})`);
       setShowPrazoPayDialog(false);
       setSelectedPrazoCustomer(null);
       setPrazoPassword('');
+      setPrazoPaymentMethod('cash');
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao registrar pagamento');
@@ -950,13 +955,16 @@ export const KitchenPage = () => {
     try {
       const response = await axios.post(`${API}/prazo/abater/${encodeURIComponent(abaterCustomer.name)}`, {
         amount: parseFloat(abaterAmount),
-        password: abaterPassword
+        password: abaterPassword,
+        payment_method: abaterPaymentMethod
       });
-      toast.success(response.data.message);
+      const methodLabel = abaterPaymentMethod === 'cash' ? 'Dinheiro' : abaterPaymentMethod === 'pix' ? 'PIX' : abaterPaymentMethod === 'debit' ? 'Débito' : 'Crédito';
+      toast.success(`${response.data.message} (${methodLabel})`);
       setShowAbaterDialog(false);
       setAbaterCustomer(null);
       setAbaterAmount('');
       setAbaterPassword('');
+      setAbaterPaymentMethod('cash');
       fetchData();
     } catch (error) {
       if (error.response?.status === 403) {
@@ -1859,17 +1867,58 @@ export const KitchenPage = () => {
                 <p className="text-xs text-muted-foreground">{selectedPrazoCustomer.order_count} pedido(s) pendente(s)</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Digite a senha para confirmar:</p>
+                <Label className="text-sm">Forma de Pagamento</Label>
+                <div className="grid grid-cols-4 gap-1 mt-1">
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={prazoPaymentMethod === 'cash' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${prazoPaymentMethod === 'cash' ? 'bg-green-600' : ''}`}
+                    onClick={() => setPrazoPaymentMethod('cash')}
+                  >
+                    <Banknote className="h-3 w-3 mr-1" /> Din
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={prazoPaymentMethod === 'pix' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${prazoPaymentMethod === 'pix' ? 'bg-green-600' : ''}`}
+                    onClick={() => setPrazoPaymentMethod('pix')}
+                  >
+                    <Smartphone className="h-3 w-3 mr-1" /> PIX
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={prazoPaymentMethod === 'debit' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${prazoPaymentMethod === 'debit' ? 'bg-green-600' : ''}`}
+                    onClick={() => setPrazoPaymentMethod('debit')}
+                  >
+                    <CreditCard className="h-3 w-3 mr-1" /> Déb
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={prazoPaymentMethod === 'credit' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${prazoPaymentMethod === 'credit' ? 'bg-green-600' : ''}`}
+                    onClick={() => setPrazoPaymentMethod('credit')}
+                  >
+                    <CreditCard className="h-3 w-3 mr-1" /> Créd
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm">Senha de confirmação</Label>
                 <Input
                   type="password"
                   placeholder="Senha (1234)"
                   value={prazoPassword}
                   onChange={(e) => setPrazoPassword(e.target.value)}
-                  className="h-9"
+                  className="h-9 mt-1"
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setShowPrazoPayDialog(false); setPrazoPassword(''); setSelectedPrazoCustomer(null); }}>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setShowPrazoPayDialog(false); setPrazoPassword(''); setSelectedPrazoCustomer(null); setPrazoPaymentMethod('cash'); }}>
                   Cancelar
                 </Button>
                 <Button 
@@ -2433,6 +2482,7 @@ export const KitchenPage = () => {
           setAbaterCustomer(null);
           setAbaterAmount('');
           setAbaterPassword('');
+          setAbaterPaymentMethod('cash');
         }
       }}>
         <DialogContent className="max-w-[90vw] sm:max-w-sm">
@@ -2475,6 +2525,48 @@ export const KitchenPage = () => {
               </div>
               
               <div>
+                <Label className="text-sm">Forma de Pagamento</Label>
+                <div className="grid grid-cols-4 gap-1 mt-1">
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={abaterPaymentMethod === 'cash' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${abaterPaymentMethod === 'cash' ? 'bg-amber-600' : ''}`}
+                    onClick={() => setAbaterPaymentMethod('cash')}
+                  >
+                    <Banknote className="h-3 w-3 mr-1" /> Din
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={abaterPaymentMethod === 'pix' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${abaterPaymentMethod === 'pix' ? 'bg-amber-600' : ''}`}
+                    onClick={() => setAbaterPaymentMethod('pix')}
+                  >
+                    <Smartphone className="h-3 w-3 mr-1" /> PIX
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={abaterPaymentMethod === 'debit' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${abaterPaymentMethod === 'debit' ? 'bg-amber-600' : ''}`}
+                    onClick={() => setAbaterPaymentMethod('debit')}
+                  >
+                    <CreditCard className="h-3 w-3 mr-1" /> Déb
+                  </Button>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant={abaterPaymentMethod === 'credit' ? 'default' : 'outline'}
+                    className={`h-9 text-xs ${abaterPaymentMethod === 'credit' ? 'bg-amber-600' : ''}`}
+                    onClick={() => setAbaterPaymentMethod('credit')}
+                  >
+                    <CreditCard className="h-3 w-3 mr-1" /> Créd
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
                 <Label className="text-sm">Senha de confirmação</Label>
                 <Input
                   type="password"
@@ -2492,6 +2584,7 @@ export const KitchenPage = () => {
                   setAbaterCustomer(null);
                   setAbaterAmount('');
                   setAbaterPassword('');
+                  setAbaterPaymentMethod('cash');
                 }}>
                   Cancelar
                 </Button>

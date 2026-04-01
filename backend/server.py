@@ -2611,6 +2611,7 @@ class PrazoCustomerCreate(BaseModel):
 class PrazoPayment(BaseModel):
     amount: float
     password: str
+    payment_method: str = "cash"  # cash, debit, credit, pix
 
 class PrazoCreditAdd(BaseModel):
     amount: float  # Valor a adicionar ao crédito
@@ -2618,6 +2619,7 @@ class PrazoCreditAdd(BaseModel):
 class PrazoAbaterRequest(BaseModel):
     amount: float  # Valor a abater da dívida
     password: str  # Senha de confirmação
+    payment_method: str = "cash"  # cash, debit, credit, pix
 
 # ==================== KITCHEN MANAGEMENT ENDPOINTS (No auth required) ====================
 # These endpoints allow the kitchen to manage adicionais, menu items, and prazo
@@ -2854,10 +2856,25 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
     
     result = await db.orders.update_many(
         {"customer_name": customer_name, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
-        {"$set": {"prazo_paid": True, "prazo_paid_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {
+            "prazo_paid": True, 
+            "prazo_paid_at": datetime.now(timezone.utc).isoformat(),
+            "prazo_paid_method": payment.payment_method  # How the prazo was paid
+        }}
     )
     
-    return {"success": True, "message": f"Todos os débitos de {customer_name} foram quitados", "orders_paid": result.modified_count}
+    # Log the payment
+    payment_record = {
+        "id": str(uuid.uuid4()),
+        "customer_name": customer_name,
+        "amount": payment.amount,
+        "payment_method": payment.payment_method,
+        "type": "full_payment",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.prazo_payments.insert_one(payment_record)
+    
+    return {"success": True, "message": f"Todos os débitos de {customer_name} foram quitados ({payment.payment_method})", "orders_paid": result.modified_count}
 
 @api_router.delete("/prazo/debt/{customer_name}")
 async def delete_prazo_debt(customer_name: str, password: str = None):
@@ -3017,6 +3034,8 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         "id": str(uuid.uuid4()),
         "customer_name": customer_name,
         "amount": abater_data.amount,
+        "payment_method": abater_data.payment_method,
+        "type": "partial_payment",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "orders_updated": orders_updated,
         "orders_paid_off": orders_paid_off
