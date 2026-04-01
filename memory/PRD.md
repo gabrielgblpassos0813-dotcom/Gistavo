@@ -253,6 +253,17 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 - ✅ **Backend**: Novos endpoints `/api/pix-adjustments/{store}`, `/api/pix-adjustments/add`, `DELETE /api/pix-adjustments/{id}`
 - ✅ **Frontend**: Nova seção "Ajustes Manuais PIX" na aba Vendas com botão adicionar e lista de ajustes removíveis
 
+### 01/04/2026 - Pagamento Parcial (Abater) para Prazo
+- ✅ **Implementado**: Funcionalidade "Abater" (Pagamento Parcial) para clientes com dívida no Prazo
+- ✅ **Backend**: Novo endpoint `POST /api/prazo/abater/{customer_name}` que recebe `{amount, password}`
+- ✅ **Backend**: Pagamento parcial é aplicado aos pedidos mais antigos primeiro
+- ✅ **Backend**: Campo `partial_paid` adicionado aos pedidos para rastrear pagamentos parciais
+- ✅ **Backend**: GET `/api/prazo/debts` agora calcula dívida restante (total - partial_paid)
+- ✅ **Frontend**: Botão "Abater" em cada cliente na aba Prazo da Cozinha
+- ✅ **Frontend**: Dialog "Pagamento Parcial (Abater)" com campos para valor e senha
+- ✅ **Frontend**: Cálculo automático da "Nova dívida" exibido dinamicamente
+- ✅ **Testado**: 12/12 testes backend passaram + verificação frontend completa
+
 ---
 
-## Atualizado em: 24 de Março de 2026
+## Atualizado em: 01 de Abril de 2026
