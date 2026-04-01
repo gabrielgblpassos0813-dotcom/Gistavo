@@ -2114,6 +2114,19 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
         "created_at": {"$gte": month_start_brazil.isoformat(), "$lt": month_end_brazil.isoformat()}
     }, {"_id": 0}).to_list(10000)
     
+    # Get prazo payments for this month (when customer pays their tab)
+    prazo_payments = await db.prazo_payments.find({
+        "created_at": {"$gte": month_start_brazil.isoformat(), "$lt": month_end_brazil.isoformat()}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Get prazo partial payments for this month
+    prazo_partial_payments = await db.prazo_partial_payments.find({
+        "created_at": {"$gte": month_start_brazil.isoformat(), "$lt": month_end_brazil.isoformat()}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Combine prazo payments
+    all_prazo_payments = prazo_payments + prazo_partial_payments
+    
     # Group PIX adjustments by day and store
     pix_by_day = {}
     pix_total_runner = 0
@@ -2194,6 +2207,32 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
             daily_data[day_str]["runner"] += pix_data["runner"]
             daily_data[day_str]["gym_londres"] += pix_data["gym_londres"]
     
+    # Add prazo payments to daily totals and payment method breakdown
+    for payment in all_prazo_payments:
+        try:
+            payment_time = datetime.fromisoformat(payment.get("created_at", "").replace("Z", "+00:00"))
+            payment_time_brazil = payment_time.astimezone(brazil_tz)
+            date = payment_time_brazil.strftime("%Y-%m-%d")
+            store = payment.get("store", "runner")
+            amount = payment.get("amount", 0)
+            payment_method = payment.get("payment_method", "cash")
+            
+            # Add to payment method totals
+            by_payment[payment_method] = by_payment.get(payment_method, 0) + amount
+            
+            if date in daily_data:
+                daily_data[date]["total"] += amount
+                daily_data[date]["count"] += 1  # Count as a transaction
+                
+                if store == "runner":
+                    daily_data[date]["runner"] += amount
+                    daily_data[date]["runner_count"] += 1
+                elif store == "gym-londres":
+                    daily_data[date]["gym_londres"] += amount
+                    daily_data[date]["gym_londres_count"] += 1
+        except:
+            pass
+    
     # Convert to sorted list
     chart_data = sorted(daily_data.values(), key=lambda x: x["date"])
     
@@ -2268,6 +2307,16 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
     pix_manual_runner = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "runner")
     pix_manual_gym = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "gym-londres")
     
+    # Get prazo payments for this day
+    prazo_query = {
+        "created_at": {"$gte": day_start_brazil.isoformat(), "$lt": day_end_brazil.isoformat()}
+    }
+    if store and store != "all":
+        prazo_query["store"] = store
+    prazo_payments = await db.prazo_payments.find(prazo_query, {"_id": 0}).to_list(1000)
+    prazo_partial_payments = await db.prazo_partial_payments.find(prazo_query, {"_id": 0}).to_list(1000)
+    all_prazo_payments = prazo_payments + prazo_partial_payments
+    
     # Group by hour (in Brazil timezone)
     hourly_data = {}
     for hour in range(24):
@@ -2308,10 +2357,39 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
     # Add manual PIX to payment breakdown
     by_payment["pix"] += pix_manual_total
     
+    # Add prazo payments to hourly data and payment breakdown
+    prazo_total_runner = 0
+    prazo_total_gym = 0
+    prazo_total = 0
+    for payment in all_prazo_payments:
+        try:
+            payment_time = datetime.fromisoformat(payment.get("created_at", "").replace("Z", "+00:00"))
+            payment_time_brazil = payment_time.astimezone(brazil_tz)
+            brazil_hour = payment_time_brazil.hour
+            amount = payment.get("amount", 0)
+            payment_store = payment.get("store", "runner")
+            payment_method = payment.get("payment_method", "cash")
+            
+            # Add to payment method totals
+            by_payment[payment_method] = by_payment.get(payment_method, 0) + amount
+            prazo_total += amount
+            
+            hourly_data[brazil_hour]["total"] += amount
+            hourly_data[brazil_hour]["count"] += 1
+            
+            if payment_store == "runner":
+                hourly_data[brazil_hour]["runner"] += amount
+                prazo_total_runner += amount
+            elif payment_store == "gym-londres":
+                hourly_data[brazil_hour]["gym_londres"] += amount
+                prazo_total_gym += amount
+        except:
+            pass
+    
     # Convert to sorted list
     chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
     
-    # Calculate totals by store (including PIX adjustments)
+    # Calculate totals by store (including PIX adjustments and prazo payments)
     total_runner = sum(d["runner"] for d in chart_data) + pix_manual_runner
     total_gym = sum(d["gym_londres"] for d in chart_data) + pix_manual_gym
     
@@ -2323,6 +2401,7 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
         "total_day": sum(d["total"] for d in chart_data) + pix_manual_total,
         "total_orders": sum(d["count"] for d in chart_data),
         "pix_manual_adjustments": round(pix_manual_total, 2),
+        "prazo_payments_total": round(prazo_total, 2),
         "by_store": {
             "runner": {"total": round(total_runner, 2), "orders": sum(1 for o in orders if o.get("store") == "runner" and o.get("payment_method") != "prazo")},
             "gym_londres": {"total": round(total_gym, 2), "orders": sum(1 for o in orders if o.get("store") == "gym-londres" and o.get("payment_method") != "prazo")}
@@ -2854,6 +2933,13 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
     if payment.password != PRAZO_PASSWORD:
         raise HTTPException(status_code=403, detail="Senha incorreta")
     
+    # Get the store from the first unpaid order
+    first_order = await db.orders.find_one(
+        {"customer_name": customer_name, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
+        {"store": 1}
+    )
+    customer_store = first_order.get("store", "runner") if first_order else "runner"
+    
     result = await db.orders.update_many(
         {"customer_name": customer_name, "payment_method": "prazo", "prazo_paid": {"$ne": True}},
         {"$set": {
@@ -2870,6 +2956,7 @@ async def pay_all_prazo_customer(customer_name: str, payment: PrazoPayment):
         "amount": payment.amount,
         "payment_method": payment.payment_method,
         "type": "full_payment",
+        "store": customer_store,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.prazo_payments.insert_one(payment_record)
@@ -2892,6 +2979,37 @@ async def delete_prazo_debt(customer_name: str, password: str = None):
         "success": True,
         "message": f"Dívida de {customer_name} zerada",
         "orders_cleared": result.modified_count
+    }
+
+@api_router.get("/prazo/payments-history")
+async def get_prazo_payments_history(store: str = None, limit: int = 100):
+    """Get history of prazo payments (full and partial)"""
+    query = {}
+    if store:
+        query["store"] = store
+    
+    # Get full payments
+    full_payments = await db.prazo_payments.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    
+    # Get partial payments
+    partial_payments = await db.prazo_partial_payments.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    
+    # Combine and sort by date
+    all_payments = full_payments + partial_payments
+    all_payments.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Calculate totals by payment method
+    totals = {"cash": 0, "pix": 0, "debit": 0, "credit": 0}
+    for p in all_payments:
+        method = p.get("payment_method", "cash")
+        if method in totals:
+            totals[method] += p.get("amount", 0)
+    
+    return {
+        "payments": all_payments[:limit],
+        "total_count": len(all_payments),
+        "totals_by_method": totals,
+        "grand_total": sum(totals.values())
     }
 
 @api_router.delete("/prazo/debt-order/{order_id}")
@@ -3029,6 +3147,9 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         
         orders_updated += 1
     
+    # Get the store from the first order
+    customer_store = prazo_orders[0].get("store", "runner") if prazo_orders else "runner"
+    
     # Log the partial payment
     payment_record = {
         "id": str(uuid.uuid4()),
@@ -3036,6 +3157,7 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         "amount": abater_data.amount,
         "payment_method": abater_data.payment_method,
         "type": "partial_payment",
+        "store": customer_store,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "orders_updated": orders_updated,
         "orders_paid_off": orders_paid_off
