@@ -1721,6 +1721,53 @@ async def get_cash_drawer(store: StoreLocation):
         "last_reset_at": last_reset_at
     }
 
+@api_router.get("/cash/{store}/drawer-debug")
+async def get_cash_drawer_debug(store: StoreLocation):
+    """Debug endpoint - shows all cash orders being counted in the drawer"""
+    brazil_tz = pytz.timezone('America/Sao_Paulo')
+    now_brazil = datetime.now(brazil_tz)
+    
+    # Get the drawer config
+    drawer_config = await db.cash_drawer_config.find_one({"store": store.value}, {"_id": 0})
+    initial_balance = drawer_config.get("balance", 0) if drawer_config else 0
+    last_reset_at = drawer_config.get("last_reset_at") if drawer_config else None
+    
+    # Build query for cash orders SINCE last reset
+    cash_query = {
+        "store": store.value,
+        "status": {"$in": ["ready", "delivered"]},
+        "payment_method": "cash"
+    }
+    if last_reset_at:
+        cash_query["created_at"] = {"$gte": last_reset_at}
+    
+    # Get all cash orders with details
+    cash_orders = await db.orders.find(cash_query, {"_id": 0, "customer_name": 1, "total": 1, "created_at": 1, "status": 1}).to_list(1000)
+    total_cash_sales = sum(o.get("total", 0) for o in cash_orders)
+    
+    # Get withdrawals
+    withdrawal_query = {"store": store.value}
+    if last_reset_at:
+        withdrawal_query["created_at"] = {"$gte": last_reset_at}
+    all_withdrawals = await db.cash_withdrawals.find(withdrawal_query, {"_id": 0}).to_list(1000)
+    total_withdrawn = sum(w.get("amount", 0) for w in all_withdrawals)
+    
+    current_balance = initial_balance + total_cash_sales - total_withdrawn
+    
+    return {
+        "store": store.value,
+        "drawer_config": drawer_config,
+        "last_reset_at": last_reset_at,
+        "initial_balance": initial_balance,
+        "cash_orders": cash_orders,
+        "cash_orders_count": len(cash_orders),
+        "total_cash_sales": round(total_cash_sales, 2),
+        "withdrawals": all_withdrawals,
+        "total_withdrawn": round(total_withdrawn, 2),
+        "current_balance": round(current_balance, 2),
+        "formula": f"{initial_balance} + {total_cash_sales} - {total_withdrawn} = {current_balance}"
+    }
+
 @api_router.post("/cash/{store}/set-balance")
 async def set_cash_balance(store: StoreLocation, data: CashBalanceAdjust):
     """Set/adjust the initial cash drawer balance (money already in the drawer)"""
