@@ -1131,23 +1131,26 @@ Responda APENAS em formato JSON:
                 }
             )
             
-            # Send WhatsApp notification via Green API (only if approved)
-            try:
-                await send_whatsapp_notification(
-                    customer_name=order.get("customer_name", "Cliente"),
-                    payer_name=payer_name,
-                    amount=order.get("total", 0),
-                    store=store.value,
-                    time=transaction_time,
-                    date=transaction_date,
-                    order_number=order.get("order_number", order_id[:8]),
-                    items=order.get("items", []),
-                    auto_approved=True,
-                    pix_proof_image=pix_proof,
-                    order_id=order_id
-                )
-            except Exception as e:
-                logger.warning(f"Could not send WhatsApp notification: {e}")
+            # Send WhatsApp notification via Green API (only if not already notified)
+            if not order.get("whatsapp_notified"):
+                try:
+                    await send_whatsapp_notification(
+                        customer_name=order.get("customer_name", "Cliente"),
+                        payer_name=payer_name,
+                        amount=order.get("total", 0),
+                        store=store.value,
+                        time=transaction_time,
+                        date=transaction_date,
+                        order_number=order.get("order_number", order_id[:8]),
+                        items=order.get("items", []),
+                        auto_approved=True,
+                        pix_proof_image=pix_proof,
+                        order_id=order_id
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not send WhatsApp notification: {e}")
+            else:
+                logger.info(f"Skipping WhatsApp notification for order {order_id} - already notified")
             
             return {
                 "success": True,
@@ -1319,26 +1322,29 @@ async def approve_or_reject_payment(store: StoreLocation, order_id: str, approva
             }
         )
         
-        # Send WhatsApp notification via Green API (manual approval also sends notification)
-        try:
-            pix_proof = order.get("pix_proof")
-            payer_name = order.get("pix_payer_name", order.get("customer_name", "Cliente"))
-            
-            await send_whatsapp_notification(
-                customer_name=order.get("customer_name", "Cliente"),
-                payer_name=payer_name,
-                amount=order.get("total", 0),
-                store=store.value,
-                time=datetime.now().strftime("%H:%M"),
-                date=datetime.now().strftime("%d/%m/%Y"),
-                order_number=order.get("order_number", order_id[:8]),
-                items=order.get("items", []),
-                auto_approved=True,  # Manual approval also triggers notification
-                pix_proof_image=pix_proof,
-                order_id=order_id
-            )
-        except Exception as e:
-            logger.warning(f"Could not send WhatsApp notification: {e}")
+        # Send WhatsApp notification via Green API (only if not already notified)
+        if not order.get("whatsapp_notified"):
+            try:
+                pix_proof = order.get("pix_proof")
+                payer_name = order.get("pix_payer_name", order.get("customer_name", "Cliente"))
+                
+                await send_whatsapp_notification(
+                    customer_name=order.get("customer_name", "Cliente"),
+                    payer_name=payer_name,
+                    amount=order.get("total", 0),
+                    store=store.value,
+                    time=datetime.now().strftime("%H:%M"),
+                    date=datetime.now().strftime("%d/%m/%Y"),
+                    order_number=order.get("order_number", order_id[:8]),
+                    items=order.get("items", []),
+                    auto_approved=True,
+                    pix_proof_image=pix_proof,
+                    order_id=order_id
+                )
+            except Exception as e:
+                logger.warning(f"Could not send WhatsApp notification: {e}")
+        else:
+            logger.info(f"Skipping WhatsApp notification for order {order_id} - already notified")
         
         return {"success": True, "message": "Pagamento aprovado", "new_status": "received"}
     else:
