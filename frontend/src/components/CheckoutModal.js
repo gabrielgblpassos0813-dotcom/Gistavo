@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Switch } from '../components/ui/switch';
 import { useCart } from '../context/CartContext';
-import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock, WifiOff, Check } from 'lucide-react';
+import { User, ShoppingBag, Clock, CreditCard, Banknote, Smartphone, Receipt, Upload, Camera, Copy, CheckCircle2, QrCode, CalendarClock, WifiOff, Check, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { createOrder, isOnline, getOfflineOrders, syncOfflineOrders } from '../services/offlineService';
@@ -42,6 +42,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
   const [copied, setCopied] = useState(false);
   const [prazoCustomers, setPrazoCustomers] = useState([]);
   const [selectedPrazoCustomer, setSelectedPrazoCustomer] = useState('');
+  const [prazoSearchTerm, setPrazoSearchTerm] = useState(''); // Search for prazo customers
   const [scheduleToggleCount, setScheduleToggleCount] = useState(0);
   const [showPrazo, setShowPrazo] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
@@ -419,16 +420,68 @@ export const CheckoutModal = ({ isOpen, onClose, onSubmit, isLoading, store = 'r
                   {prazoCustomers.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm text-muted-foreground">Cliente cadastrado (opcional)</Label>
-                      <Select value={selectedPrazoCustomer} onValueChange={(v) => { setSelectedPrazoCustomer(v); if (v) setCustomerName(v); }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione ou digite o nome acima" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {prazoCustomers.map((c) => (
-                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      
+                      {/* Search input for prazo customers */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Buscar cliente..."
+                          value={prazoSearchTerm}
+                          onChange={(e) => setPrazoSearchTerm(e.target.value)}
+                          className="pl-10 h-10"
+                        />
+                        {prazoSearchTerm && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                            onClick={() => setPrazoSearchTerm('')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* Filtered customer list */}
+                      <div className="max-h-48 overflow-y-auto border rounded-lg">
+                        {prazoCustomers
+                          .filter(c => c.name.toLowerCase().includes(prazoSearchTerm.toLowerCase()))
+                          .map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={`w-full text-left px-3 py-2 hover:bg-gray-100 border-b last:border-b-0 transition-colors ${
+                                selectedPrazoCustomer === c.name ? 'bg-amber-50 text-amber-700 font-medium' : ''
+                              }`}
+                              onClick={() => {
+                                setSelectedPrazoCustomer(c.name);
+                                setCustomerName(c.name);
+                                setPrazoSearchTerm('');
+                              }}
+                            >
+                              {c.name}
+                              {c.phone && <span className="text-xs text-muted-foreground ml-2">({c.phone})</span>}
+                            </button>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        {prazoCustomers.filter(c => c.name.toLowerCase().includes(prazoSearchTerm.toLowerCase())).length === 0 && (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum cliente encontrado</p>
+                        )}
+                      </div>
+                      
+                      {selectedPrazoCustomer && (
+                        <p className="text-xs text-amber-600">
+                          Selecionado: <strong>{selectedPrazoCustomer}</strong>
+                          <button 
+                            type="button" 
+                            className="ml-2 text-red-500 hover:underline"
+                            onClick={() => { setSelectedPrazoCustomer(''); setCustomerName(''); }}
+                          >
+                            (limpar)
+                          </button>
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
