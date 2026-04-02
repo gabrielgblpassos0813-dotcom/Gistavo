@@ -1693,6 +1693,19 @@ async def get_cash_drawer(store: StoreLocation):
     cash_orders = await db.orders.find(cash_query, {"_id": 0, "total": 1, "created_at": 1}).to_list(100000)
     total_cash_sales = sum(o.get("total", 0) for o in cash_orders)
     
+    # Get prazo payments made in CASH since last reset
+    prazo_cash_query = {
+        "store": store.value,
+        "payment_method": "cash"
+    }
+    if last_reset_at:
+        prazo_cash_query["created_at"] = {"$gte": last_reset_at}
+    
+    prazo_full_payments = await db.prazo_payments.find(prazo_cash_query, {"_id": 0, "amount": 1, "created_at": 1}).to_list(10000)
+    prazo_partial_payments = await db.prazo_partial_payments.find(prazo_cash_query, {"_id": 0, "amount": 1, "created_at": 1}).to_list(10000)
+    
+    total_prazo_cash = sum(p.get("amount", 0) for p in prazo_full_payments) + sum(p.get("amount", 0) for p in prazo_partial_payments)
+    
     # Build query for withdrawals SINCE last reset
     withdrawal_query = {"store": store.value}
     if last_reset_at:
@@ -1706,21 +1719,28 @@ async def get_cash_drawer(store: StoreLocation):
     today_cash_orders = [o for o in cash_orders if o.get("created_at", "") >= today_utc.isoformat()]
     today_cash_in = sum(o.get("total", 0) for o in today_cash_orders)
     
+    # Today's prazo cash payments
+    today_prazo_full = [p for p in prazo_full_payments if p.get("created_at", "") >= today_brazil.isoformat()]
+    today_prazo_partial = [p for p in prazo_partial_payments if p.get("created_at", "") >= today_brazil.isoformat()]
+    today_prazo_cash = sum(p.get("amount", 0) for p in today_prazo_full) + sum(p.get("amount", 0) for p in today_prazo_partial)
+    
     today_withdrawals = [w for w in all_withdrawals if w.get("created_at", "") >= today_brazil.isoformat()]
     today_withdrawn = sum(w.get("amount", 0) for w in today_withdrawals)
     
-    # Current balance = initial + all sales since reset - all withdrawals since reset
-    current_balance = initial_balance + total_cash_sales - total_withdrawn
+    # Current balance = initial + all sales since reset + prazo cash payments - all withdrawals since reset
+    current_balance = initial_balance + total_cash_sales + total_prazo_cash - total_withdrawn
     
     return {
         "store": store.value,
         "date": now_brazil.strftime("%d/%m/%Y"),
         "initial_balance": round(initial_balance, 2),
         "total_cash_sales": round(total_cash_sales, 2),
+        "total_prazo_cash": round(total_prazo_cash, 2),  # Prazo payments made in cash
         "total_withdrawals": round(total_withdrawn, 2),
         "current_balance": round(current_balance, 2),
         # Today's data (for reference)
         "today_cash_in": round(today_cash_in, 2),
+        "today_prazo_cash": round(today_prazo_cash, 2),  # Today's prazo cash payments
         "today_withdrawals": round(today_withdrawn, 2),
         "withdrawal_history": today_withdrawals,
         # Last reset info
@@ -1751,6 +1771,18 @@ async def get_cash_drawer_debug(store: StoreLocation):
     cash_orders = await db.orders.find(cash_query, {"_id": 0, "customer_name": 1, "total": 1, "created_at": 1, "status": 1}).to_list(1000)
     total_cash_sales = sum(o.get("total", 0) for o in cash_orders)
     
+    # Get prazo payments made in CASH
+    prazo_cash_query = {
+        "store": store.value,
+        "payment_method": "cash"
+    }
+    if last_reset_at:
+        prazo_cash_query["created_at"] = {"$gte": last_reset_at}
+    
+    prazo_full_payments = await db.prazo_payments.find(prazo_cash_query, {"_id": 0}).to_list(1000)
+    prazo_partial_payments = await db.prazo_partial_payments.find(prazo_cash_query, {"_id": 0}).to_list(1000)
+    total_prazo_cash = sum(p.get("amount", 0) for p in prazo_full_payments) + sum(p.get("amount", 0) for p in prazo_partial_payments)
+    
     # Get withdrawals
     withdrawal_query = {"store": store.value}
     if last_reset_at:
@@ -1758,7 +1790,7 @@ async def get_cash_drawer_debug(store: StoreLocation):
     all_withdrawals = await db.cash_withdrawals.find(withdrawal_query, {"_id": 0}).to_list(1000)
     total_withdrawn = sum(w.get("amount", 0) for w in all_withdrawals)
     
-    current_balance = initial_balance + total_cash_sales - total_withdrawn
+    current_balance = initial_balance + total_cash_sales + total_prazo_cash - total_withdrawn
     
     return {
         "store": store.value,
@@ -1768,10 +1800,13 @@ async def get_cash_drawer_debug(store: StoreLocation):
         "cash_orders": cash_orders,
         "cash_orders_count": len(cash_orders),
         "total_cash_sales": round(total_cash_sales, 2),
+        "prazo_cash_payments": prazo_full_payments + prazo_partial_payments,
+        "prazo_cash_count": len(prazo_full_payments) + len(prazo_partial_payments),
+        "total_prazo_cash": round(total_prazo_cash, 2),
         "withdrawals": all_withdrawals,
         "total_withdrawn": round(total_withdrawn, 2),
         "current_balance": round(current_balance, 2),
-        "formula": f"{initial_balance} + {total_cash_sales} - {total_withdrawn} = {current_balance}"
+        "formula": f"{initial_balance} + {total_cash_sales} (vendas) + {total_prazo_cash} (prazo em dinheiro) - {total_withdrawn} = {current_balance}"
     }
 
 @api_router.post("/cash/{store}/set-balance")
