@@ -4934,6 +4934,12 @@ async def fix_duplicate_categories():
     
     return {"success": True, "fixed_count": fixed_count, "message": f"Corrigidas {fixed_count} categorias"}
 
+@api_router.post("/admin/clear-low-stock-alerts")
+async def clear_low_stock_alerts():
+    """Clear the low stock alerts list"""
+    result = await db.low_stock_list.delete_many({})
+    return {"success": True, "deleted_count": result.deleted_count, "message": "Lista de estoque baixo limpa"}
+
 @app.on_event("startup")
 async def startup_db_client():
     """Initialize database, scheduler and default tenant"""
