@@ -4774,83 +4774,120 @@ async def check_and_save_low_stock_items():
     except Exception as e:
         logger.error(f"Error checking low stock: {e}")
 
-async def send_low_stock_report():
-    """Send daily low stock report to WhatsApp group at 22:00"""
+async def send_daily_sales_report():
+    """Send daily sales report to WhatsApp groups at 22:00 (end of day summary)"""
     try:
-        # Get all items in the low stock list
-        low_stock_items = await db.low_stock_list.find({}).to_list(100)
+        brazil_tz = pytz.timezone('America/Sao_Paulo')
+        now = datetime.now(brazil_tz)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        if not low_stock_items:
-            logger.info("No low stock items to report")
-            return
+        # Define shifts
+        morning_end = now.replace(hour=14, minute=0, second=0, microsecond=0)  # Morning: 00:00 - 14:00
         
-        # Build the message
-        now = datetime.now(BRAZIL_TZ)
-        message_lines = [
-            f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
-            "",
-            "Itens com estoque baixo (≤ 2 unidades):",
-            ""
-        ]
-        
-        # Group by store
-        runner_items = [i for i in low_stock_items if i.get("store") == "runner"]
-        gym_items = [i for i in low_stock_items if i.get("store") == "gym-londres"]
-        
-        # Send separate reports to each store's group
-        messages_sent = 0
-        
-        # Send Runner report to Runner group
-        if runner_items:
-            runner_message_lines = [
-                f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
+        for store, group_id, store_name, emoji in [
+            ("runner", WHATSAPP_GROUP_RUNNER, "RUNNER", "🏃"),
+            ("gym-londres", WHATSAPP_GROUP_ID, "GYM LONDRES", "🏋️")
+        ]:
+            # Get today's orders for this store (excluding prazo from totals)
+            orders = await db.orders.find({
+                "store": store,
+                "status": {"$in": ["ready", "delivered"]},
+                "created_at": {"$gte": today_start.isoformat()},
+                "payment_method": {"$ne": "prazo"}
+            }, {"_id": 0}).to_list(1000)
+            
+            if not orders:
+                continue
+            
+            # Separate by shift
+            morning_orders = []
+            afternoon_orders = []
+            
+            for order in orders:
+                try:
+                    order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+                    order_time_brazil = order_time.astimezone(brazil_tz)
+                    if order_time_brazil < morning_end:
+                        morning_orders.append(order)
+                    else:
+                        afternoon_orders.append(order)
+                except:
+                    afternoon_orders.append(order)
+            
+            # Calculate totals by payment method
+            def calc_totals(order_list):
+                totals = {"pix": 0, "cash": 0, "debit": 0, "credit": 0, "voucher": 0}
+                for o in order_list:
+                    method = o.get("payment_method", "cash")
+                    totals[method] = totals.get(method, 0) + o.get("total", 0)
+                return totals
+            
+            morning_totals = calc_totals(morning_orders)
+            afternoon_totals = calc_totals(afternoon_orders)
+            
+            morning_total = sum(morning_totals.values())
+            afternoon_total = sum(afternoon_totals.values())
+            day_total = morning_total + afternoon_total
+            
+            # Get prazo payments made today (these count as revenue)
+            prazo_payments = await db.prazo_payments.find({
+                "store": store,
+                "created_at": {"$gte": today_start.isoformat()}
+            }, {"_id": 0}).to_list(1000)
+            prazo_partial = await db.prazo_partial_payments.find({
+                "store": store,
+                "created_at": {"$gte": today_start.isoformat()}
+            }, {"_id": 0}).to_list(1000)
+            
+            prazo_received = sum(p.get("amount", 0) for p in prazo_payments) + sum(p.get("amount", 0) for p in prazo_partial)
+            
+            # Build message
+            message_lines = [
+                f"📊 *VENDAS DO DIA - {now.strftime('%d/%m/%Y')}*",
+                f"*{emoji} {store_name}*",
                 "",
-                "Itens com estoque baixo (≤ 2 unidades):",
+                "━━━━━━━━━━━━━━━━━━━━━",
+                f"*☀️ TURNO MANHÃ* (até 14h)",
+                f"   Pedidos: {len(morning_orders)}",
+                f"   💵 Dinheiro: R$ {morning_totals.get('cash', 0):.2f}",
+                f"   📱 PIX: R$ {morning_totals.get('pix', 0):.2f}",
+                f"   💳 Débito: R$ {morning_totals.get('debit', 0):.2f}",
+                f"   💳 Crédito: R$ {morning_totals.get('credit', 0):.2f}",
+                f"   🎫 Voucher: R$ {morning_totals.get('voucher', 0):.2f}",
+                f"   *Total Manhã: R$ {morning_total:.2f}*",
                 "",
-                "*🏃 RUNNER:*"
+                "━━━━━━━━━━━━━━━━━━━━━",
+                f"*🌙 TURNO TARDE* (após 14h)",
+                f"   Pedidos: {len(afternoon_orders)}",
+                f"   💵 Dinheiro: R$ {afternoon_totals.get('cash', 0):.2f}",
+                f"   📱 PIX: R$ {afternoon_totals.get('pix', 0):.2f}",
+                f"   💳 Débito: R$ {afternoon_totals.get('debit', 0):.2f}",
+                f"   💳 Crédito: R$ {afternoon_totals.get('credit', 0):.2f}",
+                f"   🎫 Voucher: R$ {afternoon_totals.get('voucher', 0):.2f}",
+                f"   *Total Tarde: R$ {afternoon_total:.2f}*",
+                "",
+                "━━━━━━━━━━━━━━━━━━━━━",
             ]
-            for item in runner_items:
-                qty = item.get("quantity", 0)
-                status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
-                runner_message_lines.append(f"  • {item.get('name')}: {status}")
-            runner_message_lines.append("")
-            runner_message_lines.append(f"_Total: {len(runner_items)} itens_")
             
-            runner_message = "\n".join(runner_message_lines)
-            result = await send_whatsapp_message(runner_message, WHATSAPP_GROUP_RUNNER)
-            if result.get("success"):
-                messages_sent += 1
-                logger.info(f"Runner low stock report sent! {len(runner_items)} items")
-        
-        # Send GYM Londres report to GYM Londres group
-        if gym_items:
-            gym_message_lines = [
-                f"📦 *LISTA DE COMPRAS - {now.strftime('%d/%m/%Y')}*",
+            if prazo_received > 0:
+                message_lines.append(f"💰 *Prazo Recebido Hoje: R$ {prazo_received:.2f}*")
+                message_lines.append("")
+            
+            message_lines.extend([
+                f"🎯 *TOTAL DO DIA: R$ {day_total + prazo_received:.2f}*",
+                f"📦 Total de Pedidos: {len(orders)}",
                 "",
-                "Itens com estoque baixo (≤ 2 unidades):",
-                "",
-                "*🏋️ GYM LONDRES:*"
-            ]
-            for item in gym_items:
-                qty = item.get("quantity", 0)
-                status = "🔴 ZERADO" if qty == 0 else f"⚠️ {qty} un"
-                gym_message_lines.append(f"  • {item.get('name')}: {status}")
-            gym_message_lines.append("")
-            gym_message_lines.append(f"_Total: {len(gym_items)} itens_")
+                f"_Relatório gerado às {now.strftime('%H:%M')}_"
+            ])
             
-            gym_message = "\n".join(gym_message_lines)
-            result = await send_whatsapp_message(gym_message, WHATSAPP_GROUP_ID)
+            message = "\n".join(message_lines)
+            result = await send_whatsapp_message(message, group_id)
+            
             if result.get("success"):
-                messages_sent += 1
-                logger.info(f"GYM Londres low stock report sent! {len(gym_items)} items")
+                logger.info(f"Daily sales report sent to {store_name}! Total: R$ {day_total:.2f}")
         
-        # Clear the list after sending
-        if messages_sent > 0:
-            await db.low_stock_list.delete_many({})
-            logger.info(f"Low stock list cleared. {messages_sent} reports sent.")
-            
     except Exception as e:
-        logger.error(f"Error in send_low_stock_report: {e}")
+        logger.error(f"Error sending daily sales report: {e}")
 
 # Endpoint to manually check low stock (for testing)
 @api_router.get("/admin/low-stock-list")
@@ -4868,9 +4905,34 @@ async def trigger_low_stock_check():
 
 @api_router.post("/admin/send-low-stock-report")
 async def trigger_send_report():
-    """Manually trigger sending the low stock report"""
-    await send_low_stock_report()
-    return {"success": True, "message": "Relatório enviado (se havia itens na lista)"}
+    """Manually trigger sending the low stock report (deprecated)"""
+    return {"success": False, "message": "Relatório de estoque baixo desativado. Use /admin/send-sales-report"}
+
+@api_router.post("/admin/send-sales-report")
+async def trigger_send_sales_report():
+    """Manually trigger sending the daily sales report"""
+    await send_daily_sales_report()
+    return {"success": True, "message": "Relatório de vendas enviado para os grupos!"}
+
+@api_router.post("/admin/fix-categories")
+async def fix_duplicate_categories():
+    """Fix duplicate categories (lowercase to proper case)"""
+    category_mapping = {
+        "bebidas": "Bebidas Geladas",
+        "cafes": "Bebidas Quentes", 
+        "outros": "Outros",
+        "doces": "Doces"
+    }
+    
+    fixed_count = 0
+    for old_cat, new_cat in category_mapping.items():
+        result = await db.menu.update_many(
+            {"category": old_cat},
+            {"$set": {"category": new_cat}}
+        )
+        fixed_count += result.modified_count
+    
+    return {"success": True, "fixed_count": fixed_count, "message": f"Corrigidas {fixed_count} categorias"}
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -4880,22 +4942,16 @@ async def startup_db_client():
     # Schedule auto-ready check every minute
     scheduler.add_job(auto_mark_orders_ready, 'interval', minutes=1, id='auto_ready_orders')
     
-    # Schedule low stock check every hour
-    scheduler.add_job(check_and_save_low_stock_items, 'interval', hours=1, id='check_low_stock')
-    
-    # Schedule daily report at 22:00 Brazil time
+    # Schedule daily SALES report at 22:00 Brazil time (replaces low stock report)
     scheduler.add_job(
-        send_low_stock_report, 
+        send_daily_sales_report, 
         CronTrigger(hour=22, minute=0, timezone=BRAZIL_TZ),
-        id='daily_low_stock_report'
+        id='daily_sales_report'
     )
     
     scheduler.start()
     logger.info("Database initialized, default tenant ensured")
-    logger.info("Scheduler started - Auto-ready every 1 min, Low stock check every hour, report at 22:00")
-    
-    # Run initial low stock check
-    await check_and_save_low_stock_items()
+    logger.info("Scheduler started - Auto-ready every 1 min, Daily sales report at 22:00")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
