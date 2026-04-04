@@ -682,7 +682,9 @@ async def create_order(order_input: OrderCreate):
             "menu_item_id": item.menu_item_id.split("-")[0],  # Handle adicionais
             "store": order_input.store.value
         })
-        if stock and stock.get("quantity", 0) < item.quantity:
+        # Only check stock if item has a POSITIVE stock record
+        # If stock is 0 or negative, we ignore it (item doesn't have controlled stock)
+        if stock and stock.get("quantity", 0) > 0 and stock.get("quantity", 0) < item.quantity:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Estoque insuficiente para {item.name}"
@@ -4939,6 +4941,39 @@ async def clear_low_stock_alerts():
     """Clear the low stock alerts list"""
     result = await db.low_stock_list.delete_many({})
     return {"success": True, "deleted_count": result.deleted_count, "message": "Lista de estoque baixo limpa"}
+
+@api_router.get("/admin/stock-debug/{store}")
+async def debug_stock(store: str):
+    """Debug stock issues - find items with zero or negative stock"""
+    # Get ALL stock records including zeros
+    all_stock = await db.stock.find({"store": store}, {"_id": 0}).to_list(10000)
+    
+    zero_stock = [s for s in all_stock if s.get("quantity", 999) <= 0]
+    low_stock = [s for s in all_stock if 0 < s.get("quantity", 999) <= 2]
+    
+    return {
+        "store": store,
+        "total_stock_records": len(all_stock),
+        "zero_or_negative": zero_stock,
+        "zero_count": len(zero_stock),
+        "low_stock": low_stock,
+        "low_count": len(low_stock)
+    }
+
+@api_router.post("/admin/fix-zero-stock/{store}")
+async def fix_zero_stock(store: str):
+    """Remove all stock records with zero or negative quantity (allows orders again)"""
+    # Find and delete all zero/negative stock records
+    result = await db.stock.delete_many({
+        "store": store,
+        "quantity": {"$lte": 0}
+    })
+    
+    return {
+        "success": True,
+        "deleted_count": result.deleted_count,
+        "message": f"Removidos {result.deleted_count} registros de estoque zerado/negativo"
+    }
 
 @app.on_event("startup")
 async def startup_db_client():
