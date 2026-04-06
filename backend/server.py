@@ -4819,6 +4819,96 @@ async def check_and_save_low_stock_items():
     except Exception as e:
         logger.error(f"Error checking low stock: {e}")
 
+async def send_morning_shift_report():
+    """Send morning shift sales report to WhatsApp groups at 14:00"""
+    try:
+        brazil_tz = pytz.timezone('America/Sao_Paulo')
+        now = datetime.now(brazil_tz)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        morning_end = now.replace(hour=14, minute=0, second=0, microsecond=0)
+        
+        for store, group_id, store_name, emoji in [
+            ("runner", WHATSAPP_GROUP_RUNNER, "RUNNER", "🏃"),
+            ("gym-londres", WHATSAPP_GROUP_ID, "GYM LONDRES", "🏋️")
+        ]:
+            # Get morning orders for this store (excluding prazo from totals)
+            orders = await db.orders.find({
+                "store": store,
+                "status": {"$in": ["ready", "delivered"]},
+                "created_at": {"$gte": today_start.isoformat()},
+                "payment_method": {"$ne": "prazo"}
+            }, {"_id": 0}).to_list(1000)
+            
+            # Filter only morning orders
+            morning_orders = []
+            for order in orders:
+                try:
+                    order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
+                    order_time_brazil = order_time.astimezone(brazil_tz)
+                    if order_time_brazil < morning_end:
+                        morning_orders.append(order)
+                except Exception:
+                    pass
+            
+            if not morning_orders:
+                continue
+            
+            # Calculate totals by payment method
+            totals = {"pix": 0, "cash": 0, "debit": 0, "credit": 0, "voucher": 0}
+            for o in morning_orders:
+                method = o.get("payment_method", "cash")
+                totals[method] = totals.get(method, 0) + o.get("total", 0)
+            
+            morning_total = sum(totals.values())
+            
+            # Get prazo payments made this morning
+            prazo_payments = await db.prazo_payments.find({
+                "store": store,
+                "created_at": {"$gte": today_start.isoformat(), "$lt": morning_end.isoformat()}
+            }, {"_id": 0}).to_list(1000)
+            prazo_partial = await db.prazo_partial_payments.find({
+                "store": store,
+                "created_at": {"$gte": today_start.isoformat(), "$lt": morning_end.isoformat()}
+            }, {"_id": 0}).to_list(1000)
+            
+            prazo_received = sum(p.get("amount", 0) for p in prazo_payments) + sum(p.get("amount", 0) for p in prazo_partial)
+            
+            # Build message
+            message_lines = [
+                f"☀️ *FECHAMENTO TURNO MANHÃ*",
+                f"*{emoji} {store_name}* - {now.strftime('%d/%m/%Y')}",
+                "",
+                "━━━━━━━━━━━━━━━━━━━━━",
+                f"📦 Pedidos: {len(morning_orders)}",
+                "",
+                f"💵 Dinheiro: R$ {totals.get('cash', 0):.2f}",
+                f"📱 PIX: R$ {totals.get('pix', 0):.2f}",
+                f"💳 Débito: R$ {totals.get('debit', 0):.2f}",
+                f"💳 Crédito: R$ {totals.get('credit', 0):.2f}",
+                f"🎫 Voucher: R$ {totals.get('voucher', 0):.2f}",
+                "",
+                "━━━━━━━━━━━━━━━━━━━━━",
+            ]
+            
+            if prazo_received > 0:
+                message_lines.append(f"💰 Prazo Recebido: R$ {prazo_received:.2f}")
+                message_lines.append("")
+            
+            message_lines.extend([
+                f"🎯 *TOTAL MANHÃ: R$ {morning_total + prazo_received:.2f}*",
+                "",
+                f"_Relatório às {now.strftime('%H:%M')}_"
+            ])
+            
+            message = "\n".join(message_lines)
+            result = await send_whatsapp_message(message, group_id)
+            
+            if result.get("success"):
+                logger.info(f"Morning shift report sent to {store_name}! Total: R$ {morning_total:.2f}")
+        
+    except Exception as e:
+        logger.error(f"Error sending morning shift report: {e}")
+
 async def send_daily_sales_report():
     """Send daily sales report to WhatsApp groups at 22:00 (end of day summary)"""
     try:
@@ -4959,6 +5049,12 @@ async def trigger_send_sales_report():
     await send_daily_sales_report()
     return {"success": True, "message": "Relatório de vendas enviado para os grupos!"}
 
+@api_router.post("/admin/send-morning-report")
+async def trigger_send_morning_report():
+    """Manually trigger sending the morning shift report"""
+    await send_morning_shift_report()
+    return {"success": True, "message": "Relatório da manhã enviado para os grupos!"}
+
 @api_router.post("/admin/fix-categories")
 async def fix_duplicate_categories():
     """Fix duplicate categories (lowercase to proper case)"""
@@ -5071,7 +5167,14 @@ async def startup_db_client():
     # Schedule auto-ready check every minute
     scheduler.add_job(auto_mark_orders_ready, 'interval', minutes=1, id='auto_ready_orders')
     
-    # Schedule daily SALES report at 22:00 Brazil time (replaces low stock report)
+    # Schedule MORNING shift report at 14:00 Brazil time
+    scheduler.add_job(
+        send_morning_shift_report, 
+        CronTrigger(hour=14, minute=0, timezone=BRAZIL_TZ),
+        id='morning_shift_report'
+    )
+    
+    # Schedule daily SALES report at 22:00 Brazil time (end of day summary)
     scheduler.add_job(
         send_daily_sales_report, 
         CronTrigger(hour=22, minute=0, timezone=BRAZIL_TZ),
@@ -5080,7 +5183,7 @@ async def startup_db_client():
     
     scheduler.start()
     logger.info("Database initialized, default tenant ensured")
-    logger.info("Scheduler started - Auto-ready every 1 min, Daily sales report at 22:00")
+    logger.info("Scheduler started - Auto-ready every 1 min, Morning report at 14:00, Daily report at 22:00")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
