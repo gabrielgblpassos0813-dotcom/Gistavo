@@ -1,5 +1,5 @@
 """WhatsApp Green API Integration Routes"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 import httpx
 import os

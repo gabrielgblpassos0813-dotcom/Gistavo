@@ -1,7 +1,5 @@
 """Admin Routes for Data Management and Low Stock Alerts"""
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
 import pytz
 import logging

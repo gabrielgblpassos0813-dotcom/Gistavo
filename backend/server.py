@@ -5056,5 +5056,19 @@ async def shutdown_db_client():
     scheduler.shutdown()
     client.close()
 
-# Include router at the end to ensure all endpoints are registered
+# Import and configure new routers
+from routers import prazo, menu, stock, cash
+
+# Initialize dependencies for new routers
+prazo.set_dependencies(db, PRAZO_PASSWORD, send_whatsapp_message)
+menu.set_dependencies(db, verify_gestor)
+stock.set_dependencies(db)
+cash.set_dependencies(db, BRAZIL_TZ)
+
+# Include routers - api_router must be LAST to ensure new routers take priority
+api_router.include_router(prazo.router)
+api_router.include_router(menu.router)
+api_router.include_router(stock.router)
+api_router.include_router(cash.router)
+
 app.include_router(api_router)

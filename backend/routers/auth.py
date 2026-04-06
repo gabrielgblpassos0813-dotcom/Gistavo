@@ -2,7 +2,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime, timezone
 import uuid
 

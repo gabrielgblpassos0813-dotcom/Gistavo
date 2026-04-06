@@ -264,6 +264,18 @@ Sistema de múltiplas contas para isolar dados entre usuários.
 - ✅ **Frontend**: Cálculo automático da "Nova dívida" exibido dinamicamente
 - ✅ **Testado**: 12/12 testes backend passaram + verificação frontend completa
 
+### 06/04/2026 - Refatoração Backend (server.py) - FASE 1
+- ✅ **Criado**: `/app/backend/routers/prazo.py` (~414 linhas) - Endpoints de Prazo (clientes, pagamentos, créditos, abater)
+- ✅ **Criado**: `/app/backend/routers/menu.py` (~240 linhas) - Endpoints de Menu e Adicionais (gestor e cozinha)
+- ✅ **Criado**: `/app/backend/routers/stock.py` (~180 linhas) - Endpoints de Estoque
+- ✅ **Criado**: `/app/backend/routers/cash.py` (~410 linhas) - Endpoints de Caixa e Ajustes PIX
+- ✅ **Configurado**: Novos routers integrados ao `server.py` com injeção de dependências
+- ✅ **Testado**: Todos os endpoints dos novos routers funcionando corretamente (curl e screenshots)
+- ✅ **Corrigido**: Lint warnings nos novos routers (imports não utilizados, bare except)
+- **Pendente**: Remover endpoints duplicados do `server.py` (~1200 linhas podem ser removidas quando seguro)
+- **Pendente (Fase 2)**: Criar routers adicionais (gestor, orders, expenses)
+- **Total de código modular criado**: ~1.700 linhas em routers reutilizáveis
+
 ---
 
-## Atualizado em: 01 de Abril de 2026
+## Atualizado em: 06 de Abril de 2026
