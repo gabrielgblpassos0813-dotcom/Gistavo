@@ -3131,6 +3131,7 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
     """
     Abater (partial payment) on a prazo customer's debt.
     This reduces the total debt by the specified amount.
+    If the customer has credit, it will be reduced by the payment amount.
     The partial payment is recorded as a payment applied to the oldest orders first.
     """
     if abater_data.password != PRAZO_PASSWORD:
@@ -3154,6 +3155,26 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
     
     if abater_data.amount > total_debt:
         raise HTTPException(status_code=400, detail=f"Valor maior que a dívida total (R$ {total_debt:.2f})")
+    
+    # Check if customer has credit and reduce it
+    customer = await db.prazo_customers.find_one({
+        "name": {"$regex": f"^{customer_name}$", "$options": "i"}
+    })
+    
+    previous_credit = 0
+    new_credit = 0
+    credit_used = 0
+    
+    if customer and customer.get("credit", 0) > 0:
+        previous_credit = customer.get("credit", 0)
+        # Reduce credit by the payment amount
+        credit_used = min(abater_data.amount, previous_credit)
+        new_credit = previous_credit - credit_used
+        
+        await db.prazo_customers.update_one(
+            {"id": customer["id"]},
+            {"$set": {"credit": new_credit}}
+        )
     
     # Apply payment to orders, oldest first
     remaining_payment = abater_data.amount
@@ -3209,13 +3230,14 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         "store": customer_store,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "orders_updated": orders_updated,
-        "orders_paid_off": orders_paid_off
+        "orders_paid_off": orders_paid_off,
+        "credit_used": credit_used
     }
     await db.prazo_partial_payments.insert_one(payment_record)
     
     new_debt = total_debt - abater_data.amount
     
-    return {
+    response = {
         "success": True,
         "message": f"Pagamento de R$ {abater_data.amount:.2f} registrado!",
         "previous_debt": total_debt,
@@ -3224,6 +3246,15 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         "orders_updated": orders_updated,
         "orders_paid_off": orders_paid_off
     }
+    
+    # Add credit info if customer had credit
+    if credit_used > 0:
+        response["credit_used"] = credit_used
+        response["previous_credit"] = previous_credit
+        response["new_credit"] = new_credit
+        response["message"] = f"Pagamento de R$ {abater_data.amount:.2f} registrado! Crédito: R$ {previous_credit:.2f} → R$ {new_credit:.2f}"
+    
+    return response
 
 @api_router.post("/prazo/charge-all-whatsapp")
 async def charge_all_prazo_via_whatsapp(store: Optional[str] = None):
