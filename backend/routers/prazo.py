@@ -271,6 +271,7 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
     """
     Abater (partial payment) on a prazo customer's debt.
     This reduces the total debt by the specified amount.
+    If the customer has credit, it will be reduced by the payment amount.
     """
     if abater_data.password != PRAZO_PASSWORD:
         raise HTTPException(status_code=403, detail="Senha incorreta")
@@ -293,6 +294,26 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
     orders_updated = 0
     orders_fully_paid = 0
     customer_store = prazo_orders[0].get("store", "runner") if prazo_orders else "runner"
+    
+    # Check if customer has credit and reduce it
+    customer = await db.prazo_customers.find_one({
+        "name": {"$regex": f"^{customer_name}$", "$options": "i"}
+    })
+    
+    previous_credit = 0
+    new_credit = 0
+    credit_used = 0
+    
+    if customer and customer.get("credit", 0) > 0:
+        previous_credit = customer.get("credit", 0)
+        # Reduce credit by the payment amount
+        credit_used = min(abater_data.amount, previous_credit)
+        new_credit = previous_credit - credit_used
+        
+        await db.prazo_customers.update_one(
+            {"id": customer["id"]},
+            {"$set": {"credit": new_credit}}
+        )
     
     for order in prazo_orders:
         if remaining_to_apply <= 0:
@@ -341,7 +362,7 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
     
     new_total_debt = total_debt - abater_data.amount
     
-    return {
+    response = {
         "success": True,
         "message": f"Abatido R$ {abater_data.amount:.2f} da dívida de {customer_name}",
         "previous_debt": total_debt,
@@ -351,6 +372,15 @@ async def abater_prazo_debt(customer_name: str, abater_data: PrazoAbaterRequest)
         "orders_updated": orders_updated,
         "orders_fully_paid": orders_fully_paid
     }
+    
+    # Add credit info if customer had credit
+    if credit_used > 0:
+        response["credit_used"] = credit_used
+        response["previous_credit"] = previous_credit
+        response["new_credit"] = new_credit
+        response["message"] = f"Abatido R$ {abater_data.amount:.2f} da dívida de {customer_name}. Crédito atualizado: R$ {previous_credit:.2f} → R$ {new_credit:.2f}"
+    
+    return response
 
 @router.delete("/debt/{customer_name}")
 async def delete_prazo_debt(customer_name: str, password: str = None):
