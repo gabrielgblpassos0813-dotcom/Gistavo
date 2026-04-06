@@ -2303,136 +2303,148 @@ async def get_monthly_chart_data(month: int = None, year: int = None, username: 
 @api_router.get("/gestor/chart/daily")
 async def get_daily_chart_data(date: str = None, store: str = None, username: str = Depends(verify_gestor)):
     """Get hourly sales data for a specific day, optionally filtered by store"""
-    # Use Brazil timezone (Mogi das Cruzes, SP)
     brazil_tz = pytz.timezone('America/Sao_Paulo')
     now_brazil = datetime.now(brazil_tz)
     
     # Parse date or use today (in Brazil timezone)
     if date:
-        target_date = datetime.strptime(date, "%Y-%m-%d")
-        target_date = brazil_tz.localize(target_date)
+        try:
+            target_date = datetime.strptime(date, "%Y-%m-%d")
+            target_date = brazil_tz.localize(target_date)
+        except:
+            target_date = now_brazil
     else:
-        target_date = now_brazil.replace(hour=0, minute=0, second=0, microsecond=0)
+        target_date = now_brazil
     
+    day_str = target_date.strftime("%Y-%m-%d")
     day_start_brazil = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end_brazil = day_start_brazil + timedelta(days=1)
     
-    # Convert to UTC for database query
-    day_start_utc = day_start_brazil.astimezone(pytz.UTC)
-    day_end_utc = day_end_brazil.astimezone(pytz.UTC)
-    
-    # Build query
+    # Build base query
     query = {
         "status": {"$in": ["ready", "delivered", "received"]},
-        "created_at": {"$gte": day_start_utc.isoformat(), "$lt": day_end_utc.isoformat()}
+        "payment_method": {"$ne": "prazo"}
     }
     if store and store != "all":
         query["store"] = store
     
-    # Get all completed orders this day
-    orders = await db.orders.find(query, {"_id": 0, "created_at": 1, "total": 1, "store": 1, "items": 1, "payment_method": 1}).to_list(10000)
+    # Get ALL orders and filter in memory by Brazil timezone date
+    all_orders = await db.orders.find(query, {"_id": 0}).to_list(50000)
     
-    # Get manual PIX adjustments for this day
-    pix_adj_query = {
-        "removed": {"$ne": True},
-        "created_at": {"$gte": day_start_brazil.isoformat(), "$lt": day_end_brazil.isoformat()}
-    }
-    if store and store != "all":
-        pix_adj_query["store"] = store
-    pix_adjustments = await db.pix_adjustments.find(pix_adj_query, {"_id": 0}).to_list(1000)
+    orders = []
+    for order in all_orders:
+        try:
+            created_at = order.get("created_at", "")
+            if not created_at:
+                continue
+            order_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            order_time_brazil = order_time.astimezone(brazil_tz)
+            if order_time_brazil.strftime("%Y-%m-%d") == day_str:
+                order["_brazil_hour"] = order_time_brazil.hour
+                orders.append(order)
+        except Exception as e:
+            pass
+    
+    # Get PIX adjustments for this day
+    all_pix = await db.pix_adjustments.find({"removed": {"$ne": True}}, {"_id": 0}).to_list(10000)
+    pix_adjustments = []
+    for p in all_pix:
+        try:
+            created_at = p.get("created_at", "")
+            if not created_at:
+                continue
+            p_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            p_time_brazil = p_time.astimezone(brazil_tz)
+            if p_time_brazil.strftime("%Y-%m-%d") == day_str:
+                if not store or store == "all" or p.get("store") == store:
+                    pix_adjustments.append(p)
+        except:
+            pass
+    
     pix_manual_total = sum(a.get("amount", 0) for a in pix_adjustments)
     pix_manual_runner = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "runner")
     pix_manual_gym = sum(a.get("amount", 0) for a in pix_adjustments if a.get("store") == "gym-londres")
     
     # Get prazo payments for this day
-    prazo_query = {
-        "created_at": {"$gte": day_start_brazil.isoformat(), "$lt": day_end_brazil.isoformat()}
-    }
-    if store and store != "all":
-        prazo_query["store"] = store
-    prazo_payments = await db.prazo_payments.find(prazo_query, {"_id": 0}).to_list(1000)
-    prazo_partial_payments = await db.prazo_partial_payments.find(prazo_query, {"_id": 0}).to_list(1000)
-    all_prazo_payments = prazo_payments + prazo_partial_payments
+    all_prazo_full = await db.prazo_payments.find({}, {"_id": 0}).to_list(10000)
+    all_prazo_partial = await db.prazo_partial_payments.find({}, {"_id": 0}).to_list(10000)
     
-    # Group by hour (in Brazil timezone)
+    prazo_payments = []
+    for p in all_prazo_full + all_prazo_partial:
+        try:
+            created_at = p.get("created_at", "")
+            if not created_at:
+                continue
+            p_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            p_time_brazil = p_time.astimezone(brazil_tz)
+            if p_time_brazil.strftime("%Y-%m-%d") == day_str:
+                if not store or store == "all" or p.get("store") == store:
+                    p["_brazil_hour"] = p_time_brazil.hour
+                    prazo_payments.append(p)
+        except:
+            pass
+    
+    # Initialize hourly data
     hourly_data = {}
     for hour in range(24):
-        hour_str = f"{hour:02d}:00"
-        hourly_data[hour] = {"hour": hour_str, "total": 0, "count": 0, "runner": 0, "gym_londres": 0}
+        hourly_data[hour] = {"hour": f"{hour:02d}:00", "total": 0, "count": 0, "runner": 0, "gym_londres": 0}
     
-    # Payment breakdown (sem prazo)
+    # Payment breakdown
     by_payment = {"pix": 0, "debit": 0, "credit": 0, "cash": 0, "voucher": 0}
     
+    # Process orders
     for order in orders:
-        try:
-            order_time = datetime.fromisoformat(order.get("created_at", "").replace("Z", "+00:00"))
-            # Convert to Brazil timezone
-            order_time_brazil = order_time.astimezone(brazil_tz)
-            brazil_hour = order_time_brazil.hour
-            order_total = order.get("total", 0)
-            order_store = order.get("store", "")
-            payment_method = order.get("payment_method", "cash")
-            
-            # Prazo não soma nas vendas/gráficos
-            if payment_method == "prazo":
-                continue
-            
-            hourly_data[brazil_hour]["total"] += order_total
-            hourly_data[brazil_hour]["count"] += 1
-            
-            # Separate by store
-            if order_store == "runner":
-                hourly_data[brazil_hour]["runner"] += order_total
-            elif order_store == "gym-londres":
-                hourly_data[brazil_hour]["gym_londres"] += order_total
-            
-            # Payment method
-            by_payment[payment_method] = by_payment.get(payment_method, 0) + order_total
-        except:
-            pass
+        brazil_hour = order.get("_brazil_hour", 12)
+        order_total = order.get("total", 0)
+        order_store = order.get("store", "")
+        payment_method = order.get("payment_method", "cash")
+        
+        hourly_data[brazil_hour]["total"] += order_total
+        hourly_data[brazil_hour]["count"] += 1
+        
+        if order_store == "runner":
+            hourly_data[brazil_hour]["runner"] += order_total
+        elif order_store == "gym-londres":
+            hourly_data[brazil_hour]["gym_londres"] += order_total
+        
+        by_payment[payment_method] = by_payment.get(payment_method, 0) + order_total
     
-    # Add manual PIX to payment breakdown
+    # Add PIX manual adjustments
     by_payment["pix"] += pix_manual_total
     
-    # Add prazo payments to hourly data and payment breakdown
+    # Process prazo payments
+    prazo_total = 0
     prazo_total_runner = 0
     prazo_total_gym = 0
-    prazo_total = 0
-    for payment in all_prazo_payments:
-        try:
-            payment_time = datetime.fromisoformat(payment.get("created_at", "").replace("Z", "+00:00"))
-            payment_time_brazil = payment_time.astimezone(brazil_tz)
-            brazil_hour = payment_time_brazil.hour
-            amount = payment.get("amount", 0)
-            payment_store = payment.get("store", "runner")
-            payment_method = payment.get("payment_method", "cash")
-            
-            # Add to payment method totals
-            by_payment[payment_method] = by_payment.get(payment_method, 0) + amount
-            prazo_total += amount
-            
-            hourly_data[brazil_hour]["total"] += amount
-            hourly_data[brazil_hour]["count"] += 1
-            
-            if payment_store == "runner":
-                hourly_data[brazil_hour]["runner"] += amount
-                prazo_total_runner += amount
-            elif payment_store == "gym-londres":
-                hourly_data[brazil_hour]["gym_londres"] += amount
-                prazo_total_gym += amount
-        except:
-            pass
+    
+    for p in prazo_payments:
+        brazil_hour = p.get("_brazil_hour", 12)
+        amount = p.get("amount", 0)
+        p_store = p.get("store", "runner")
+        p_method = p.get("payment_method", "cash")
+        
+        prazo_total += amount
+        by_payment[p_method] = by_payment.get(p_method, 0) + amount
+        
+        hourly_data[brazil_hour]["total"] += amount
+        hourly_data[brazil_hour]["count"] += 1
+        
+        if p_store == "runner":
+            hourly_data[brazil_hour]["runner"] += amount
+            prazo_total_runner += amount
+        elif p_store == "gym-londres":
+            hourly_data[brazil_hour]["gym_londres"] += amount
+            prazo_total_gym += amount
     
     # Convert to sorted list
     chart_data = sorted(hourly_data.values(), key=lambda x: x["hour"])
     
-    # Calculate totals by store (including PIX adjustments and prazo payments)
     total_runner = sum(d["runner"] for d in chart_data) + pix_manual_runner
     total_gym = sum(d["gym_londres"] for d in chart_data) + pix_manual_gym
     
     return {
         "date": target_date.strftime("%d/%m/%Y"),
-        "date_iso": target_date.strftime("%Y-%m-%d"),
+        "date_iso": day_str,
         "store_filter": store or "all",
         "data": chart_data,
         "total_day": sum(d["total"] for d in chart_data) + pix_manual_total,
@@ -2440,8 +2452,8 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
         "pix_manual_adjustments": round(pix_manual_total, 2),
         "prazo_payments_total": round(prazo_total, 2),
         "by_store": {
-            "runner": {"total": round(total_runner, 2), "orders": sum(1 for o in orders if o.get("store") == "runner" and o.get("payment_method") != "prazo")},
-            "gym_londres": {"total": round(total_gym, 2), "orders": sum(1 for o in orders if o.get("store") == "gym-londres" and o.get("payment_method") != "prazo")}
+            "runner": {"total": round(total_runner, 2), "orders": len([o for o in orders if o.get("store") == "runner"])},
+            "gym_londres": {"total": round(total_gym, 2), "orders": len([o for o in orders if o.get("store") == "gym-londres"])}
         },
         "by_payment": {
             "pix": round(by_payment.get("pix", 0), 2),
@@ -2450,7 +2462,7 @@ async def get_daily_chart_data(date: str = None, store: str = None, username: st
             "dinheiro": round(by_payment.get("cash", 0), 2),
             "voucher": round(by_payment.get("voucher", 0), 2)
         },
-        "orders": [{"time": o.get("created_at", "")[-8:-3], "total": o.get("total", 0), "store": o.get("store", ""), "items": len(o.get("items", []))} for o in orders if o.get("payment_method") != "prazo"]
+        "orders": [{"time": o.get("created_at", "")[-14:-9] if o.get("created_at") else "", "total": o.get("total", 0), "store": o.get("store", "")} for o in orders[:50]]
     }
 
 @api_router.get("/gestor/chart/yearly")
@@ -4963,7 +4975,13 @@ async def debug_stock(store: str):
 @api_router.post("/admin/fix-zero-stock/{store}")
 async def fix_zero_stock(store: str):
     """Remove all stock records with zero or negative quantity (allows orders again)"""
-    # Find and delete all zero/negative stock records
+    # Find items with zero stock first
+    zero_items = await db.stock.find({
+        "store": store,
+        "quantity": {"$lte": 0}
+    }, {"_id": 0, "name": 1, "menu_item_id": 1, "quantity": 1}).to_list(1000)
+    
+    # Delete all zero/negative stock records
     result = await db.stock.delete_many({
         "store": store,
         "quantity": {"$lte": 0}
@@ -4972,7 +4990,46 @@ async def fix_zero_stock(store: str):
     return {
         "success": True,
         "deleted_count": result.deleted_count,
+        "deleted_items": zero_items,
         "message": f"Removidos {result.deleted_count} registros de estoque zerado/negativo"
+    }
+
+@api_router.get("/admin/check-stock-issues/{store}")
+async def check_stock_issues(store: str):
+    """Check for stock issues that could block orders"""
+    # Get all stock records
+    all_stock = await db.stock.find({"store": store}, {"_id": 0}).to_list(10000)
+    
+    # Get menu items
+    menu_items = await db.menu.find({"store": store}, {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+    menu_dict = {str(m.get("id")): m.get("name") for m in menu_items}
+    
+    issues = []
+    for s in all_stock:
+        qty = s.get("quantity", 0)
+        menu_id = s.get("menu_item_id")
+        name = s.get("name") or menu_dict.get(menu_id, f"ID {menu_id}")
+        
+        if qty <= 0:
+            issues.append({
+                "menu_item_id": menu_id,
+                "name": name,
+                "quantity": qty,
+                "issue": "ZERO_OR_NEGATIVE - Will block orders"
+            })
+        elif qty <= 2:
+            issues.append({
+                "menu_item_id": menu_id,
+                "name": name,
+                "quantity": qty,
+                "issue": "LOW_STOCK - Warning only"
+            })
+    
+    return {
+        "store": store,
+        "total_stock_records": len(all_stock),
+        "issues_count": len(issues),
+        "issues": issues
     }
 
 @app.on_event("startup")
