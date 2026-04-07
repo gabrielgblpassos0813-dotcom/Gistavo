@@ -111,7 +111,7 @@ export const GestorPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzedExpense, setAnalyzedExpense] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const EXPENSE_CATEGORIES = ['contador', 'fornecedor', 'mercado', 'suplementos', 'VT', 'Vivo', 'sistema', 'salário', 'outros'];
+  const EXPENSE_CATEGORIES = ['contador', 'fornecedor', 'mercado', 'salgados', 'suplementos', 'VT', 'Vivo', 'sistema', 'salário', 'outros'];
   
   // Expenses chart period filters
   const [expensesPeriod, setExpensesPeriod] = useState('month');
@@ -1939,7 +1939,7 @@ export const GestorPage = () => {
                   {expenses.length > 0 ? (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {expenses
-                        .filter(e => selectedCategory === 'all' || e.category === selectedCategory)
+                        .filter(e => selectedCategory === 'all' || e.category?.toLowerCase() === selectedCategory.toLowerCase())
                         .filter(e => expenseStoreFilter === 'all' || e.store === expenseStoreFilter || e.store === 'all')
                         .map((expense) => (
                         <div key={expense.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border">
