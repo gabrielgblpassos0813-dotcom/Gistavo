@@ -467,6 +467,11 @@ export const KitchenPage = () => {
   const [prazoPaymentMethod, setPrazoPaymentMethod] = useState('cash');
   const [abaterPaymentMethod, setAbaterPaymentMethod] = useState('cash');
   const [prazoSearchTerm, setPrazoSearchTerm] = useState(''); // Search term for prazo customers
+  
+  // Prazo payment history state
+  const [prazoPaymentHistory, setPrazoPaymentHistory] = useState([]);
+  const [showPrazoHistory, setShowPrazoHistory] = useState(false);
+  
   const prevOrderCount = useRef(0);
   const audioRef = useRef(null);
 
@@ -523,11 +528,12 @@ export const KitchenPage = () => {
         axios.get(`${API}/kitchen/menu/${store}`),  // Fetch menu items for this store
         axios.get(`${API}/prazo/customers?store=${store}`),  // Fetch prazo customers for this store
         axios.get(`${API}/cash/${store}/drawer`),  // Fetch cash drawer status
-        axios.get(`${API}/pix-adjustments/${store}`)  // Fetch PIX manual adjustments
+        axios.get(`${API}/pix-adjustments/${store}`),  // Fetch PIX manual adjustments
+        axios.get(`${API}/prazo/payments-history?store=${store}&limit=50`)  // Fetch prazo payment history
       ];
       
       const results = await Promise.all(requests);
-      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes, cashDrawerRes, pixAdjRes] = results;
+      const [ordersRes, statsRes, cashRes, stockRes, pixRes, historyRes, prazoDebtsRes, adicionaisRes, menuRes, prazoCustomersRes, cashDrawerRes, pixAdjRes, prazoHistoryRes] = results;
       
       const newOrders = ordersRes.data.orders.filter(o => !['delivered', 'pending_payment', 'payment_rejected'].includes(o.status));
       
@@ -574,6 +580,11 @@ export const KitchenPage = () => {
       // Set PIX adjustments
       if (pixAdjRes) {
         setPixAdjustments(pixAdjRes.data);
+      }
+      
+      // Set prazo payment history
+      if (prazoHistoryRes) {
+        setPrazoPaymentHistory(prazoHistoryRes.data.payments || []);
       }
       
       if (showToast) toast.success('Atualizado');
@@ -1510,6 +1521,9 @@ export const KitchenPage = () => {
             <div className="flex justify-between items-center flex-wrap gap-2">
               <h3 className="font-semibold text-sm">Clientes no Prazo</h3>
               <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="text-blue-600 border-blue-600" onClick={() => setShowPrazoHistory(!showPrazoHistory)}>
+                  <History className="h-3 w-3 mr-1" /> {showPrazoHistory ? 'Ocultar' : 'Histórico'}
+                </Button>
                 <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={handleChargeAllPrazo}>
                   <MessageCircle className="h-3 w-3 mr-1" /> Cobrar Todos
                 </Button>
@@ -1518,6 +1532,35 @@ export const KitchenPage = () => {
                 </Button>
               </div>
             </div>
+            
+            {/* Payment History Section */}
+            {showPrazoHistory && (
+              <div className="bg-green-50 rounded-xl p-3 border border-green-200">
+                <h4 className="font-semibold text-sm text-green-800 mb-2 flex items-center gap-1">
+                  <History className="h-4 w-4" /> Pagamentos Realizados ({prazoPaymentHistory.length})
+                </h4>
+                {prazoPaymentHistory.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {prazoPaymentHistory.map((payment, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white p-2 rounded border">
+                        <div>
+                          <p className="font-medium text-sm">{payment.customer_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {payment.type === 'partial_payment' ? 'Abatimento' : 'Pagamento Total'} • {payment.payment_method === 'cash' ? 'Dinheiro' : payment.payment_method === 'pix' ? 'PIX' : payment.payment_method === 'debit' ? 'Débito' : 'Crédito'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(payment.created_at).toLocaleDateString('pt-BR')} às {new Date(payment.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <span className="font-bold text-green-600">{formatCurrency(payment.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum pagamento registrado</p>
+                )}
+              </div>
+            )}
             
             {/* Search bar for prazo customers */}
             <div className="relative">
