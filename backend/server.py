@@ -5139,6 +5139,23 @@ async def fix_zero_stock(store: str):
         "message": f"Removidos {result.deleted_count} registros de estoque zerado/negativo"
     }
 
+@api_router.post("/admin/clear-withdrawals/{store}")
+async def clear_withdrawals(store: str):
+    """Clear all cash withdrawals for a store"""
+    # Get withdrawals before deleting
+    withdrawals = await db.cash_withdrawals.find({"store": store}, {"_id": 0}).to_list(1000)
+    total_amount = sum(w.get("amount", 0) for w in withdrawals)
+    
+    # Delete all withdrawals
+    result = await db.cash_withdrawals.delete_many({"store": store})
+    
+    return {
+        "success": True,
+        "deleted_count": result.deleted_count,
+        "total_amount_cleared": total_amount,
+        "message": f"Removidas {result.deleted_count} retiradas totalizando R$ {total_amount:.2f}"
+    }
+
 @api_router.get("/admin/check-stock-issues/{store}")
 async def check_stock_issues(store: str):
     """Check for stock issues that could block orders"""
