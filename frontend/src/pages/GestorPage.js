@@ -2511,29 +2511,27 @@ export const GestorPage = () => {
               </div>
               <div>
                 <Label>Categoria</Label>
-                <Select value={newExpense.category} onValueChange={(v) => setNewExpense({...newExpense, category: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select 
+                  value={newExpense.category} 
+                  onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {EXPENSE_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label>Loja</Label>
-                <Select value={newExpense.store} onValueChange={(v) => setNewExpense({...newExpense, store: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as Lojas</SelectItem>
-                    <SelectItem value="runner">Runner</SelectItem>
-                    <SelectItem value="gym-londres">GYM Londres</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select 
+                  value={newExpense.store} 
+                  onChange={(e) => setNewExpense({...newExpense, store: e.target.value})}
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="all">Todas as Lojas</option>
+                  <option value="runner">Runner</option>
+                  <option value="gym-londres">GYM Londres</option>
+                </select>
               </div>
             </div>
             <div>
