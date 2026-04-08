@@ -690,8 +690,45 @@ async def create_order(order_input: OrderCreate):
                 detail=f"Estoque insuficiente para {item.name}"
             )
     
+    # Check if customer has credit when using prazo
+    credit_used = 0
+    previous_credit = 0
+    new_credit = 0
+    final_total = order_input.total
+    is_paid_by_credit = False
+    
+    if order_input.payment_method == PaymentMethod.PRAZO and order_input.customer_name:
+        # Look for customer with credit
+        customer = await db.prazo_customers.find_one({
+            "name": {"$regex": f"^{order_input.customer_name}$", "$options": "i"}
+        })
+        
+        if customer and customer.get("credit", 0) > 0:
+            previous_credit = customer.get("credit", 0)
+            
+            if previous_credit >= order_input.total:
+                # Full payment from credit
+                credit_used = order_input.total
+                new_credit = previous_credit - credit_used
+                is_paid_by_credit = True
+            else:
+                # Partial payment from credit
+                credit_used = previous_credit
+                new_credit = 0
+                final_total = order_input.total - credit_used
+            
+            # Update customer credit
+            await db.prazo_customers.update_one(
+                {"id": customer["id"]},
+                {"$set": {"credit": new_credit}}
+            )
+    
     # Determine initial status based on payment method
     initial_status = OrderStatus.PENDING_PAYMENT if order_input.payment_method == PaymentMethod.PIX else OrderStatus.RECEIVED
+    
+    # If fully paid by credit, mark as ready
+    if is_paid_by_credit:
+        initial_status = OrderStatus.RECEIVED
     
     order = Order(
         store=order_input.store,
@@ -711,6 +748,19 @@ async def create_order(order_input: OrderCreate):
     doc['payment_method'] = doc['payment_method'].value
     doc['status'] = doc['status'].value
     
+    # Add credit payment info
+    if credit_used > 0:
+        doc['credit_used'] = credit_used
+        doc['previous_credit'] = previous_credit
+        doc['new_credit'] = new_credit
+        if is_paid_by_credit:
+            doc['paid_by_credit'] = True
+            doc['prazo_paid'] = True  # Mark as paid since credit covered it
+            doc['prazo_paid_at'] = datetime.now(timezone.utc).isoformat()
+        else:
+            # Partial credit, remaining goes to prazo debt
+            doc['partial_paid'] = credit_used
+    
     # Add PIX proof if provided
     if order_input.pix_proof:
         doc['pix_proof'] = order_input.pix_proof
@@ -726,7 +776,13 @@ async def create_order(order_input: OrderCreate):
                 upsert=False
             )
     
-    return {**doc, "_id": None}
+    response = {**doc, "_id": None}
+    
+    # Add credit info to response
+    if credit_used > 0:
+        response['credit_message'] = f"Crédito usado: R$ {credit_used:.2f} (Saldo: R$ {new_credit:.2f})"
+    
+    return response
 
 @api_router.post("/orders/sync")
 async def sync_offline_orders(orders: List[OrderCreate]):
