@@ -5155,6 +5155,27 @@ async def clear_low_stock_alerts():
     result = await db.low_stock_list.delete_many({})
     return {"success": True, "deleted_count": result.deleted_count, "message": "Lista de estoque baixo limpa"}
 
+@api_router.post("/admin/fix-payment-method/{payment_id}")
+async def fix_payment_method(payment_id: str, new_method: str = "pix"):
+    """Fix payment method for a prazo payment record"""
+    # Try in prazo_payments
+    result = await db.prazo_payments.update_one(
+        {"id": payment_id},
+        {"$set": {"payment_method": new_method}}
+    )
+    if result.modified_count > 0:
+        return {"success": True, "message": f"Método alterado para {new_method} em prazo_payments"}
+    
+    # Try in prazo_partial_payments
+    result = await db.prazo_partial_payments.update_one(
+        {"id": payment_id},
+        {"$set": {"payment_method": new_method}}
+    )
+    if result.modified_count > 0:
+        return {"success": True, "message": f"Método alterado para {new_method} em prazo_partial_payments"}
+    
+    return {"success": False, "message": "Pagamento não encontrado"}
+
 @api_router.get("/admin/stock-debug/{store}")
 async def debug_stock(store: str):
     """Debug stock issues - find items with zero or negative stock"""
